@@ -1,0 +1,59 @@
+-R . Braga
+#-install none
+
+factb/factb.v
+
+# Partial head function
+
+head/head.v
+
+# First in an unbounded sequence of iterations 
+
+ns/ns.v
+ns/ns_acc.v
+
+# foldl ???
+
+# Depth First Search
+
+dfs/dfs_graph_def.v
+dfs/dfs_fun_bar.v
+dfs/dfs_fun_acc.v
+dfs/dfs_fun.v            # Choice file between dfs/dfs_fun_[bar,acc].v
+dfs/dfs_fix.v
+dfs/dfs_partial_corr.v
+dfs/dfs_term.v
+
+# Paulson's normalization
+
+nm/nm_graph_def.v
+nm/nm_fun_bar.v
+nm/nm_fun_acc.v
+nm/nm_fun_mid.v
+nm/nm_fun.v              # Choice file between nm/nm_fun_[bar,acc].v
+nm/nm_fix.v
+nm/nm_props_def.v
+nm/nm_props_ir.v
+nm/nm_props_gr.v
+nm/nm_props.v            # Choice file between nm/nm_props_[ir,gr].v
+nm/nm_term.v
+
+# First Order Unification
+
+unif/unif_graph_def.v
+unif/unif_fun_bar.v
+unif/unif_fun_acc.v
+unif/unif_fun.v          # Choice file between unif/unif_fun_[bar,acc].v
+unif/unif_fix.v
+unif/unif_partial_corr.v
+unif/unif_term.v
+
+# Utilities
+
+utils/measure_induction.v
+utils/chains_induction.v
+utils/sincl_induction.v
+utils/induction.v
+utils/php.v
+
+
