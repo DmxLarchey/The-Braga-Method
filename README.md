@@ -26,9 +26,10 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 
 ## How do I set it up? ###
 
-* This code was developed under `Coq 8.11`.
-* Compile with `make all`.
-* This should also compile with `Coq 8.9+`
+* This code was developed under `Coq 8.11` but should compile from `Coq 8.9+`.
+* Compile with
+  - `cd theories`
+  - `make all`
 
 ## The list of examples:
 
@@ -39,7 +40,7 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
      let rec factb n = if n = 0 then 1 else n*factb (n-1)
 ```
 
-### [List `head`, a simple partial function](theories/head.v)
+### [List `head`, a simple partial function](theories/head/head.v)
 
 ```ocaml
     (* head : α list -> α *)
