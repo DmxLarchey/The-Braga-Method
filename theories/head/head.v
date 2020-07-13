@@ -1,3 +1,15 @@
+(**************************************************************)
+(*   Copyright                                                *)
+(*             Jean-François Monin           [+]              *)
+(*             Dominique Larchey-Wendling    [*]              *)
+(*                                                            *)
+(*            [+] Affiliation VERIMAG - Univ. Grenoble-Alpes  *)
+(*            [*] Affiliation LORIA -- CNRS                   *)
+(**************************************************************)
+(*      This file is distributed under the terms of the       *)
+(*         CeCILL v2 FREE SOFTWARE LICENSE AGREEMENT          *)
+(**************************************************************)
+
 Require Import List Extraction.
 
 Print False_rect.
