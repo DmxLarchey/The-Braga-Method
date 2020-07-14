@@ -49,6 +49,14 @@ Set Implicit Arguments.
 
 *)
 
+Tactic Notation "bool" "discr" := 
+  try match goal with 
+      | H: ?a = true , G: ?b = false |- _ => exfalso; now rewrite H in G 
+      end.
+
+Fact true_false x : x = true -> x = false -> False.
+Proof. intros; bool discr. Qed.
+
 Infix "∈" := In (at level 70, no associativity).
 Notation "x ∉ l" := (~ In x l) (at level 70, no associativity).
 Infix "⊆" := incl (at level 70, no associativity).
@@ -71,7 +79,13 @@ Hint Resolve mem_true_iff mem_false_iff : core.
 
 Corollary mem_iff x l :   (x ∈? l = true  <-> x ∈ l)
                        /\ (x ∈? l = false <-> x ∉ l).
-Proof. split; auto. Qed. 
+Proof. split; auto. Qed.
+
+Lemma not_mem_true x l (N : x ∉ l) (E : x ∈? l = true) : False.
+Proof. apply N, mem_iff, E. Qed.
+
+Lemma not_mem_false x l (N : x ∈ l) (E : x ∈? l = false) : False.
+Proof. revert N; apply mem_iff, E. Qed.
   
 (* We define the graph g_dfs of dfs corresponding to the 
    above recursive scheme which has 3 branches 

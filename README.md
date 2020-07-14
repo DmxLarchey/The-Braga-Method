@@ -26,10 +26,14 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 
 ## How do I set it up? ###
 
-* This code was developed under `Coq 8.11` but should compile from `Coq 8.9+`.
-* Compile with
+* This code was developed under Coq `8.11.1` but should compile from Coq `8.8+`
+  - It was tested positively on `8.8.2`, `8.9.1`, `8.10.1`, `8.11.1`
+  - Beware that prior to `8.11`, Coq needed dependent pattern matching to be _explicited_
+* Compile the Coq code with
   - `cd theories`
   - `make all`
+* Review the code with your favorite Coq editor
+* See below for a brief description of the examples, linked with Coq source files
 
 ## The list of examples:
 
@@ -49,22 +53,62 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
       | x::_ -> x
 ```
 
-### [Odd functions on lists](theories/foldl)
+### [Odd functions on lists](theories/listz)
 
 ```ocaml
-    (* with f : β -> α -> β 
+    (* consr : α list -> α -> α list *)
+    let rec consr l y = match l with
+      | [] -> y::[]
+      | x::l -> x::consr l y
+
+    (* rev_slow_std : α list -> α list *)
+    let rec rev_slow_std = function
+      | [] -> []
+      | x::l -> consr (rev_slow_std l) x
+
+    (* this is NOT a recursive type, just isomorphic to (α list*α) option *)
+    type α lr = Nilr | Consr of α list*α
+
+    (* l2r : α list -> α lr *)
+    let rec l2r = function
+      | [] -> Nilr
+      | x::l ->
+      (match l2r l with
+        | Nilr -> Consr ([],x)
+        | Consr (m, z) -> Consr (x::m,z))
+
+    (* zrev_slow : α list -> α list *)
+    let rec zrev_slow u = match l2r u with
+      | Nilr -> []
+      | Consr (u,x) -> x::zrev_slow u
+
+    (* rev_fast : α list -> α list -> α list *)
+    let rec rev_fast l u = match l with
+      | [] -> u
+      | x::l -> rev_fast l (x::u)
+
+    (* with f  : β -> α -> β 
         and b0 : β *)
   
     (* foldl_ref : α list -> β *)
     let rec foldl_ref l = match l2r l with
-      | Nilr -> b_0
+      | Nilr -> b0
       | Consr (u,z) -> f (foldl_ref u) z
+    
 ```
+
+* [`mark.v`](theories/listz/mark.v): Utility tactic for marking a term
+* [`compo.v`](theories/listz/compo.v): Notation for functions composition
+* [`lr.v`](theories/listz/lr.v): Lists decomposed from the tail
+* [`lr_rec.v`](theories/listz/lr_rec.v): _Fake match_ for lists decomposed from the tail
+* [`revert.v`](theories/listz/revert.v): Variants of _list reversal_
+* [`foldl.v`](theories/listz/foldl.v): Variants for _fold left_
 
 ### [Unbounded search until a Boolean condition `ns` and `nsa`](theories/ns)
 
 ```ocaml
-    (* with g : α -> α  
+    (* given a type α 
+       with g : α -> α  
         and b : α -> bool *)
 
     (* ns : α -> int *)
@@ -80,9 +124,11 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 ### [Depth-First Search on an infinite graph `dfs`](theories/dfs)
 
 ```ocaml
-    (* with succs : α -> α list
+    (* given a type α 
+       with succs : α -> α list
        and  ∈ : α -> α list -> bool *)
 
+    (* dfs : α list -> α list -> α list *)
     let rec dfs v = function
       | []   -> v
       | x::l -> if x ∈ v then dfs v l else dfs (x::v) (succs x @ l)
@@ -101,7 +147,7 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 ```ocaml
     type Ω = α | ω of Ω * Ω * Ω
  
-    (* nm : cexpr -> cexpr *)
+    (* nm : Ω -> Ω *)
     let rec nm = function
       | α                => α
       | ω (α,y,z)        => ω (α,nm y,nm z)

@@ -1,7 +1,9 @@
 (**************************************************************)
 (*   Copyright Dominique Larchey-Wendling [*]                 *)
+(*             Jean-François Monin        [+]                 *)
 (*                                                            *)
 (*                             [*] Affiliation LORIA -- CNRS  *)
+(*            [+] Affiliation VERIMAG - Univ. Grenoble-Alpes  *)
 (**************************************************************)
 (*      This file is distributed under the terms of the       *)
 (*         CeCILL v2 FREE SOFTWARE LICENSE AGREEMENT          *)
@@ -10,10 +12,23 @@
 Require Import List Utf8.
 
 Require Import dfs_graph_def.
+(* Require Import list_facts. *)
 
 Set Implicit Arguments.
 
 Unset Elimination Schemes.
+
+Definition is_cons X (l : list X) := 
+  match l with 
+    | _ :: _ => True 
+    | _ => False 
+  end.
+
+Definition head X (l : list X) : is_cons l -> X :=
+  match l with 
+    | x :: _ => λ _, x 
+    | _ => λ G, match G with end 
+  end.
 
 (* → λ ∀ ∃ *)
 
@@ -61,26 +76,52 @@ Section dfs.
      ensuring structural decrease
    *)
 
-  Lemma 𝜋_𝔻dfs_1 v x l : 𝔻dfs v (x::l) → x ∈? v = true → 𝔻dfs v l.
+  (* Explicit definitions *)
+  Let 𝜋_𝔻dfs_1_expl v x l (D : 𝔻dfs v (x::l)) : x ∈? v = true → 𝔻dfs v l :=
+    match D in 𝔻dfs v l return ∀G1, (head l G1 ∈? v) = true → 𝔻dfs v (tl l) with
+      | 𝔻dfs_1 v     => λ G1 G2, match G1 with end
+      | 𝔻dfs_2 _ _ D => λ G1 G2, D
+      | 𝔻dfs_3 _ N _ => λ G1 G2, match not_mem_true N G2 with end
+    end I.
+
+  Let 𝜋_𝔻dfs_2_expl v x l (D : 𝔻dfs v (x::l)) :
+                           x ∈? v = false → 𝔻dfs (x::v) (succs x ++ l) :=
+    match D in 𝔻dfs v l
+      return ∀G1, let x := head l G1 in x ∈? v = false → 𝔻dfs (x::v) (succs x ++ tl l) with
+    |  𝔻dfs_1 v     => λ G1 G2, match G1 with end
+    |  𝔻dfs_2 _ Y _ => λ G1 G2, match not_mem_false Y G2 with end
+    |  𝔻dfs_3 _ _ D => λ G1 G2, D
+    end I.
+
+  (* Automated mysterious definitions *)
+  Let 𝜋_𝔻dfs_1_myst v x l : 𝔻dfs v (x::l) → x ∈? v = true → 𝔻dfs v l.
   Proof.
     inversion 1; auto.
     intros E; exfalso; revert E; rewrite mem_true_iff; tauto.
-  Defined.
+  Qed.
 
-  Lemma 𝜋_𝔻dfs_2 v x l : 𝔻dfs v (x::l) → x ∈? v = false → 𝔻dfs (x::v) (succs x ++ l).
-  Proof. 
-    inversion 1; auto.
-    intros E; exfalso; revert E; rewrite mem_false_iff; tauto.
-  Defined.
+  Let 𝜋_𝔻dfs_2_myst v x l : 𝔻dfs v (x::l) 
+                          → x ∈? v = false 
+                          → 𝔻dfs (x::v) (succs x ++ l).
+  Proof. inversion 1; auto. Qed.
+
+  (* Pick up the mysterious or explicit version ... *)
+
+  Definition 𝜋_𝔻dfs_1 := 𝜋_𝔻dfs_1_myst.  (* _expl also works *)
+  Definition 𝜋_𝔻dfs_2 := 𝜋_𝔻dfs_2_expl.  (* _myst also works *)
 
   (* We separate the computational contents from the logical
      contents using the handy refine tactic. *)
 
-  (* → λ ∀ ∃ ↔ *)
+  (* The explicit dependent pattern matching
+
+     match l ** return 𝔻dfs _ l → _ ** with
+
+     ** ... ** added below, is not needed any more for Coq 8.11+ *)
 
   Let Fixpoint dfs_pwc v l (D : 𝔻dfs v l) {struct D} : {o | v⊔l ⟼d o}.
   Proof. refine(
-    match l with
+    match l return 𝔻dfs _ l → _ with
       | nil  => λ D,       exist _ v _
       | x::l => λ D, 
       match x ∈? v as b return x ∈? v = b → _ with

@@ -28,17 +28,25 @@ Section unif.
       with computational contents separated from logical contents *)
 
   (* → λ ∀ ∃ ↔ ∧ ∨ ≤ ¬ ≠ *)
+
+  (* The explicit dependent pattern matching 
+
+       match u as u' return u = u' → ** 𝔻unif u' _ → {r | u'⋉_ ⟼u r} ** with
+
+     ** ... ** added is not needed anymore for Coq version 8.11+ 
+
+     there are other cases as well *)
   
   Let Fixpoint unif_pwc u v (D : 𝔻unif u v) {struct D} : {r | u⋉v ⟼u r}.
   Proof. refine (
-    match u as u' return u = u' → _ with
+    match u as u' return u = u' → 𝔻unif u' _ → {r | u'⋉_ ⟼u r} with
       | µ x   => λ E D,
       match occ_check_dec x v with
         | left H  => exist _ None _
         | right H => exist _ (Some ((x,v)::∅)) _
       end
       | φ c => λ E D,
-      match v with
+      match v as v' return 𝔻unif _ v' → {r | _⋉v' ⟼u r} with
         | µ y => λ D, exist _ (Some ((y,u)::∅)) _
         | φ d => λ D,
         match eqC_dec c d with
@@ -48,7 +56,7 @@ Section unif.
         | m'⋄n' => λ D, exist _ None _
       end D
       | m⋄n  => λ E D,
-      match v with
+      match v as v' return 𝔻unif _ v' → {r | _⋉v' ⟼u r} with
         | µ y => λ D,
         match occ_check_dec y u with
           | left H  => exist _ None _
@@ -57,10 +65,10 @@ Section unif.
         | φ d => λ D, exist _ None _
         | m'⋄n' => λ D,
         let (r,Cr) := @unif_pwc m m' _
-        in match r with
+        in match r return _⋉_ ⟼u r → _ with
           | Some r => λ Cr,
           let (s,Cs) := @unif_pwc n⦃r⦄ n'⦃r⦄ _
-          in match s with
+          in match s return _⋉_ ⟼u s → _ with
             | Some s => λ Cs, exist _ (Some (r o s)) _
             | None   => λ Cs, exist _ None _
           end Cs

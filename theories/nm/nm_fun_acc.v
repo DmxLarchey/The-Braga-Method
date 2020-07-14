@@ -49,21 +49,25 @@ Notation 𝔻nm := d_nm.
 
 Section nm_pwc.
   
-    (** We give the proof term directly (programming style)
-        but it could be built progressively using refine tactics. 
-        Using refine is the recommended method. Obtaining the code 
-        directly is not for the faint of heart ... even though
-        it looks nice in the end. 
-        This proof term is a decoration of the OCaml code of nm 
-        with extra typing information consisting in:
-          1/ a pre-condition De : 𝔻 e which is a termination certificate (ie. d_nm_inv_[1-5])
-          2/ a post-condition relating the input e to the output n : e ⟼ n *)
+  (** We give the proof term directly (programming style)
+      but it could be built progressively using refine tactics. 
+      Using refine is the recommended method. Obtaining the code 
+      directly is not for the faint of heart ... even though
+      it looks nice in the end. 
+      This proof term is a decoration of the OCaml code of nm 
+      with extra typing information consisting in:
+        1/ a pre-condition De : 𝔻 e which is a termination certificate (ie. d_nm_inv_[1-5])
+        2/ a post-condition relating the input e to the output n : e ⟼ n *)
 
-  (* → λ ∀ ∃ ↔ ∧ ∨ *)
+  (* The explicit dependent pattern matching
+
+     match e ** return 𝔻nm e → _ ** with
+
+     ** ... ** added below, is not needed any more for Coq 8.11+ *)
 
   Let Fixpoint nm_pwc e (D : 𝔻nm e) {struct D} : {n | e ⟼n n}.
   Proof. refine( 
-    match e with
+    match e return 𝔻nm e → _ with
         | α               => λ _, 
                           exist _ α _
         | ω α y z         => λ D, 

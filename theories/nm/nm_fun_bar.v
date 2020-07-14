@@ -125,6 +125,12 @@ Section nm_pwc.
           1/ a pre-condition De : 𝔻 e which is a termination certificate (ie. prj_𝔻_nm_[1-5]), which is inlined in this version
           2/ a post-condition relating the input e to the output n : e ⟼ n *)
 
+  (* The explicit dependent pattern matching
+
+     match e ** return 𝔻nm e → _ ** with
+
+     ** ... ** added below, is not needed any more for Coq 8.11+ *)
+
   Let Fixpoint nm_pwc e (D : 𝔻nm e) {struct D} : {n | e ⟼n n}.
   Proof. refine( 
     match e return 𝔻nm e → _ with

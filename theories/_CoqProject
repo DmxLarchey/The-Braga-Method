@@ -12,7 +12,14 @@ head/head.v
 ns/ns.v
 ns/ns_acc.v
 
-# foldl ???
+# foldl and revert
+
+listz/mark.v
+listz/lr.v
+listz/lr_rec.v
+listz/foldl.v
+listz/compo.v
+listz/revert.v
 
 # Depth First Search
 

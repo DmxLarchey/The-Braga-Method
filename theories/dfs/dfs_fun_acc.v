@@ -30,11 +30,15 @@ Qed.
 
 Section dfs.
 
-  (* → λ ∀ ∃ ↔ *)
-  
+  (* The explicit dependent pattern matching
+
+     match l ** return 𝔻dfs _ l → _ ** with
+
+     ** ... ** added below, is not needed any more for Coq 8.11+ *)
+
   Let Fixpoint dfs_pwc v l (D : 𝔻dfs v l) {struct D} : {o | v⊔l ⟼d o}.
   Proof. refine(
-    match l with
+    match l return 𝔻dfs _ l → _ with
       | nil  => λ _,       exist _ v _
       | x::l => λ D, 
       match x ∈? v as b return x ∈? v = b → _ with
