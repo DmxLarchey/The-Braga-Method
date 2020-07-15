@@ -19,7 +19,7 @@ This repository is gallery of recursive algorithms extracted from Coq
 proofs serving as support for the chapter
 
 <div align="center">
-<i>The Braga Method: Extracting Certified Algorithms from Complex Recursive Schemes in Coq</i>
+<a href="http://www.loria.fr/~larchey/papers/the_braga_method.pdf"><i>The Braga Method: Extracting Certified Algorithms from Complex Recursive Schemes in Coq</i></a>
 
 by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean François-Monin](http://www-verimag.imag.fr/~monin)
 </div>
