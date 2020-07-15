@@ -27,7 +27,7 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 ## How do I set it up? ###
 
 * This code was developed under Coq `8.11.1` but should compile from Coq `8.6+`
-  - Compilation was tested and succeeds  on Coq `8.6.1`, `8.7.2`, `8.8.2`, `8.9.1`, `8.10.[12]`, `8.11.1`
+  - Compilation was tested and succeeds  on Coq `8.6.1`, `8.7.2`, `8.8.2`, `8.9.1`, `8.10.[12]`, `8.11.[12]`
   - Compilation *fails* on Coq `8.5pl3`
 * Get the code
   - either _clone_ the GitHub repo, e.g. `git clone https://github.com/DmxLarchey/The-Braga-Method.git`
