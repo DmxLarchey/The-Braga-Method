@@ -51,11 +51,31 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 
 ### [List `head`, a simple partial function](theories/head/head.v)
 
+Two variants of the `head : α list -> α` partial function:
+* one leading to _error_ on the invalid input `[]`
+* one entering an _infinite loop_ on the invalid input `[]`
+
 ```ocaml
-    (* head : α list -> α *)
+    (* head [] exits on error *)
     let head = function
       | [] -> assert false (* absurd case *)
       | x::_ -> x
+
+    (* head [] loops forever *)
+    let head = function
+      | [] -> let rec loop _ = loop () in loop ()
+      | x::_ -> x
+```
+
+* the first variant uses `False_rect : ∀ (X : Type), False → X` 
+* the second variant uses `False_elim : ∀ (X : Type), unit → False → X`
+
+```coq
+    Definition False_rect (X : Type) (f : False) : X := 
+      match f return X with end.
+
+    Definition False_elim (X : Type) : unit -> False -> X :=
+      fix loop x f := loop tt (match f : False with end).
 ```
 
 ### [Odd functions on lists](theories/listz)

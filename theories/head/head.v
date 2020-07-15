@@ -45,6 +45,7 @@ End head_partial.
 
 Extract Inductive unit => "unit" [ "()" ].
 Extract Inductive list => "list" [ "[]" "(::)" ].
+Extraction Inline False_elim.
 
 (* Extraction with an infinite loop *)
 Recursive Extraction head_False_elim.
