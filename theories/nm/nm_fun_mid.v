@@ -80,10 +80,9 @@ Section nm_pwc.
      obviously satisfies a universal property over branches *)
 
   (* An arbitrary value of type Ω *)
-  Let AV := α.
   Let 𝔻nm_shape_1 x := match x with ω α y z => True | _ => False end.
-  Let 𝔻nm_pred_1 x  := match x with ω α y z => y    | _ => AV    end.
-  Let 𝔻nm_pred_2 x  := match x with ω α y z => z    | _ => AV    end.
+  Let 𝔻nm_pred_1 x  := match x with ω α y z => y    | _ => x    end.
+  Let 𝔻nm_pred_2 x  := match x with ω α y z => z    | _ => x    end.
   Let res_inv1 x := 𝔻nm1' (𝔻nm_pred_1 x) (𝔻nm_pred_2 x).
   Local Definition inv_𝔻nm_1 {y z} (d : 𝔻nm (ω α y z)) : 𝔻nm1' y z :=
     match d in 𝔻nm x return 𝔻nm_shape_1 x -> res_inv1 x with
@@ -101,11 +100,11 @@ Section nm_pwc.
     end I.
     
   Let 𝔻nm_shape_2 x := match x with ω (ω a b c) y z => True | _ => False end.
-  Let 𝔻nm_pred_a x := match x with ω (ω a b c) y z => a | _ => AV  end.
-  Let 𝔻nm_pred_b x := match x with ω (ω a b c) y z => b | _ => AV  end.
-  Let 𝔻nm_pred_c x := match x with ω (ω a b c) y z => c | _ => AV  end.
-  Let 𝔻nm_pred_y x := match x with ω (ω a b c) y z => y | _ => AV  end.
-  Let 𝔻nm_pred_z x := match x with ω (ω a b c) y z => z | _ => AV  end.
+  Let 𝔻nm_pred_a x := match x with ω (ω a b c) y z => a | _ => x  end.
+  Let 𝔻nm_pred_b x := match x with ω (ω a b c) y z => b | _ => x  end.
+  Let 𝔻nm_pred_c x := match x with ω (ω a b c) y z => c | _ => x  end.
+  Let 𝔻nm_pred_y x := match x with ω (ω a b c) y z => y | _ => x  end.
+  Let 𝔻nm_pred_z x := match x with ω (ω a b c) y z => z | _ => x  end.
   Let res_inv2 x := 𝔻nm2' (𝔻nm_pred_a x) (𝔻nm_pred_b x) (𝔻nm_pred_c x) (𝔻nm_pred_y x) (𝔻nm_pred_z x).
   Local Definition inv_𝔻nm_2 {a b c y z} (d : 𝔻nm (ω (ω a b c) y z)) : 𝔻nm2' a b c y z :=
     match d in 𝔻nm x return 𝔻nm_shape_2 x → res_inv2 x with

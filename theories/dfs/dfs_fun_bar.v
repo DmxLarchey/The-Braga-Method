@@ -18,18 +18,6 @@ Set Implicit Arguments.
 
 Unset Elimination Schemes.
 
-Definition is_cons X (l : list X) := 
-  match l with 
-    | _ :: _ => True 
-    | _ => False 
-  end.
-
-Definition head X (l : list X) : is_cons l -> X :=
-  match l with 
-    | x :: _ => λ _, x 
-    | _ => λ G, match G with end 
-  end.
-
 (* → λ ∀ ∃ *)
 
 Inductive 𝔻dfs : list 𝓔 → list 𝓔 → Prop :=
@@ -77,21 +65,28 @@ Section dfs.
    *)
 
   (* Explicit definitions *)
+
+  (* is_cons replaced with 𝜋_𝔻dfs_shape *)
+  Let 𝜋_𝔻dfs_shape b v l :=
+    match l with
+      | nil  => False
+      | x::l => x ∈? v = b
+    end.
+
   Let 𝜋_𝔻dfs_1_expl v x l (D : 𝔻dfs v (x::l)) : x ∈? v = true → 𝔻dfs v l :=
-    match D in 𝔻dfs v l return ∀G1, (head l G1 ∈? v) = true → 𝔻dfs v (tl l) with
-      | 𝔻dfs_1 v     => λ G1 G2, match G1 with end
-      | 𝔻dfs_2 _ _ D => λ G1 G2, D
-      | 𝔻dfs_3 _ N _ => λ G1 G2, match not_mem_true N G2 with end
-    end I.
+    match D in 𝔻dfs v l return 𝜋_𝔻dfs_shape true v l → 𝔻dfs v (tl l) with
+      | 𝔻dfs_1 v     => λ G, match G with end
+      | 𝔻dfs_2 _ _ D => λ G, D
+      | 𝔻dfs_3 _ N _ => λ G, match not_mem_true N G with end
+    end.
 
   Let 𝜋_𝔻dfs_2_expl v x l (D : 𝔻dfs v (x::l)) :
                            x ∈? v = false → 𝔻dfs (x::v) (succs x ++ l) :=
-    match D in 𝔻dfs v l
-      return ∀G1, let x := head l G1 in x ∈? v = false → 𝔻dfs (x::v) (succs x ++ tl l) with
-    |  𝔻dfs_1 v     => λ G1 G2, match G1 with end
-    |  𝔻dfs_2 _ Y _ => λ G1 G2, match not_mem_false Y G2 with end
-    |  𝔻dfs_3 _ _ D => λ G1 G2, D
-    end I.
+    match D in 𝔻dfs v l return 𝜋_𝔻dfs_shape false v l → let x := hd x l in 𝔻dfs (x::v) (succs x ++ tl l) with
+    |  𝔻dfs_1 v     => λ G, match G with end
+    |  𝔻dfs_2 _ Y _ => λ G, match not_mem_false Y G with end
+    |  𝔻dfs_3 _ _ D => λ G, D
+    end.
 
   (* Automated mysterious definitions *)
   Let 𝜋_𝔻dfs_1_myst v x l : 𝔻dfs v (x::l) → x ∈? v = true → 𝔻dfs v l.

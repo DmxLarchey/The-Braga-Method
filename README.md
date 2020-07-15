@@ -26,18 +26,13 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 
 ## How do I set it up? ###
 
-* This code was developed under Coq `8.11.1` but should compile from Coq `8.6+`
-  - Compilation was tested and succeeds  on Coq `8.6.1`, `8.7.2`, `8.8.2`, `8.9.1`, `8.10.1`, `8.11.1`
-  - Compilation *fails* on Coq `8.5pl3`
-* Get the code
-  - either _clone_ the GitHub repo, e.g. `git clone https://github.com/DmxLarchey/The-Braga-Method.git`
-  - or _download_ the [`.zip`](https://github.com/DmxLarchey/The-Braga-Method/archive/main.zip) and `unzip` it
+* This code was developed under Coq `8.11.1` but should compile from Coq `8.8+`
+  - It was tested positively on `8.8.2`, `8.9.1`, `8.10.1`, `8.11.1`
+  - Beware that prior to `8.11`, Coq needed dependent pattern matching to be _explicited_
 * Compile the Coq code with
   - `cd theories`
   - `make all`
 * Review the code with your favorite Coq editor
-  - Beware that prior to `8.11`, Coq needed dependent pattern matches to be _explicited_
-  - So to be compatible with most versions of Coq, the code contains some explicit dependent pattern matches
 * See below for a brief description of the examples, linked with Coq source files
 
 ## The list of examples:

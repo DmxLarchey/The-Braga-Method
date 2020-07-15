@@ -118,12 +118,15 @@ Proof. apply listz_lz, 𝔻listz_all. Qed.
 Let is_Consr r : Prop :=
   match r with Consr u z => True | _ => False end.
 
-Let lrleft r : is_Consr r → list A :=
-  match r with Consr u z => λ _, u | _ => λ G, (match G with end) end.
+(* Version better than the one given in the paper:
+   using a default value instead of a guard with Prop/Type 
+   "harmless" (or "singleton") elim *)
+Let lrleft r : list A → list A :=
+  match r with Consr u z => λ _, u | _ => λ l, l end.
 
 (* Designed in 2 steps *)
 Let π_𝔻lr {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u:=
-  match D in 𝔻lr r return ∀ G, 𝔻lz (lrleft r G) with
+  match D in 𝔻lr r return is_Consr r → 𝔻lz (lrleft r u) with
   | 𝔻lr_Consr u0 z0 D0 => λ G, D0
   |  _                  => λ G, match G with end
   end I.
@@ -138,7 +141,7 @@ Definition π_𝔻lz_compact {u z} (D : 𝔻lz (u +: z)) : 𝔻lz u :=
  match D in 𝔻lz l return l = u+:z → _ with
  | 𝔻lz_1 _ Dr => λ G, 
    match same_by_l2r_consr G Dr in 𝔻lr r
-         return ∀ C, 𝔻lz (lrleft r C) with
+         return is_Consr r → 𝔻lz (lrleft r u) with
    | 𝔻lr_Consr u _ Du => λ G, Du
    |  _               => λ G, match G with end
    end (I : is_Consr (Consr u z))

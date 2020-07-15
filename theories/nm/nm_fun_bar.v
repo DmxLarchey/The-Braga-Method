@@ -61,9 +61,8 @@ Section nm_pwc.
      obviously satisfies a universal property over branches *)
 
   (* An arbitrary value of type Ω *)
-  Let AV := α.
   Let 𝔻nm_shape_1 x := match x with ω α y z => True | _ => False end.
-  Let 𝔻nm_pred_1 x  := match x with ω α y z => y    | _ => AV    end.
+  Let 𝔻nm_pred_1 x  := match x with ω α y z => y    | _ => x end.
   Local Definition prj_𝔻nm_1 {y z} (d : 𝔻nm (ω α y z)) : 𝔻nm y :=
     match d in 𝔻nm x return 𝔻nm_shape_1 x -> 𝔻nm (𝔻nm_pred_1 x) with
       | in_dnm_1 dy dz => λ _, dy 
@@ -87,21 +86,21 @@ Section nm_pwc.
      sustainability reasons *)
     
   Let 𝔻nm_shape_2 x := match x with ω (ω a b c) y z => True | _ => False end.
-  Let 𝔻nm_pred_3 x := match x with ω (ω a b c) y z => ω b y z | _ => AV  end.
+  Let 𝔻nm_pred_3 x := match x with ω (ω a b c) y z => ω b y z | _ => x end.
   Local Definition prj_𝔻nm_3 {a b c y z} (d : 𝔻nm (ω (ω a b c) y z)) : 𝔻nm (ω b y z) :=
     match d in 𝔻nm x return 𝔻nm_shape_2 x → 𝔻nm (𝔻nm_pred_3 x) with
       | in_dnm_2 db dc da => λ _, db 
       | _                 => λ G, match G with end 
     end I.
 
-  Let 𝔻nm_pred_4 x := match x with ω (ω a b c) y z => ω c y z | _ => AV  end.
+  Let 𝔻nm_pred_4 x := match x with ω (ω a b c) y z => ω c y z | _ => x end.
   Local Definition prj_𝔻nm_4 {a b c y z} (d : 𝔻nm (ω (ω a b c) y z)) : 𝔻nm (ω c y z) :=
     match d in 𝔻nm x return 𝔻nm_shape_2 x → 𝔻nm (𝔻nm_pred_4 x) with
       | in_dnm_2 db dc da => λ _, dc 
       | _                 => λ G, match G with end 
     end I.
 
-  Let 𝔻nm_pred_5 x := match x with ω (ω a b c) y z => a | _ => AV  end.
+  Let 𝔻nm_pred_5 x := match x with ω (ω a b c) y z => a | _ => x end.
   Local Definition prj_𝔻nm_5 {a b c y z} nb nc (d : 𝔻nm (ω (ω a b c) y z)) :
                                    ω b y z ⟼n nb
                                 →  ω c y z ⟼n nc
