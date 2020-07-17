@@ -35,6 +35,7 @@ by [Dominique Larchey-Wendling](http://www.loria.fr/~larchey) and [Jean Françoi
 * Compile the Coq code with
   - `cd theories`
   - `make all`
+  - `make` accepts restricted targets: `factb`, `head`, `listz`, `ns`, `dfs`, `nm`, `unif`
 * Review the code with your favorite Coq editor
   - Beware that prior to `8.11`, Coq needed dependent pattern matches to be _explicited_
   - So to be compatible with most versions of Coq, the code contains some explicit dependent pattern matches
