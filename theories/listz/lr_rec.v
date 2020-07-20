@@ -128,6 +128,20 @@ Let π_𝔻lr_he {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u:=
   |  _                  => λ G, match G with end
   end I.
 
+(** Another version w/o harmless elim Prop -> Type using False_elim *)
+
+Definition False_elim X : False -> X :=
+  fix loop f := loop (match f : False with end).
+
+Let lrleft_no_he r : is_Consr r → list A :=
+  match r with Consr u z => λ _, u | _ => λ G, False_elim _ G end.
+
+Let π_𝔻lr_no_he {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u:=
+  match D in 𝔻lr r return ∀ G, 𝔻lz (lrleft_no_he r G) with
+  | 𝔻lr_Consr u0 z0 D0 => λ G, D0
+  |  _                  => λ G, match G with end
+  end I.
+
 (* Version without "harmless" (or "singleton") Prop to Type elim *)
 (* Rationale: in a context where is_Consr is provable at call, 
    some u0 (and z0) are available as well ; then instead of an argument
