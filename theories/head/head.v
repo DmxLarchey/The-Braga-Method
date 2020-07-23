@@ -21,10 +21,10 @@ Print False_rect.
    it with an infinite loop. 
    It thus extracts to "let rec loop _ = loop () in loop ()" *)
 
-Definition False_elim (X : Type) : False -> X :=
-  (fix loop x f := loop tt (match f : False with end)) tt.
+Definition False_loop (X : Type) : False -> X :=
+  (fix loop _ f := loop tt (match f : False with end)) tt.
 
-Extraction Inline False_elim.
+Extraction Inline False_loop.
 
 (* This one avoids harmless elimination False : Prop into Type
    by first eliminating False : Prop into Empty_set : Type
@@ -33,10 +33,10 @@ Extraction Inline False_elim.
    is from Type to Type, it is not a harmless elim.
    Finally it extracts to an exception "assert false" *)
 
-Definition False_rect' (X : Type) (f : False) : X := 
-  match False_elim Empty_set f return X with end.
+Definition False_exc (X : Type) (f : False) : X := 
+  match False_loop Empty_set f return X with end.
 
-Extraction Inline False_rect'.
+Extraction Inline False_exc.
 
 Section head_partial.
 
@@ -56,15 +56,15 @@ Section head_partial.
       | x::_ => fun _ => x
     end.
 
-  Definition head_False_elim l : is_cons l -> X :=
+  Definition head_False_loop l : is_cons l -> X :=
     match l  with
-      | nil  => fun G => False_elim _ G
+      | nil  => fun G => False_loop _ G
       | x::_ => fun _ => x
     end.
 
-  Definition head_False_rect' l : is_cons l -> X :=
+  Definition head_False_exc l : is_cons l -> X :=
     match l  with
-      | nil  => False_rect' _
+      | nil  => False_exc _
       | x::_ => fun _ => x
     end.
 
@@ -73,11 +73,15 @@ End head_partial.
 Extract Inductive unit => "unit" [ "()" ].
 Extract Inductive list => "list" [ "[]" "(::)" ].
 
+Recursive Extraction False_exc.
+
 (* Extraction with an infinite loop *)
-Recursive Extraction head_False_elim.
+Recursive Extraction head_False_loop.
 (* Extraction with an exception BUT w/o harmless elimination *)
-Recursive Extraction head_False_rect'.
+Recursive Extraction head_False_exc.
 (* Extractions with an exception and harmless elimination *)
 Recursive Extraction head_match_end.
 Recursive Extraction head_False_rect.
+
+Recursive Extraction False_loop.
 
