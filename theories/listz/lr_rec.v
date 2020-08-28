@@ -115,22 +115,68 @@ Proof. apply listz_lz, 𝔻listz_all. Qed.
 (* -------------------------------------------------------------------------- *)
 (* Structural projection of 𝔻consr *)
 
-Let is_Consr r : Prop :=
+Let shape r : Prop :=
   match r with Consr u z => True | _ => False end.
 
-(* Version better than the one given in the paper:
-   using a default value instead of a guard with Prop/Type 
-   "harmless" (or "singleton") elim *)
-Let lrleft r : list A → list A :=
-  match r with Consr u z => λ _, u | _ => λ l, l end.
+(* Simplest version without "harmless" (or "singleton") Prop to Type elim *)
+(* Recovering the u component of r when r is Consr u z with an available default value:
+   the u given as input.
+   This makes no assumption on the type of u, and
+   z could be recovered in the same way if needed, using
+        let z := match r with Consr u z => z | _ => z end in
+*)
 
 (* Designed in 2 steps *)
-Let π_𝔻lr {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u:=
-  match D in 𝔻lr r return is_Consr r → 𝔻lz (lrleft r u) with
+Let π_𝔻lr {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u :=
+  match D in 𝔻lr r return
+        let u := match r with Consr u z => u | _ => u end 
+        in shape r → 𝔻lz u with
+  | 𝔻lr_Consr u z D => λ G, D
+  |  _              => λ G, match G with end
+  end I.
+
+(* Versions using an auxiliary function defined first, for recovering u from r *)
+(* Version using a "harmless" (or "singleton") Prop to Type elim *)
+
+Let lrleft_he r : shape r → list A :=
+  match r with Consr u z => λ _, u | _ => λ G, (match G with end) end.
+
+Let π_𝔻lr_he {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u :=
+  match D in 𝔻lr r return ∀ G, 𝔻lz (lrleft_he r G) with
   | 𝔻lr_Consr u0 z0 D0 => λ G, D0
   |  _                  => λ G, match G with end
   end I.
 
+(** Another version w/o harmless elim Prop -> Type using False_elim *)
+
+Definition False_elim X : False -> X :=
+  fix loop f := loop (match f : False with end).
+
+Let lrleft_no_he r : shape r → list A :=
+  match r with Consr u z => λ _, u | _ => λ G, False_elim _ G end.
+
+Let π_𝔻lr_no_he {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u :=
+  match D in 𝔻lr r return ∀ G, 𝔻lz (lrleft_no_he r G) with
+  | 𝔻lr_Consr u0 z0 D0 => λ G, D0
+  |  _                  => λ G, match G with end
+  end I.
+
+(* Finally, the simple version given first can be written in a similar way *)
+Let lrleft r : list A → list A :=
+  match r with Consr u z => λ _, u | _ => λ u0, u0 end.
+
+Let π_𝔻lr' {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u :=
+  match D in 𝔻lr r return ∀(G: shape r), 𝔻lz (lrleft r u) with
+  | 𝔻lr_Consr u0 z0 D0 => λ G, D0
+  |  _                  => λ G, match G with end
+  end I.
+
+(* In contrast, lrleft_he and lrleft_no_he cannot be inlined
+   because they require a G argument, whose type depends on r.
+*)
+
+
+(* Definitions of π_𝔻lz *)
 Definition π_𝔻lz {u z} (D : 𝔻lz (u +: z)) : 𝔻lz u :=
   match D in 𝔻lz l return l = u+:z → _ with
     𝔻lz_1 l Dr => λ G, π_𝔻lr (same_by_l2r_consr G Dr)
@@ -140,13 +186,13 @@ Definition π_𝔻lz {u z} (D : 𝔻lz (u +: z)) : 𝔻lz u :=
 Definition π_𝔻lz_compact {u z} (D : 𝔻lz (u +: z)) : 𝔻lz u :=
  match D in 𝔻lz l return l = u+:z → _ with
  | 𝔻lz_1 _ Dr => λ G, 
-   match same_by_l2r_consr G Dr in 𝔻lr r
-         return is_Consr r → 𝔻lz (lrleft r u) with
+   match same_by_l2r_consr G Dr in 𝔻lr r return
+         let u := match r with Consr u z => u | _ => u end in
+         shape r → 𝔻lz u with
    | 𝔻lr_Consr u _ Du => λ G, Du
    |  _               => λ G, match G with end
-   end (I : is_Consr (Consr u z))
+   end (I : shape (Consr u z))
  end eq_refl.
-
 
 (* -------------------------------------------------------------------------- *)
 
