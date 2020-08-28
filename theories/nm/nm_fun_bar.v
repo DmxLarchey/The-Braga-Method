@@ -49,8 +49,7 @@ Section nm_pwc.
         
   (* First we show how to get prj_𝔻nm_1 in a tightly controlled 
      way by hand writting its term using a variant of small inversions
-       "Proof Trick: Small Inversions" 
-                by J.-F. Monin (Second Coq Workshop 2010)
+       
        "Handcrafted Inversions Made Operational on Operational Semantics"
                 by JF. Monin and X. Shi  (ITP 2013)
        
@@ -58,15 +57,14 @@ Section nm_pwc.
        
      Looking at the code of prj_𝔻nm_1 below, it is obvious that
      every branch produces a sub-term of the input term.
-     Notice that the "match G with end" has ZERO branches hence
+     Notice that the "match F with end" has ZERO branches hence
      obviously satisfies a universal property over branches *)
 
-  Let shape_1 x := match x with ω α y z => True | _ => False end.
-
+  (* An arbitrary value of type Ω *)
+  Let 𝔻nm_shape_1 x := match x with ω α y z => True | _ => False end.
+  Let 𝔻nm_pred_1 x  := match x with ω α y z => y    | _ => x end.
   Local Definition prj_𝔻nm_1 {y z} (d : 𝔻nm (ω α y z)) : 𝔻nm y :=
-    match d in 𝔻nm x return
-          let y := match x with ω α y z => y  | _ => y end 
-          in  shape_1 x -> 𝔻nm y with
+    match d in 𝔻nm x return 𝔻nm_shape_1 x -> 𝔻nm (𝔻nm_pred_1 x) with
       | in_dnm_1 dy dz => λ _, dy 
       | _              => λ G, match G with end 
     end I.
@@ -87,33 +85,31 @@ Section nm_pwc.
   (* For the remaining projections we stick to small inversions style for
      sustainability reasons *)
     
-  Let shape_2 x := match x with ω (ω a b c) y z => True | _ => False end.
-  
+  Let 𝔻nm_shape_2 x := match x with ω (ω a b c) y z => True | _ => False end.
+  Let 𝔻nm_pred_3 x := match x with ω (ω a b c) y z => ω b y z | _ => x end.
   Local Definition prj_𝔻nm_3 {a b c y z} (d : 𝔻nm (ω (ω a b c) y z)) : 𝔻nm (ω b y z) :=
-    match d in 𝔻nm x return
-          let ωbyz := match x with ω (ω a b c) y z => ω b y z | _ => ω b y z end 
-          in  shape_2 x → 𝔻nm ωbyz with
+    match d in 𝔻nm x return 𝔻nm_shape_2 x → 𝔻nm (𝔻nm_pred_3 x) with
       | in_dnm_2 db dc da => λ _, db 
       | _                 => λ G, match G with end 
     end I.
 
+  Let 𝔻nm_pred_4 x := match x with ω (ω a b c) y z => ω c y z | _ => x end.
   Local Definition prj_𝔻nm_4 {a b c y z} (d : 𝔻nm (ω (ω a b c) y z)) : 𝔻nm (ω c y z) :=
-    match d in 𝔻nm x return
-          let ωcyz := match x with ω (ω a b c) y z => ω c y z | _ => ω c y z end 
-          in shape_2 x → 𝔻nm ωcyz with
+    match d in 𝔻nm x return 𝔻nm_shape_2 x → 𝔻nm (𝔻nm_pred_4 x) with
       | in_dnm_2 db dc da => λ _, dc 
       | _                 => λ G, match G with end 
     end I.
 
+  Let 𝔻nm_pred_5 x := match x with ω (ω a b c) y z => a | _ => x end.
   Local Definition prj_𝔻nm_5 {a b c y z} nb nc (d : 𝔻nm (ω (ω a b c) y z)) :
                                    ω b y z ⟼n nb
                                 →  ω c y z ⟼n nc
                                 →  𝔻nm (ω a nb nc) :=
     match d in 𝔻nm x return
-          let ωbyz := match x with ω (ω a b c) y z => ω b y z | _ => ω b y z end in
-          let ωcyz := match x with ω (ω a b c) y z => ω c y z | _ => ω c y z end in
-          let a    := match x with ω (ω a b c) y z => a       | _ => a       end 
-          in shape_2 x  →  ωbyz ⟼n nb  →  ωcyz ⟼n nc  →  𝔻nm (ω a nb nc) with
+           (**) 𝔻nm_shape_2 x
+             → 𝔻nm_pred_3 x ⟼n nb
+             → 𝔻nm_pred_4 x ⟼n nc
+             → 𝔻nm (ω (𝔻nm_pred_5 x) nb nc) with
       | in_dnm_2 db dc da => λ _, da nb nc
       | _                 => λ G, match G with end
     end I.

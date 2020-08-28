@@ -64,38 +64,28 @@ Section dfs.
      ensuring structural decrease
    *)
 
-  (* Explicit definitions, 
-     with systematic way for getting the components of 
-     the list in argument of D *)
+  (* Explicit definitions *)
 
-  (* is_cons replaced with shape *)
-  Let shape b v l :=
+  (* is_cons replaced with 𝜋_𝔻dfs_shape *)
+  Let 𝜋_𝔻dfs_shape b v l :=
     match l with
       | nil  => False
       | x::l => x ∈? v = b
     end.
 
-  (* Getting components of l0 at the deepest place *)
-  (* Be careful to scopes *)
-  Let 𝜋_𝔻dfs_1_expl v x l (D : 𝔻dfs v (x::l)) :
-                    x ∈? v = true → 𝔻dfs v l :=
-    match D in 𝔻dfs v l0 return
-          let l := match l0 with x::l => l | _ => l end 
-          in  shape true v l0 → 𝔻dfs v l with
+  Let 𝜋_𝔻dfs_1_expl v x l (D : 𝔻dfs v (x::l)) : x ∈? v = true → 𝔻dfs v l :=
+    match D in 𝔻dfs v l return 𝜋_𝔻dfs_shape true v l → 𝔻dfs v (tl l) with
       | 𝔻dfs_1 v     => λ G, match G with end
       | 𝔻dfs_2 _ _ D => λ G, D
       | 𝔻dfs_3 _ N _ => λ G, match not_mem_true N G with end
     end.
 
   Let 𝜋_𝔻dfs_2_expl v x l (D : 𝔻dfs v (x::l)) :
-                    x ∈? v = false → 𝔻dfs (x::v) (succs x ++ l) :=
-    match D in 𝔻dfs v l0 return
-          let x := match l0 with x::l => x | _ => x end in
-          let l := match l0 with x::l => l | _ => l end 
-          in  shape false v l0 → 𝔻dfs (x::v) (succs x ++ l) with
-      | 𝔻dfs_1 v     => λ G, match G with end
-      | 𝔻dfs_2 _ Y _ => λ G, match not_mem_false Y G with end
-      | 𝔻dfs_3 _ _ D => λ G, D
+                           x ∈? v = false → 𝔻dfs (x::v) (succs x ++ l) :=
+    match D in 𝔻dfs v l return 𝜋_𝔻dfs_shape false v l → let x := hd x l in 𝔻dfs (x::v) (succs x ++ tl l) with
+    |  𝔻dfs_1 v     => λ G, match G with end
+    |  𝔻dfs_2 _ Y _ => λ G, match not_mem_false Y G with end
+    |  𝔻dfs_3 _ _ D => λ G, D
     end.
 
   (* Automated mysterious definitions *)
@@ -112,7 +102,7 @@ Section dfs.
 
   (* Pick up the mysterious or explicit version ... *)
 
-  Definition 𝜋_𝔻dfs_1 := 𝜋_𝔻dfs_1_expl.  (* _myst also works *)
+  Definition 𝜋_𝔻dfs_1 := 𝜋_𝔻dfs_1_myst.  (* _expl also works *)
   Definition 𝜋_𝔻dfs_2 := 𝜋_𝔻dfs_2_expl.  (* _myst also works *)
 
   (* We separate the computational contents from the logical
@@ -134,7 +124,7 @@ Section dfs.
              let (o,Go) := dfs_pwc v l _
              in            exist _ o _
         | false => λ E, 
-             let (o,Go) := dfs_pwc (x::v) (succs x++l) _
+             let (o,Go) := dfs_pwc (x::v) (succs x ++ l) _
              in            exist _ o _
       end eq_refl
     end D).
