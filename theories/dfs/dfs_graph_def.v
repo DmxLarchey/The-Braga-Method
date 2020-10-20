@@ -20,8 +20,8 @@ Set Implicit Arguments.
        | []   -> v
        | x::l -> if x ∈ v then dfs v l else dfs (x::v) (succs x @ l)
      
-  where succs : 𝓔 -> 𝓔 list
-  and       ∈ : 𝓔 -> 𝓔 list -> bool
+  where succs : 𝓥  -> 𝓥  list
+  and       ∈ : 𝓥  -> 𝓥  list -> bool
 
   Termination over a infinite domain is ensured by the
   existence of a finite invariant, ie closed under
@@ -37,7 +37,7 @@ Set Implicit Arguments.
   Termination (represented by d_dfs v l) is delayed afterwards 
   where it is much easier to establish.
 
-  Inductive d_dfs : list 𝓔 -> list 𝓔 -> Prop :=
+  Inductive d_dfs : list 𝓥  -> list 𝓥  -> Prop :=
     | d_dfs_0 : forall v,                                              d_dfs v nil
     | d_dfs_1 : forall v x l,   In x v -> d_dfs     v            l  -> d_dfs v (x::l)
     | d_dfs_2 : forall v x l, ~ In x v -> d_dfs (x::v) (succs x++l) -> d_dfs v (x::l)
@@ -61,9 +61,9 @@ Infix "∈" := In (at level 70, no associativity).
 Notation "x ∉ l" := (~ In x l) (at level 70, no associativity).
 Infix "⊆" := incl (at level 70, no associativity).
 
-Parameters  (𝓔 : Type)
-            (mem : 𝓔 -> list 𝓔 -> bool)
-            (succs : 𝓔 -> list 𝓔).
+Parameters  (𝓥  : Type)
+            (mem : 𝓥  → list 𝓥  → bool)
+            (succs : 𝓥  → list 𝓥 ).
 
 Infix "∈?" := mem (at level 70, no associativity).
 
@@ -100,7 +100,7 @@ Proof. revert N; apply mem_iff, E. Qed.
 
 Reserved Notation "v '⊔' l '⟼d' o" (at level 70, format "v  ⊔  l  ⟼d o").
 
-Inductive 𝔾dfs : list 𝓔 -> list 𝓔 -> list 𝓔 -> Prop := 
+Inductive 𝔾dfs : list 𝓥 → list 𝓥 → list 𝓥 -> Prop := 
   | in_gdfs_0 : ∀ v, v ⊔ nil ⟼d v
   | in_gdfs_1 : ∀ v x l o, x ∈ v → v ⊔ l ⟼d o → v ⊔ x::l ⟼d o
   | in_gdfs_2 : ∀ v x l o, x ∉ v → x::v ⊔ succs x++l ⟼d o → v ⊔ x::l ⟼d o

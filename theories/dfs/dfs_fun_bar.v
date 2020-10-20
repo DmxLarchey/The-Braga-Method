@@ -20,7 +20,7 @@ Unset Elimination Schemes.
 
 (* → λ ∀ ∃ *)
 
-Inductive 𝔻dfs : list 𝓔 → list 𝓔 → Prop :=
+Inductive 𝔻dfs : list 𝓥 → list 𝓥 → Prop :=
   | 𝔻dfs_1 : ∀ v,        𝔻dfs v nil
   | 𝔻dfs_2 : ∀ v x l,    x ∈ v 
                        → 𝔻dfs v l 
