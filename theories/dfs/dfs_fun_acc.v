@@ -15,7 +15,7 @@ Set Implicit Arguments.
 
 Reserved Notation "x '<sc' y" (at level 70).
 
-Inductive dfs_sub_calls : (list 𝓔 * list 𝓔) → (list 𝓔 * list 𝓔) -> Prop :=
+Inductive dfs_sub_calls : (list 𝓥 * list 𝓥) → (list 𝓥 * list 𝓥) -> Prop :=
   | in_dsc_0 : ∀ v x l, x ∈ v → (v,l) <sc (v,x::l)
   | in_dsc_1 : ∀ v x l, x ∉ v → (x::v,succs x++l) <sc (v,x::l)
 where "x '<sc' y" := (dfs_sub_calls x y).

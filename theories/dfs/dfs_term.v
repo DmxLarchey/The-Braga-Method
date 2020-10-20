@@ -138,14 +138,14 @@ Section finite_domain.
 
   (* In particular, if 𝓔 is finite then dfs terminate *)
  
-  Hypothesis (H𝓔 : ∃l𝓔, ∀x:𝓔, x ∈ l𝓔).
+  Hypothesis (H𝓥 : ∃l𝓥, ∀x:𝓥, x ∈ l𝓥).
 
   Fact 𝔻dfs_total v l : 𝔻dfs v l.
   Proof. 
     apply 𝔻dfs_domain.
-    destruct H𝓔 as (l𝓔 & ?).
+    destruct H𝓥 as (l𝓥 & ?).
     unfold dfs_invariant_t, incl.
-    exists l𝓔; auto.
+    exists l𝓥; auto.
   Qed.
 
 End finite_domain.
@@ -155,7 +155,7 @@ Section non_termination.
   (* We assume as an example that 𝓔 is isomorphic to nat
      and succs x = [S x] *)
 
-  Hypothesis (f : nat -> 𝓔) (g : 𝓔 -> nat) 
+  Hypothesis (f : nat -> 𝓥) (g : 𝓥 -> nat) 
              (Hfg : forall x, f (g x) = x)
              (Hgf : forall n, g (f n) = n)
              (Hsuccs : forall x, succs x = f (S (g x)) :: nil).

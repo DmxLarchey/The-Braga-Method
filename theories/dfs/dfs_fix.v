@@ -34,7 +34,7 @@ Section dfs_ind.
   (* We can retrieve an non-dependent induction principle for dfs 
      which is very similar to the induction principle of g_dfs *)
 
-  Variables (P : list 𝓔 → list 𝓔 → list 𝓔 → Prop)
+  Variables (P : list 𝓥 → list 𝓥 → list 𝓥 → Prop)
             (HP1 : ∀ v, P v nil v)
             (HP2 : ∀ v x l r, x ∈ v → P v l r → P v (x::l) r)
             (HP3 : ∀ v x l r, x ∉ v → P (x::v) (succs x ++ l) r → P v (x::l) r).
