@@ -31,6 +31,9 @@ dfs/dfs_fix.v
 dfs/dfs_partial_corr.v
 dfs/dfs_term.v
 
+# Depth First Search nested with fold_left (cf Xavier Leroy CoqPL 2024)
+dfs_xleroy/dfs_xleroy.v
+
 # Paulson's normalization
 
 nm/nm_graph_def.v
