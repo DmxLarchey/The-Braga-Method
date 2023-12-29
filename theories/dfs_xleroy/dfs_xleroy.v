@@ -258,23 +258,24 @@ Section dfs.
     + now intros (? & ?%Gdfs_Ddfs).
   Qed.
 
-  Let dfs_linvariant_t a l i := 
+  Let dfs_linvariant a l i := 
     a ⊆ i ∧ l ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
 
-  Definition dfs_invariant_t a x i := 
+  Definition dfs_invariant a x i := 
     a ⊆ i ∧ x ∈ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
 
   Hint Resolve incl_nil_l incl_refl incl_tran incl_cons : core.
 
-  (* This is partial correctness *)
-  Theorem dfs_invariant a x o :
+  (* This is partial correctness: the output of dfs, if it exists,
+     is a smallest invariant *)
+  Theorem Gdfs_invariant a x o :
        Gdfs a x o
-     → dfs_invariant_t a x o
-     ∧ ∀i, dfs_invariant_t a x i → o ⊆ i.
+     → dfs_invariant a x o
+     ∧ ∀i, dfs_invariant a x i → o ⊆ i.
   Proof.
     revert a x o.
     apply Gdfs_ind with
-      (P := λ l a o, dfs_linvariant_t a l o ∧ ∀i, dfs_linvariant_t a l i → o ⊆ i).
+      (P := λ l a o, dfs_linvariant a l o ∧ ∀i, dfs_linvariant a l i → o ⊆ i).
     + intros a; repeat split; auto.
       now intros i (H1 & _).
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
@@ -320,9 +321,9 @@ Section dfs.
     (** We study a more general termination criteria, THE MOST
         GENERAL, using partial correctness *)
  
-    Theorem Ddfs_domain a x i : dfs_invariant_t a x i → Ddfs a x.
+    Theorem Ddfs_domain a x i : dfs_invariant a x i → Ddfs a x.
     Proof.
-      intros (H1 & H2 & H3).
+      intros H0; generalize H0; intros (H1 & H2 & H3); clear H0.
       revert a H1 x H2 H3.
   
       induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)); intros Ha. 
@@ -336,16 +337,20 @@ Section dfs.
             apply IHa; trivial.
             + split; eauto.
             + intros z []%Hax; eauto. }
+        clear IHa.
         destruct (Hax _ Hx) as [ | Hsucc ]; [ tauto | ].
-        clear IHa Hax H Ha Hx.
-        revert IH; generalize (x::a); intros m IHm.
+        cut (x::a ⊆ i); auto.
+        clear H Ha Hx.
+        revert IH; generalize (x::a); intros m IHm Hm.
         revert Hsucc; generalize (succ x); clear x a.
-        induction l as [ | x l IHl ]; intros Hl.
+        intros l Hl; revert Hl m Hm IHm.
+        induction l as [ | x l IHl ]; intros Hl m Hm IHm.
         * constructor 1.
         * constructor 2.
-          - apply IHm; auto; red; auto.
-            admit.
-          - intros o (H1 & H2)%dfs_invariant.
+          - apply IHm; auto.
+          - apply incl_cons_inv in Hl as [].
+            intros o ((? & ? & ?) & ?)%dfs_invariant; apply IHl; eauto.
+            apply H4; repeat split; auto.
     Admitted. 
 
 
