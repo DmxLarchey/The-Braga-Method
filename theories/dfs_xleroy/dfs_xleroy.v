@@ -7,18 +7,21 @@
 (*         CeCILL v2.1 FREE SOFTWARE LICENSE AGREEMENT        *)
 (**************************************************************)
 
-(** Extraction of dfs nested with foldleft
+(** Extraction of dfs using dfs_acc nested with foldleft
 
     let rec foldleft f l x =
       match l with
       | []   -> x
       | y::l -> foldleft f l (f x y);;
 
-    (* in_dec tests whether x belongs to a or not *)
-    let rec dfs in_dec succ a x =
+    (* in_dec : 'a -> 'a list -> bool tests whether x belongs to a or not 
+       succ : 'a -> 'a list computes successors *)
+    let rec dfs_acc in_dec succ a x =
       match in_dec x a with
       | true  -> a
-      | false -> foldleft (dfs succ) (succ x) (x::a).
+      | false -> foldleft (dfs_acc in_dec succ) (succ x) (x::a).
+
+    let dfs in_dec succ x = dfs_acc in_dec succ [] x
 
 *)
 
@@ -94,45 +97,23 @@ Section foldleft.
     | Dfl_cons _ d => λ _, d
     end.
 
-  (* Beware that foldleft_pwc is by structural induction on the domain
+  (* Beware that foldleft is by structural induction on the domain
      predicate, not on l !! Possibly we could do by induction on l *)
-  Fixpoint foldleft_pwc l a (d : Dfoldleft l a) {struct d} : {o | Gfoldleft l a o}.
+  Fixpoint foldleft l a (d : Dfoldleft l a) {struct d} : {o | Gfoldleft l a o}.
   Proof.
     refine (match l return Dfoldleft l _ → _ with
     | []   => λ _, exist _ a _
     | y::m => λ d, let (b,hb) := f a y (Dfoldleft_pi1 d I)                 in
-                   let (o,ho) := foldleft_pwc m b (Dfoldleft_pi2 d I _ hb) in
+                   let (o,ho) := foldleft m b (Dfoldleft_pi2 d I _ hb) in
                    exist _ o _
     end d); econstructor; eauto.
   Defined.
-
-  (*
-
-  Fact Dfoldleft_iff_Gfoldleft l a : Dfoldleft l a ↔ ∃o, Gfoldleft l a o.
-  Proof.
-    split.
-    + intros (o & ?)%foldleft_pwc; now exists o.
-    + intros (o & H); revert H.
-      induction 1 as [ | a y l b o1 H1 H2 IH2 ]; econstructor; eauto.
-      intros o2 H3; now rewrite (Ffun H3 H1).
-  Qed.
-
-  Variables (g : X → Y → X) (Hg : ∀x y, F x y (g x y)).
-
-  Fact Gfoldleft_fold_left l a : Gfoldleft l a (fold_left g l a).
-  Proof. induction l in a |- *; simpl; econstructor; eauto. Qed.
-
-  *)
 
 End foldleft.
 
 Arguments Gfoldleft {X Y}.
 Arguments Dfoldleft {X Y}.
-
-Check Dfoldleft.
-
-Check foldleft_pwc.
-Arguments foldleft_pwc {X Y} F {D}.
+Arguments foldleft {X Y} F {D}.
 
 Section dfs.
 
@@ -176,13 +157,13 @@ Section dfs.
 
   Hint Constructors Gfoldleft Gdfs : core.
 
-  Fixpoint dfs_pwc a x (d : Ddfs a x) { struct d } : sig (Gdfs a x).
+  Fixpoint dfs_acc a x (d : Ddfs a x) { struct d } : sig (Gdfs a x).
   Proof.
     refine (
       match in_dec x a with
       | left h  => exist _ a _ 
       | right h =>
-        let (o,ho) := foldleft_pwc Gdfs dfs_pwc (succ x) (x::a) (Ddfs_inv d h)
+        let (o,ho) := foldleft Gdfs dfs_acc (succ x) (x::a) (Ddfs_inv d h)
         in exist _ o _
       end
     ); eauto. 
@@ -254,28 +235,28 @@ Section dfs.
   Theorem Dfs_iff_Gdfs a x : Ddfs a x ↔ ∃o, Gdfs a x o.
   Proof.
     split.
-    + intros (o & ?)%dfs_pwc; now exists o.
+    + intros (o & ?)%dfs_acc; now exists o.
     + now intros (? & ?%Gdfs_Ddfs).
   Qed.
 
-  Let dfs_linvariant a l i := 
+  Let dfs_acc_linv a l i := 
     a ⊆ i ∧ l ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
 
-  Definition dfs_invariant a x i := 
+  Let dfs_acc_inv a x i := 
     a ⊆ i ∧ x ∈ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
 
-  Hint Resolve incl_nil_l incl_refl incl_tran incl_cons : core.
+  Hint Resolve incl_nil_l incl_refl incl_tran incl_cons incl_tl : core.
 
-  (* This is partial correctness: the output of dfs, if it exists,
-     is a smallest invariant *)
-  Theorem Gdfs_invariant a x o :
+  (* This is partial correctness of dfs_acc via Gdfs:
+     the output of dfs_acc, if it exists, is a smallest invariant *)
+  Theorem dfs_acc_partially_correct a x o :
        Gdfs a x o
-     → dfs_invariant a x o
-     ∧ ∀i, dfs_invariant a x i → o ⊆ i.
+     → dfs_acc_inv a x o
+     ∧ ∀i, dfs_acc_inv a x i → o ⊆ i.
   Proof.
     revert a x o.
     apply Gdfs_ind with
-      (P := λ l a o, dfs_linvariant a l o ∧ ∀i, dfs_linvariant a l i → o ⊆ i).
+      (P := λ l a o, dfs_acc_linv a l o ∧ ∀i, dfs_acc_linv a l i → o ⊆ i).
     + intros a; repeat split; auto.
       now intros i (H1 & _).
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
@@ -297,8 +278,10 @@ Section dfs.
   Section termination_easy.
 
     (** Now we can instanciate for _ ∈ succ _ is well founded
-        and show that dfs terminates in that case w/o using 
-        partial correctness *)
+        and show that dfs_acc terminates, in that case w/o using 
+        partial correctness. We could even show that dfs_acc
+        would terminate in the case where the membership test
+        was to be removed from the code !! *)
 
     Hypothesis hsucc : well_founded (λ u v, u ∈ succ v).
 
@@ -319,45 +302,92 @@ Section dfs.
   Section termination_hard.
 
     (** We study a more general termination criteria, THE MOST
-        GENERAL, using partial correctness *)
+        GENERAL, using partial correctness, which is typical of 
+        the case of nested recursive schemes. 
+
+        Notice that in that case, the membership test is mandatory
+        otherwise loops inside the succ graph would make the
+        algorithm non-terminating. 
+
+        The proof proceeds by well founded induction on the
+        accumulator a included in the fixed invariant i with
+        reverse strict inclusion as wf relation.
+
+        Then, when nesting foldleft, we proceed by structural
+        induction on the list argument of foldleft.
+
+        This proof has a similar structure as the one of 
+        accumulator free dfs in theories/dfs/dfs_term.v *)
  
-    Theorem Ddfs_domain a x i : dfs_invariant a x i → Ddfs a x.
+    Theorem dfs_acc_term a i : ∀x, dfs_acc_inv a x i → Ddfs a x.
     Proof.
-      intros H0; generalize H0; intros (H1 & H2 & H3); clear H0.
-      revert a H1 x H2 H3.
-  
-      induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)); intros Ha. 
-      intros x Hx Hax.
+      induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)).
+      intros x Ha.
       destruct (in_dec x a) as [ H | H ].
       + now constructor 1.
       + constructor 2; trivial.
-        assert (IH : forall l, x::a ⊆ l -> l ⊆ i -> 
-              ∀y, y ∈ i → Ddfs l y).
-        1:{ intros l H1 H2 y H3.
+        assert (IH : ∀ a' y, x::a ⊆ a' → dfs_acc_inv a' y i → Ddfs a' y).
+        1:{ intros a' y H1 H2.
             apply IHa; trivial.
-            + split; eauto.
-            + intros z []%Hax; eauto. }
+            split; eauto.
+            destruct H2.
+            exists x; repeat split; eauto. }
         clear IHa.
-        destruct (Hax _ Hx) as [ | Hsucc ]; [ tauto | ].
-        cut (x::a ⊆ i); auto.
-        clear H Ha Hx.
-        revert IH; generalize (x::a); intros m IHm Hm.
-        revert Hsucc; generalize (succ x); clear x a.
-        intros l Hl; revert Hl m Hm IHm.
-        induction l as [ | x l IHl ]; intros Hl m Hm IHm.
+        assert (Hi : succ x ⊆ i).
+        1:{ destruct Ha as (H1 & H2 & H3).
+            destruct (H3 _ H2); now auto. }
+        cut (x::a ⊆ i); [ | destruct Ha as (? & ? & _); eauto ].
+        generalize (incl_refl (x::a)).
+        clear H.
+        revert Hi.
+        generalize (x::a) at 2 3 4.
+        generalize (succ x).
+        intros l.
+        induction l as [ | y l IHl ]; intros a' H1 H2 H3.
         * constructor 1.
         * constructor 2.
-          - apply IHm; auto.
-          - apply incl_cons_inv in Hl as [].
-            intros o ((? & ? & ?) & ?)%dfs_invariant; apply IHl; eauto.
-            apply H4; repeat split; auto.
-    Admitted. 
-
+          - apply IH; auto.
+            repeat split; auto.
+            destruct Ha as (G1 & G2 & G3).
+            intros ? []%G3; eauto.
+          - intros o (G1 & G2)%dfs_acc_partially_correct.
+            apply IHl; eauto.
+            ++ destruct G1; eauto.
+            ++ apply G2.
+               destruct Ha as (? & ? & Ha).
+               destruct G1 as (? & ? & ?).
+               repeat split; eauto.
+               intros ? []%Ha; eauto.
+    Qed.
 
   End termination_hard.
 
+  Definition dfs_inv x i := x ∈ i ∧ ∀y, y ∈ i → succ y ⊆ i.
+
+  Fact dfs_inv_iff x i : dfs_inv x i ↔ dfs_acc_inv [] x i.
+  Proof.
+    split.
+    + intros []; repeat split; eauto.
+    + intros (? & ? & H); split; eauto.
+      now intros ? [ [] | ]%H.
+  Qed.
+
+  (** This is the total correctness statement of dfs, internally
+      calling dfs_acc nested with foldleft. Notice that this is 
+      the most general possible domain for dfs since by partial
+      correctness, it outputs a (minimal) invariant, hence, an
+      invariant must exist for dfs to terminate *) 
+  Theorem dfs x (Hx : ∃i, dfs_inv x i) : { m | dfs_inv x m ∧ ∀i, dfs_inv x i → m ⊆ i }.
+  Proof.
+    refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
+    + destruct Hx as (i & Hi%dfs_inv_iff).
+      now apply dfs_acc_term with i.
+    + apply dfs_acc_partially_correct in hm as (H1%dfs_inv_iff & H2).
+      split; auto.
+      intros ? ?%dfs_inv_iff; eauto.
+  Defined.
+
 End dfs.
 
-Recursive Extraction dfs_pwc.
+Recursive Extraction dfs.
 
-Check dfs_pwc.
