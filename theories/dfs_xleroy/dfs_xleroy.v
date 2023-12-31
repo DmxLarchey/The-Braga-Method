@@ -112,9 +112,9 @@ Section foldleft.
 
   Variables (X Y : Type) 
             (F : X → Y → X → Prop)
-            (Ffun : ∀ {a y b₁ b₂}, F a y b₁ → F a y b₂ → b₁ = b₂)
+            (* Ffun : ∀ {a y b₁ b₂}, F a y b₁ → F a y b₂ → b₁ = b₂ *)
             (D : X → Y → Prop)
-            (HD : ∀ a y b, F a y b → D a y)
+            (* HD : ∀ a y b, F a y b → D a y *)
             (f : ∀ x y, D x y → {o | F x y o}).
 
   Implicit Type (l : list Y).
@@ -170,7 +170,7 @@ Section foldleft.
     | Dfl_cons d _ => λ _, d
     end.
 
-  Let Dfl_inv1 {y l a} : Dfoldleft (y::l) a → D a y :=
+  Let Dfl_pi1 {y l a} : Dfoldleft (y::l) a → D a y :=
     λ dfl, Dfoldleft_pi1 dfl I.
 
   (* Second projection of the domain, inverting
@@ -188,7 +188,7 @@ Section foldleft.
     | Dfl_cons _ f => λ _, f
     end.
 
-  Let Dfl_inv2 {y l a b} : Dfoldleft (y::l) a → F a y b → Dfoldleft l b :=
+  Let Dfl_pi2 {y l a b} : Dfoldleft (y::l) a → F a y b → Dfoldleft l b :=
     λ dfl, Dfoldleft_pi2 dfl I b.
 
   (* Beware that foldleft is by structural induction on the domain
@@ -198,8 +198,8 @@ Section foldleft.
   Proof.
     refine (match l return Dfoldleft l _ → _ with
     | []   => λ _, exist _ a _
-    | y::m => λ d, let (b,hb) := f a y (Dfl_inv1 d)           in
-                   let (o,ho) := foldleft m b (Dfl_inv2 d hb) in
+    | y::m => λ d, let (b,hb) := f a y (Dfl_pi1 d)           in
+                   let (o,ho) := foldleft m b (Dfl_pi2 d hb) in
                    exist _ o _
     end d); eauto.
   Defined.
@@ -243,7 +243,7 @@ Section dfs.
   Local Fact Gdfs_inv1 a x o : Gdfs a x o → x ∉ a → Gfoldleft Gdfs (succ x) (x::a) o.
   Proof. now destruct 1. Qed.
 
-  (* Second projection of the domain Ddfs when x ∉ a,
+  (* First projection of the domain Ddfs when x ∉ a,
      inverting the second constructor
 
              h : x ∉ a   dfl : Dfoldleft Gdfs Ddfs (succ x) (x::a)
@@ -251,7 +251,7 @@ Section dfs.
                             Ddfs_next h dfl
 
      while providing precisely the strict sub-term dfl. *)
-  Let Ddfs_inv {a x} (d : Ddfs a x) : 
+  Let Ddfs_pi {a x} (d : Ddfs a x) : 
       x ∉ a → Dfoldleft Gdfs Ddfs (succ x) (x::a) :=
     match d with
     | Ddfs_stop h     => λ C, match C h with end 
@@ -266,8 +266,8 @@ Section dfs.
       match in_dec x a with
       | left h  => exist _ a _
       | right h =>
-        let (o,ho) := foldleft Gdfs dfs_acc (succ x) (x::a) (Ddfs_inv d h)
-        in exist _ o _
+                let (o,ho) := foldleft Gdfs dfs_acc (succ x) (x::a) (Ddfs_pi d h)
+                in exist _ o _
       end
     ); eauto. 
   Defined.
@@ -381,32 +381,36 @@ Section dfs.
     + now intros (? & ?%Gdfs_Ddfs).
   Qed.
 
-  Let dfs_acc_linv a l i := a ⊆ i ∧ l ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
-  Let dfs_acc_inv a x i  := a ⊆ i ∧ x ∈ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
+  (* For P : list _ → Prop, "l" is a smallest list sastifying
+     P for list inclusion *)
   Let smallest P l := P l ∧ ∀m, P m → l ⊆ m.
 
-  (* This is the partial correctness of dfs_acc via its low-level characterization 
-     (ie Gdfs): the output of dfs_acc (when it exists) is a smallest invariant. *)
+  (* The invariant for dfs_acc wrt to accumulator "a" is an
+     upper bound of a stable under "succ" of its member
+     which are not in "a" already. *)
+  Let dfs_acc_inv a i := a ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
+
+  (** This is the partial correctness of dfs_acc via its low-level 
+      characterization (ie Gdfs): the output of dfs_acc (when it exists)
+      is a smallest invariant containing i. *)
   Theorem dfs_acc_partially_correct a x o :
-       Gdfs a x o → smallest (dfs_acc_inv a x) o.
+       Gdfs a x o → smallest (λ i, x ∈ i ∧ dfs_acc_inv a i) o.
   Proof.
     revert a x o.
-    apply Gdfs_ind with (P := λ l a o, smallest (dfs_acc_linv a l) o).
-    + intros a; repeat split; auto.
-      now intros i (H1 & _).
+    apply Gdfs_ind with (P := λ l a o, smallest (λ i, l ⊆ i ∧ dfs_acc_inv a i) o).
+    + repeat split; auto; now intros ? (? & []).
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
-      * intros y [ []%H3 | ]%G3; eauto.
-      * intros i (F1 & (F2 & F3)%incl_cons_inv & F4).
+      * intros ? [ []%H3 | ]%G3; eauto.
+      * intros i ([]%incl_cons_inv & ? & F4).
         apply G4; repeat split; eauto.
         - apply H4; repeat split; eauto.
-        - intros y []%F4; eauto.
-    + intros a x Hx; repeat split; auto.
-      now intros i (H1 & _).
-    + intros a x o Hx _ (((H1 & H2)%incl_cons_inv & H3 & H4) & H5); repeat split; eauto.
+        - intros ? []%F4; eauto.
+    + repeat split; auto; now intros ? (? & []).
+    + intros a x o Hx _ ((? & []%incl_cons_inv & H4) & H5); repeat split; eauto.
       * intros ? [ [ <- | ] | ]%H4; eauto.
       * intros i (G1 & G2 & G3).
         apply H5; repeat split; eauto.
-        - destruct (G3 _ G2); auto; tauto.
+        - destruct (G3 _ G1); auto; tauto.
         - intros ? []%G3; eauto.
   Qed.
 
@@ -433,24 +437,19 @@ Section dfs.
       This proof has a similar structure as the one of 
       (foldleft free) dfs in theories/dfs/dfs_term.v *)
  
-  Theorem dfs_acc_term a i : ∀x, dfs_acc_inv a x i → Ddfs a x.
+  Theorem dfs_acc_term a i : ∀x, x ∈ i ∧ dfs_acc_inv a i → Ddfs a x.
   Proof.
     induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)).
-    intros x Haxi.
+    intros x (G1 & G2 & G3).
     destruct (in_dec x a) as [ H | H ].
     + now constructor 1.
     + constructor 2; trivial.
-      assert (IH : ∀ a' y, x::a ⊆ a' → dfs_acc_inv a' y i → Ddfs a' y).
-      1:{ intros a' y H1 H2.
-          apply IHa; trivial.
-          split; eauto.
-          destruct H2.
-          exists x; repeat split; eauto. }
+      assert (IH : ∀ a' y, x::a ⊆ a' → y ∈ i ∧ dfs_acc_inv a' i → Ddfs a' y)
+        by (intros; apply IHa; trivial; split; eauto).
       clear IHa; rename IH into IHa.
-      assert (Hi : succ x ⊆ i).
-      1:{ destruct Haxi as (H1 & H2 & H3).
-          destruct (H3 _ H2); now auto. }
-      cut (x::a ⊆ i); [ | destruct Haxi as (? & ? & _); eauto ].
+      assert (Hi : succ x ⊆ i)
+        by (destruct (G3 _ G1); now auto).
+      cut (x::a ⊆ i); [ | eauto ].
       generalize (incl_refl (x::a)).
       clear H.
       revert Hi.
@@ -462,25 +461,24 @@ Section dfs.
       * constructor 2.
         - apply IHa; auto.
           repeat split; auto.
-          destruct Haxi as (G1 & G2 & G3).
           intros ? []%G3; eauto.
-        - intros o (G1 & G2)%dfs_acc_partially_correct.
+        - intros o (F1 & F2)%dfs_acc_partially_correct.
           apply IHl; eauto.
-          ++ destruct G1; eauto.
-          ++ apply G2.
-             destruct Haxi as (? & ? & Ha).
-             destruct G1 as (? & ? & ?).
+          ++ destruct F1 as (? & []); eauto.
+          ++ apply F2.
+             destruct F1 as (? & []).
              repeat split; eauto.
-             intros ? []%Ha; eauto.
+             intros ? []%G3; eauto.
   Qed.
 
-  Definition dfs_inv x i := x ∈ i ∧ ∀y, y ∈ i → succ y ⊆ i.
+  (* The invariant for dfs is a list stable under succ *)
+  Definition dfs_inv i := ∀y, y ∈ i → succ y ⊆ i.
 
-  Local Fact dfs_inv_iff x i : dfs_inv x i ↔ dfs_acc_inv [] x i.
+  Local Fact dfs_inv_iff i : dfs_inv i ↔ dfs_acc_inv [] i.
   Proof.
     split.
-    + intros []; repeat split; eauto.
-    + intros (? & ? & H); split; eauto.
+    + repeat split; eauto.
+    + intros (? & H).
       now intros ? [ [] | ]%H.
   Qed.
 
@@ -489,14 +487,14 @@ Section dfs.
       the most general possible domain for dfs since by partial
       correctness, it outputs a (smallest) invariant, hence, an
       invariant must exist for dfs to terminate. *) 
-  Theorem dfs x (Hx : ∃i, dfs_inv x i) : { i | smallest (dfs_inv x) i }.
+  Theorem dfs x (Hx : ∃i, x ∈ i ∧ dfs_inv i) : { i | smallest (λ i, x ∈ i ∧ dfs_inv i) i }.
   Proof.
     refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
-    + destruct Hx as (i & Hi%dfs_inv_iff).
+    + destruct Hx as (i & ? & Hi%dfs_inv_iff).
       now apply dfs_acc_term with i.
-    + apply dfs_acc_partially_correct in hm as (H1%dfs_inv_iff & H2).
+    + apply dfs_acc_partially_correct in hm as ((? & H1%dfs_inv_iff) & H2).
       split; auto.
-      intros ? ?%dfs_inv_iff; eauto.
+      intros ? (? & ?%dfs_inv_iff); eauto.
   Defined.
 
 End dfs.
