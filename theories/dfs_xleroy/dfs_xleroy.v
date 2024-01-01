@@ -110,11 +110,9 @@ Section foldleft.
 
   (** A partial version of foldleft *)
 
-  Variables (X Y : Type) 
+  Variables (X Y : Type)
             (F : X → Y → X → Prop)
-            (* Ffun : ∀ {a y b₁ b₂}, F a y b₁ → F a y b₂ → b₁ = b₂ *)
             (D : X → Y → Prop)
-            (* HD : ∀ a y b, F a y b → D a y *)
             (f : ∀ x y, D x y → {o | F x y o}).
 
   Implicit Type (l : list Y).
@@ -160,9 +158,10 @@ Section foldleft.
              
              d : D a y        f : ...
            ------------------------------
-                  Dfl_cons d f 
+                 dfl : Dfl_cons d f 
 
-     while providing precisely the strict sub-term d. *)
+     while providing precisely the strict sub-term d
+     out of dfl. *)
   Let Dfoldleft_pi1 {m a} (dfl : Dfoldleft m a) :
       ∀ (hm : is_nnil m), D a (dhead hm) :=
     match dfl with
@@ -178,9 +177,10 @@ Section foldleft.
 
              d : ...   f : ∀b, F a y b → Dfoldleft l b
            ---------------------------------------------
-                        Dfl_cons d f 
+                     dfl : Dfl_cons d f 
 
-     while providing precisely the strict sub-term f. *)
+     while providing precisely the strict sub-term f
+     out of dfl. *)
   Let Dfoldleft_pi2 {m a} (dfl : Dfoldleft m a) :
       ∀ (hm : is_nnil m) b, F a (dhead hm) b → Dfoldleft (dtail hm) b :=
     match dfl with
@@ -193,7 +193,10 @@ Section foldleft.
 
   (* Beware that foldleft is by structural induction on the domain
      predicate, not on l!! Induction on l works for foldleft alone
-     but not when nested with dfs_acc below. *)
+     but not when nested with dfs_acc below. It seems the guardedness
+     checker cannot analyse situations were an argument is indeed 
+     decreasing but the path is not completely covered by structural 
+     arguments. *)
   Fixpoint foldleft l a (d : Dfoldleft l a) {struct d} : {o | Gfoldleft l a o}.
   Proof.
     refine (match l return Dfoldleft l _ → _ with
@@ -243,14 +246,15 @@ Section dfs.
   Local Fact Gdfs_inv1 a x o : Gdfs a x o → x ∉ a → Gfoldleft Gdfs (succ x) (x::a) o.
   Proof. now destruct 1. Qed.
 
-  (* First projection of the domain Ddfs when x ∉ a,
+  (* Second projection of the domain Ddfs when x ∉ a,
      inverting the second constructor
 
              h : x ∉ a   dfl : Dfoldleft Gdfs Ddfs (succ x) (x::a)
            ---------------------------------------------------------
-                            Ddfs_next h dfl
+                          d : Ddfs_next h dfl
 
-     while providing precisely the strict sub-term dfl. *)
+     while providing precisely the strict sub-term dfl out
+     of d : Ddfs_next h dfl . *)
   Let Ddfs_pi {a x} (d : Ddfs a x) : 
       x ∉ a → Dfoldleft Gdfs Ddfs (succ x) (x::a) :=
     match d with
@@ -260,7 +264,7 @@ Section dfs.
 
   Hint Constructors Dfoldleft Gfoldleft Gdfs : core.
 
-  Fixpoint dfs_acc a x (d : Ddfs a x) { struct d } : sig (Gdfs a x).
+  Fixpoint dfs_acc a x (d : Ddfs a x) { struct d } : {o | Gdfs a x o}.
   Proof.
     refine (
       match in_dec x a with
@@ -300,53 +304,68 @@ Section dfs.
 
   End termination_easy.
 
-  (** Below we do not assume such a strong termination criteria
+  (** Below we do not assume the above strong termination criterium
       and show the properties of dfs_acc by reasonning exclusively
       on the low-level specification of dfs_acc via the computational 
       graph Gdfs, ie w/o proving fixpoint equations for dfs_acc. 
 
       We prove partial correctness and then termination under
-      the weakest pre-condition of the existence of an invariant. *)
+      the weakest pre-condition of the existence of a specific 
+      invariant. dfs_acc actually outputs a least of such
+      invariant. *)
 
   Section Gdfs_ind.
 
-    (* A useful mutual induction principle for (Gfoldleft Gdfs) / Gdfs 
-       which allows to show:
+    (* First, a useful mutual induction principle 
+       for (Gfoldleft Gdfs) / Gdfs which allows to show:
        - functionality of Gdfs
        - inclusion of Gdfs into Ddfs
-       - partial correctness of dfs_acc *)
+       - partial correctness of dfs_acc 
+
+       Notice that we have to use a nested fixpoint here. *)
 
     Variables (P : list X → list X → list X → Prop)
               (Q : list X → X → list X → Prop)
 
               (HP0 : ∀a, P [] a a) 
 
-              (HP1 : ∀ a y l b o,
+              (HP1 : ∀ {a y l b o},
                          Gdfs a y b 
                        → Q a y b 
                        → Gfoldleft Gdfs l b o
                        → P l b o  
                        → P (y::l) a o)
 
-              (HQ0 : ∀ a x,
+              (HQ0 : ∀ {a x},
                          x ∈ a
                        → Q a x a)
 
-              (HQ1 : ∀ a x o,
-                         x ∉  a
+              (HQ1 : ∀ {a x o},
+                         x ∉ a
                        → Gfoldleft Gdfs (succ x) (x::a) o
                        → P (succ x) (x::a) o
                        → Q a x o).
 
-    (* This requires a *nested* fixpoint, implemented using 
-       induction dfl below. *)
-    Local Fixpoint Gdfs_ind a x o (d : Gdfs a x o) { struct d } : Q a x o.
+    (* This requires a *nested* fixpoint below. *)
+    Local Fixpoint Gdfs_ind {a x o} (d : Gdfs a x o) { struct d } : Q a x o :=
+      match d with
+      | Gdfs_stop h     => HQ0 h
+      | Gdfs_next h gfl => HQ1 h gfl 
+        ((fix loop {l a o} (d : Gfoldleft _ l a o) := 
+          match d with 
+          | Gfl_nil _ _ _ a    => HP0 a
+          | Gfl_cons _ _ _ f g => HP1 f (Gdfs_ind f) g (loop g)
+          end) _ _ _ gfl) 
+      end.
+
+    (* The same proof, but using an Ltac script *)
+    Let Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) { struct d } : Q a x o.
     Proof.
-      destruct d as [ | a x o h dfl ].
+      destruct d as [ | ? ? ? ? gfl ].
       + now apply HQ0.
       + apply HQ1; trivial.
-        induction dfl; eauto.
-    Qed. 
+        induction gfl; eauto.
+    Qed.
 
   End Gdfs_ind.
 
@@ -362,7 +381,7 @@ Section dfs.
     + intros ? ? ? ? ? ? ? ?%Gdfs_inv1; eauto.
   Qed.
 
-  (* And the link between Gdfs and Ddfs *)
+  (* And then the link between Gdfs and Ddfs *)
   Local Lemma Gdfs_Ddfs : ∀ a x o, Gdfs a x o → Ddfs a x.
   Proof.
     apply Gdfs_ind with (P := λ l a o, Dfoldleft Gdfs Ddfs l a)
@@ -374,6 +393,8 @@ Section dfs.
     now rewrite (Gdfs_fun H3 H1).
   Qed.
 
+  (* Hence the domain Ddfs is indeed the projection of 
+     the computational graph Gdfs. *)
   Theorem Dfs_iff_Gdfs a x : Ddfs a x ↔ ∃o, Gdfs a x o.
   Proof.
     split.
@@ -381,13 +402,16 @@ Section dfs.
     + now intros (? & ?%Gdfs_Ddfs).
   Qed.
 
-  (* For P : list _ → Prop, "l" is a smallest list sastifying
+  (** Now we describe the weakest pre-condition. *)
+
+  (* For P : list X → Prop, "l" is a smallest list sastifying
      P for list inclusion *)
   Let smallest P l := P l ∧ ∀m, P m → l ⊆ m.
 
   (* The invariant for dfs_acc wrt to accumulator "a" is an
      upper bound of a stable under "succ" of its member
-     which are not in "a" already. *)
+     which are not members of "a" already, formulated in
+     a positive way. *)
   Let dfs_acc_inv a i := a ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
 
   (** This is the partial correctness of dfs_acc via its low-level 
