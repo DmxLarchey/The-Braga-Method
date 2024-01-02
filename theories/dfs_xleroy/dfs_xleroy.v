@@ -224,6 +224,13 @@ Section dfs.
 
   Unset Elimination Schemes.
 
+  (** Because of nesting, the below inductive predicates
+      do not generate powerful enough recursors. We implement
+      our own by hand/Fixpoint.*)
+
+  (* This is the computational graph of dfs_acc (below),
+     ie the computaional steps described as an inductive
+     relation, here nested with that for (foldleft dfs_acc). *)
   Inductive Gdfs : list X → X → list X → Prop :=
     | Gdfs_stop {a x} :     x ∈ a
                           → Gdfs a x a
@@ -231,6 +238,7 @@ Section dfs.
                           → Gfoldleft Gdfs (succ x) (x::a) o
                           → Gdfs a x o.
 
+  (* The inductive domain of dfs_acc. *)
   Inductive Ddfs : list X → X → Prop :=
     | Ddfs_stop {a x} :   x ∈ a 
                         → Ddfs a x 
@@ -351,8 +359,8 @@ Section dfs.
       match d with
       | Gdfs_stop h     => HQ0 h
       | Gdfs_next h gfl => HQ1 h gfl 
-        ((fix loop {l a o} (d : Gfoldleft _ l a o) := 
-          match d with 
+        ((fix loop {l a o} (gfl : Gfoldleft _ l a o) := 
+          match gfl with 
           | Gfl_nil _ _ _ a    => HP0 a
           | Gfl_cons _ _ _ f g => HP1 f (Gdfs_ind f) g (loop g)
           end) _ _ _ gfl) 
@@ -414,13 +422,15 @@ Section dfs.
      a positive way. *)
   Let dfs_acc_inv a i := a ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
 
-  (** This is the partial correctness of dfs_acc via its low-level 
-      characterization (ie Gdfs): the output of dfs_acc (when it exists)
-      is a smallest invariant containing i. *)
+  (* This is the partial correctness of dfs_acc via its low-level 
+     characterization (ie Gdfs): the output of dfs_acc (when it exists)
+     is a smallest invariant containing x. *)
   Theorem dfs_acc_partially_correct a x o :
        Gdfs a x o → smallest (λ i, x ∈ i ∧ dfs_acc_inv a i) o.
   Proof.
     revert a x o.
+    (** The property to be established for Gfoldleft Gdfs l a o has to be provided,
+        here the smallest invariant containing l. *)
     apply Gdfs_ind with (P := λ l a o, smallest (λ i, l ⊆ i ∧ dfs_acc_inv a i) o).
     + repeat split; auto; now intros ? (? & []).
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
@@ -460,7 +470,7 @@ Section dfs.
 
       This proof has a similar structure as the one of 
       (foldleft free) dfs in theories/dfs/dfs_term.v *)
- 
+
   Theorem dfs_acc_term a i : ∀x, x ∈ i ∧ dfs_acc_inv a i → Ddfs a x.
   Proof.
     induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)).
@@ -479,8 +489,7 @@ Section dfs.
       revert Hi.
       generalize (x::a) at 2 3 4.
       generalize (succ x).
-      intros l.
-      induction l as [ | y l IHl ]; intros a' H1 H2 H3.
+      intros l; induction l as [ | y l IHl ]; intros a' H1 H2 H3.
       * constructor 1.
       * constructor 2.
         - apply IHa; auto.
@@ -506,20 +515,43 @@ Section dfs.
       now intros ? [ [] | ]%H.
   Qed.
 
-  (** This is the total correctness statement of dfs, internally
-      calling dfs_acc (nested with foldleft). Notice that this is 
-      the most general possible domain for dfs since by partial
-      correctness, it outputs a (smallest) invariant, hence, an
-      invariant must exist for dfs to terminate. *) 
-  Theorem dfs x (Hx : ∃i, x ∈ i ∧ dfs_inv i) : { i | smallest (λ i, x ∈ i ∧ dfs_inv i) i }.
+  (* The partial correctness of dfs x := dfs_acc [] x.
+     When it terminates, it outputs a (smallest) succ-stable
+     list of which x is a member. *)
+  Theorem dfs_partially_correct x o :
+       Gdfs [] x o → smallest (λ i, x ∈ i ∧ dfs_inv i) o.
+  Proof.
+    intros (H1 & H2)%dfs_acc_partially_correct; split.
+    + now rewrite dfs_inv_iff.
+    + intro; rewrite dfs_inv_iff; auto.
+  Qed.
+
+  (* This is the total correctness statement of dfs, internally
+     calling dfs_acc (nested with foldleft). Notice that this is
+     the most general possible domain for dfs since by partial
+     correctness, it outputs a (smallest) invariant, hence, an
+     invariant must exist for dfs to terminate (see below). *) 
+  Theorem dfs x (dx : ∃i, x ∈ i ∧ dfs_inv i) : { i | smallest (λ i, x ∈ i ∧ dfs_inv i) i }.
   Proof.
     refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
-    + destruct Hx as (i & ? & Hi%dfs_inv_iff).
+    + destruct dx as (i & ? & Hi%dfs_inv_iff).
       now apply dfs_acc_term with i.
     + apply dfs_acc_partially_correct in hm as ((? & H1%dfs_inv_iff) & H2).
       split; auto.
       intros ? (? & ?%dfs_inv_iff); eauto.
   Defined.
+
+  (* Hence, as a sufficient and necessary condition for dfs to
+     terminate, an invariant must exist. *) 
+  Corollary dfs_weakest_pre_condition x :
+      (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_inv i.
+  Proof.
+    split.
+    + intros (? & (? & _)%dfs_partially_correct); eauto.
+    + intros (i & Hi).
+      rewrite dfs_inv_iff in Hi. 
+      apply dfs_acc_term, dfs_acc in Hi as []; eauto.
+  Qed.
 
 End dfs.
 
