@@ -16,18 +16,19 @@
        https://inria.hal.science/hal-04356563/document
 
     The dfs algo. originaly presented in the "Braga" book
-    chapter, and in the files theories/dfs/*.v herein, is 
-    different but computes a similar output. It avoids
-    nesting foldleft by working on two lists directly.
+    chapter, and in the files theories/dfs/*.v herein, is
+    different but computes a similar output (exactly the
+    same?). It avoids nesting foldleft by working on two
+    lists directly.
 
-    Notice that X. Leroy present his dfs example witn an
+    Notice that X. Leroy present his dfs example with an
     internal nesting of a (specialized version) of foldleft.
     We could also do that one but instead favor the
-    external nesting of "polymorphic foldleft", which
+    external nesting of a "polymorphic foldleft", which
     adds so extra complexity to this example, possibly
     instructive for other cases.
 
-    Below we discuss the restrive (too strong) termination
+    Below we discuss the restrictive (too strong) termination
     argument X. Leroy uses, and later, after the proof of
     partial correctness, we give the "weakest pre-condition"
     for termination.
@@ -52,8 +53,8 @@
 
     (* (dfs_acc in_dec succ a x) computes the list of nodes
        encountered in a depth first search traversal of
-       a graph (described by succ) starting at x, avoiding
-       repeating nodes or crossing a twice. 
+       a graph (described by "succ") starting at "x", avoiding
+       repeating nodes or crossing "a" twice. 
 
        a : 'a list
        x : 'a
@@ -64,9 +65,9 @@
       | true  -> a
       | false -> foldleft (dfs_acc in_dec succ) (succ x) (x::a).
 
-    (* dfs in_dec succ a x computes the list of nodes
+    (* (dfs in_dec succ a x) computes the list of nodes
        encountered in a depth first search traversal of
-       a graph (ie succ) starting at x and avoiding
+       a graph (ie succ) starting at "x" and avoiding
        repetitions
 
        x : 'a
@@ -81,7 +82,7 @@
        is sufficient for termination but NOT mandatory.
 
        For instance, when succ x = [x], then dfs_acc/dfs 
-       terminate. The weakest precondition is described 
+       both terminate. The weakest precondition is described 
        below.
 
        Since dfs in_dec succ x computes a list of nodes 
@@ -96,6 +97,7 @@ Require Import List Utf8 Extraction.
 
 Import ListNotations.
 
+(* We using wf_sincl_maj induction *)
 Require Import induction.
 
 #[local] Infix "∈" := In (at level 70, no associativity).
@@ -108,7 +110,7 @@ Require Import induction.
 
 Section foldleft.
 
-  (** A partial version of foldleft *)
+  (** A partial and polymorphic version of foldleft *)
 
   Variables (X Y : Type)
             (F : X → Y → X → Prop)
@@ -132,7 +134,7 @@ Section foldleft.
   Hint Constructors Gfoldleft Dfoldleft : core.
 
   Local Fact Gfoldleft_inv {m a o} :
-       Gfoldleft m a o 
+       Gfoldleft m a o
      → match m with
        | []   => a = o
        | y::l => ∃b, F a y b ∧ Gfoldleft l b o
@@ -226,9 +228,9 @@ Section dfs.
 
   Unset Elimination Schemes.
 
-  (** Because of nesting, the below inductive predicates
-      do not generate powerful enough recursors. We implement
-      our own by hand/Fixpoint.*)
+  (** Because of nesting, the below inductive predicates Gdfs
+      and Ddfs do not generate powerful enough recursors. We
+      implement our own by hand, ie nested fixpoints.*)
 
   (* This is the computational graph of dfs_acc (below),
      ie the computaional steps described as an inductive
@@ -242,11 +244,11 @@ Section dfs.
 
   (* The inductive domain of dfs_acc. *)
   Inductive Ddfs : list X → X → Prop :=
-    | Ddfs_stop {a x} :   x ∈ a 
-                        → Ddfs a x 
-    | Ddfs_next {a x} :   x ∉ a
-                        → Dfoldleft Gdfs Ddfs (succ x) (x::a)
-                        → Ddfs a x.
+    | Ddfs_stop {a x} :     x ∈ a 
+                          → Ddfs a x 
+    | Ddfs_next {a x} :     x ∉ a
+                          → Dfoldleft Gdfs Ddfs (succ x) (x::a)
+                          → Ddfs a x.
 
   Set Elimination Schemes.
 
@@ -291,7 +293,7 @@ Section dfs.
 
   Section termination_easy.
 
-    (** Termination is very easy under well-foundedness of succ.
+    (** Termination is somewhat easy under well-foundedness of succ.
 
         If we assume that _ ∈ succ _ is a well-founded relation
         then we can show that dfs_acc terminates, in that case 
@@ -320,22 +322,23 @@ Section dfs.
   (** Below we do not assume the above strong termination criterium
       and show the properties of dfs_acc by reasonning exclusively
       on the low-level specification of dfs_acc via the computational
-      graph Gdfs, ie w/o establishing fixpoint equations for dfs_acc.
+      graph Gdfs, ie w/o establishing fixpoint equations for dfs_acc,
+      which could be done as an alternative approach (using Gdfs_fun).
 
       We prove partial correctness and then termination under
-      the weakest pre-condition of the existence of a specific 
+      the weakest pre-condition of the existence of a specific
       invariant. dfs_acc actually outputs a least of such
       invariant. *)
 
   Section Gdfs_ind.
 
-    (* First, a useful mutual induction principle 
-       for (Gfoldleft Gdfs) / Gdfs which allows to show:
-       - functionality of Gdfs
-       - inclusion of Gdfs into Ddfs
-       - partial correctness of dfs_acc 
+    (** First, a useful mutual induction principle 
+        for (Gfoldleft Gdfs) / Gdfs which allows to show:
+        - functionality of Gdfs
+        - inclusion of Gdfs into Ddfs
+        - partial correctness of dfs_acc 
 
-       Notice that we have to use a nested fixpoint here. *)
+        Notice that we have to use a nested fixpoint here. *)
 
     Variables (P : list X → list X → list X → Prop)
               (Q : list X → X → list X → Prop)
@@ -401,7 +404,7 @@ Section dfs.
     + intros ? ? ? ? ? ? ? ?%Gdfs_inv1; eauto.
   Qed.
 
-  (* And then the link between Gdfs and Ddfs *)
+  (* And then the inclusion of Gdfs in Ddfs *)
   Local Lemma Gdfs_incl_Ddfs : ∀ a x o, Gdfs a x o → Ddfs a x.
   Proof.
     apply Gdfs_ind with (P := λ l a o, Dfoldleft Gdfs Ddfs l a)
@@ -413,7 +416,7 @@ Section dfs.
     now rewrite (Gdfs_fun H3 H1).
   Qed.
 
-  (* Hence the domain Ddfs characterized inductivelly
+  (* Hence the domain Ddfs, characterized inductivelly
      for the purpose of defining dfs_acc by structural
      induction on it, is indeed (equivalent to) the 
      projection of the computational graph Gdfs. *)
@@ -427,7 +430,7 @@ Section dfs.
   (** Now we describe the weakest pre-condition. *)
 
   (* For P : list X → Prop, "l" is a smallest list sastifying
-     P for list inclusion *)
+     P for list inclusion. *)
   Let smallest P l := P l ∧ ∀m, P m → l ⊆ m.
 
   (* The invariant for dfs_acc wrt to accumulator "a" is an
@@ -465,10 +468,11 @@ Section dfs.
   (** We study a more general termination criteria, THE MOST
       GENERAL in fact, using partial correctness, which is typical
       of the case of nested recursive schemes. The proof below
-      is *much more involved*, using well-foundedness of strict
-      reverse inclusion of lists (under a fixed upper-bound),
+      is *much more involved* than the one assuming that succ is
+      well-founded. It uses well-foundedness of strict reverse 
+      inclusion of lists (under a fixed upper-bound),
       induction principle quite not trivial in itself to
-      implement constructivelly, ie w/o counting using decidable
+      implement constructivelly, eg w/o counting using decidable
       equality (see utils/sincl_induction.v for details).
 
       Notice that in that weakest pre-condition case, the membership
@@ -552,8 +556,9 @@ Section dfs.
       apply dfs_acc_termination, dfs_acc in Hi as []; eauto.
   Qed.
 
-  (* This is the total correctness statement of dfs, internally
-     calling dfs_acc (nested with foldleft). Notice that the
+  (* This is the total correctness statement of dfs with a 
+     high-level specification. Internally dfs calls
+     dfs_acc (nested with foldleft). Notice that the
      domain is the largest possible for dfs because of
      dfs_weakest_pre_condition. *) 
   Theorem dfs x (dx : ∃i, x ∈ i ∧ dfs_inv i) : { i | smallest (λ i, x ∈ i ∧ dfs_inv i) i }.
