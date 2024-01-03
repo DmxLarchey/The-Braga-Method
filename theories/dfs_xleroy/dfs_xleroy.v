@@ -7,7 +7,7 @@
 (*         CeCILL v2.1 FREE SOFTWARE LICENSE AGREEMENT        *)
 (**************************************************************)
 
-(** Following the "Braga Method", we proceed with 
+(** Following the "Braga method", we proceed with 
     the extraction of dfs using dfs_acc (externally) 
     nested with foldleft (see below), ie the example 
     partialy discussed by X. Leroy in its CoqPL 2024
@@ -17,21 +17,22 @@
 
     The dfs algo. originaly presented in the "Braga" book
     chapter, and in the files theories/dfs/*.v herein, is
-    different but computes a similar output (exactly the
-    same?). It avoids nesting foldleft by working on two
+    different but computes a similar output (possibly exactly
+    the same?). It avoids nesting foldleft by working on two
     lists directly.
 
-    Notice that X. Leroy present his dfs example with an
+    Notice that X. Leroy presents his dfs example with an
     internal nesting of a (specialized version) of foldleft.
     We could also do that one but instead favor the
-    external nesting of a "polymorphic foldleft", which
-    adds so extra complexity to this example, possibly
-    instructive for other cases.
+    external nesting of a "parametric" foldleft, which
+    adds so extra complexity to this example, however 
+    possibly instructive for other cases.
 
-    Below we discuss the restrictive (too strong) termination
-    argument X. Leroy uses, and later, after the proof of
+    Below we also discuss the restrictive (too strong) 
+    termination argument X. Leroy uses, ie that the successor
+    graph is well-founded, and later, after the proof of
     partial correctness, we give the "weakest pre-condition"
-    for termination.
+    for termination of dfs and dfs_acc.
 
     (* f : 'a -> 'b -> 'a
        l : 'b list
@@ -97,7 +98,9 @@ Require Import List Utf8 Extraction.
 
 Import ListNotations.
 
-(* We using wf_sincl_maj induction *)
+(* We use the wf_sincl_maj induction principle, ie that
+   strict reverse inclusion between lists is a well-founded
+   relation when restricted by a fixed upper-bound. *)
 Require Import induction.
 
 #[local] Infix "∈" := In (at level 70, no associativity).
@@ -119,12 +122,16 @@ Section foldleft.
 
   Implicit Type (l : list Y).
 
+  (* The computational graph of foldleft f, parameterized
+     by the computational graph of f. *)
   Inductive Gfoldleft : list Y → X → X → Prop :=
     | Gfl_nil a            : Gfoldleft [] a a
     | Gfl_cons {a y l b o} : F a y b 
                            → Gfoldleft l b o 
                            → Gfoldleft (y::l) a o.
 
+  (* The inductive domain of foldleft f, parameterized
+     by the domain of f. *)
   Inductive Dfoldleft : list Y → X → Prop :=
     | Dfl_nil a            : Dfoldleft [] a
     | Dfl_cons {a y l}     : D a y 
@@ -196,8 +203,8 @@ Section foldleft.
   (* Beware that foldleft is by structural induction on the domain
      predicate, not on l!! Induction on l works for foldleft alone
      but not when nested with dfs_acc below. It seems the guardedness
-     checker cannot analyse situations were an argument is indeed 
-     decreasing but the path is not completely covered by structural 
+     checker cannot analyse situations where an argument is indeed 
+     decreasing but the path is not completely covered by structural
      arguments. *)
   Fixpoint foldleft l a (d : Dfoldleft l a) {struct d} : {o | Gfoldleft l a o}.
   Proof.
