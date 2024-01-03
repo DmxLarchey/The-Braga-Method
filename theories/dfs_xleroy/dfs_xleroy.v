@@ -108,7 +108,7 @@ Require Import induction.
 #[local] Infix "⊆" := incl (at level 70, no associativity).
 
 #[local] Hint Resolve in_eq in_cons
-                      incl_nil_l incl_refl incl_tran 
+                      incl_nil_l incl_refl incl_tran
                       incl_cons incl_tl : core.
 
 Section foldleft.
@@ -208,6 +208,9 @@ Section foldleft.
      arguments. *)
   Fixpoint foldleft l a (d : Dfoldleft l a) {struct d} : {o | Gfoldleft l a o}.
   Proof.
+    (* We separate the code from the logic. Notice dependent
+       pattern matching below with d reverted into the scope
+       of the match. *)
     refine (match l return Dfoldleft l _ → _ with
     | []   => λ _, exist _ a _
     | y::m => λ d, let (b,hb) := f a y (Dfl_pi1 d)           in
@@ -251,8 +254,8 @@ Section dfs.
 
   (* The inductive domain of dfs_acc. *)
   Inductive Ddfs : list X → X → Prop :=
-    | Ddfs_stop {a x} :     x ∈ a 
-                          → Ddfs a x 
+    | Ddfs_stop {a x} :     x ∈ a
+                          → Ddfs a x
     | Ddfs_next {a x} :     x ∉ a
                           → Dfoldleft Gdfs Ddfs (succ x) (x::a)
                           → Ddfs a x.
@@ -274,11 +277,11 @@ Section dfs.
 
      while providing precisely the strict sub-term dfl out
      of d : Ddfs_next h dfl . *)
-  Let Ddfs_pi {a x} (d : Ddfs a x) : 
+  Let Ddfs_pi {a x} (d : Ddfs a x) :
       x ∉ a → Dfoldleft Gdfs Ddfs (succ x) (x::a) :=
     match d with
-    | Ddfs_stop h     => λ C, match C h with end 
-    | Ddfs_next _ dfl => λ _, dfl 
+    | Ddfs_stop h     => λ C, match C h with end
+    | Ddfs_next _ dfl => λ _, dfl
     end.
 
   Hint Constructors Dfoldleft Gfoldleft Gdfs : core.
@@ -286,16 +289,15 @@ Section dfs.
   (* We define dfs_acc (with an accumulator of already visited nodes)
      by structural induction on the (inductive) domain argument, nested
      with a call to foldleft. *)
-  Fixpoint dfs_acc a x (d : Ddfs a x) { struct d } : {o | Gdfs a x o}.
+  Fixpoint dfs_acc a x (d : Ddfs a x) {struct d} : {o | Gdfs a x o}.
   Proof.
-    refine (
-      match in_dec x a with
-      | left h  => exist _ a _
-      | right h =>
-                let (o,ho) := foldleft Gdfs dfs_acc (succ x) (x::a) (Ddfs_pi d h)
-                in exist _ o _
-      end
-    ); eauto.
+    (* We separate the code from the logic *)
+    refine (match in_dec x a with
+    | left h  => exist _ a _
+    | right h =>
+              let (o,ho) := foldleft Gdfs dfs_acc (succ x) (x::a) (Ddfs_pi d h)
+              in exist _ o _
+    end); eauto.
   Defined.
 
   Section termination_easy.
@@ -350,7 +352,7 @@ Section dfs.
     Variables (P : list X → list X → list X → Prop)
               (Q : list X → X → list X → Prop)
 
-              (HP0 : ∀a, P [] a a) 
+              (HP0 : ∀a, P [] a a)
 
               (HP1 : ∀ {a y l b o},
                          Gdfs a y b 
@@ -370,7 +372,7 @@ Section dfs.
                        → Q a x o).
 
     Let Gfoldleft_ind (Gdfs_ind : ∀ {a x o}, Gdfs a x o → Q a x o) :=
-      fix loop {l a o} (gfl : Gfoldleft Gdfs l a o) { struct gfl } :=
+      fix loop {l a o} (gfl : Gfoldleft Gdfs l a o) {struct gfl} :=
         match gfl with
         | Gfl_nil a    => HP0 a
         | Gfl_cons f g => HP1 f (Gdfs_ind f) g (loop g)
@@ -378,18 +380,18 @@ Section dfs.
 
     (* This requires a nesting with Gfoldleft_ind above. It could be
        done inline (see below) but we separate here for readability.
-       This nesting is comparable to that of foldleft/dfs_acc except that
-       the structural arguments are the computational graphs, not
-       the inductive domains. Pattern matching on these is ok since
-       the recursor is over Prop, not Set/Type. *)
-    Local Fixpoint Gdfs_ind a x o (d : Gdfs a x o) { struct d } : Q a x o :=
+       This nesting is comparable to that of foldleft/dfs_acc except
+       that the structural arguments are the computational graphs,
+       not the inductive domains. Pattern matching on these is ok
+       since the recursor is over Prop, not Set/Type. *)
+    Local Fixpoint Gdfs_ind a x o (d : Gdfs a x o) {struct d} : Q a x o :=
       match d with
       | Gdfs_stop h     => HQ0 h
       | Gdfs_next h gfl => HQ1 h gfl (Gfoldleft_ind Gdfs_ind gfl)
       end.
 
     (* The same proof term, but using an Ltac script with nesting inlined. *)
-    Let Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) { struct d } : Q a x o.
+    Let Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) {struct d} : Q a x o.
     Proof.
       destruct d as [ | ? ? ? ? gfl ].
       + now apply HQ0.
@@ -399,19 +401,19 @@ Section dfs.
 
   End Gdfs_ind.
 
-  (* We can deduce functionality of Gdfs *)
+  (* We can deduce functionality of Gdfs. *)
   Local Lemma Gdfs_fun {a x o₁ o₂} : Gdfs a x o₁ → Gdfs a x o₂ → o₁ = o₂.
   Proof.
     intros H; revert o₂; pattern a, x, o₁; revert a x o₁ H.
     apply Gdfs_ind with (P := λ l a o, ∀o2, Gfoldleft Gdfs l a o2 → o = o2).
     + now intros ? ? ?%Gfoldleft_inv.
-    + intros ? ? ? ? ? _ IH1 _ IH2 ? (? & H & ?)%Gfoldleft_inv.
-      rewrite (IH1 _ H) in IH2; auto.
+    + intros ? ? ? ? ? _ IH1 _ IH2 ? (? & [])%Gfoldleft_inv.
+      apply IH2; erewrite IH1; eauto.
     + intros ? ? ? ? ?%Gdfs_inv0; auto.
     + intros ? ? ? ? ? ? ? ?%Gdfs_inv1; eauto.
   Qed.
 
-  (* And then the inclusion of Gdfs in Ddfs *)
+  (* And then the inclusion of Gdfs in Ddfs. *)
   Local Lemma Gdfs_incl_Ddfs : ∀ a x o, Gdfs a x o → Ddfs a x.
   Proof.
     apply Gdfs_ind with (P := λ l a o, Dfoldleft Gdfs Ddfs l a)
@@ -444,18 +446,18 @@ Section dfs.
      upper bound of a stable under "succ" of its member
      which are not members of "a" already, formulated in
      a positive way. *)
-  Let dfs_acc_inv a i := a ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
+  Let dfs_acc_invar a i := a ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
 
   (* This is the partial correctness of dfs_acc via its low-level 
      characterization (ie Gdfs): the output of dfs_acc (when it exists)
      is a smallest invariant containing x. *)
   Theorem dfs_acc_partially_correct a x o :
-       Gdfs a x o → smallest (λ i, x ∈ i ∧ dfs_acc_inv a i) o.
+       Gdfs a x o → smallest (λ i, x ∈ i ∧ dfs_acc_invar a i) o.
   Proof.
     revert a x o.
     (** The property to be established for Gfoldleft Gdfs l a o has to be provided,
         here the smallest invariant containing l. *)
-    apply Gdfs_ind with (P := λ l a o, smallest (λ i, l ⊆ i ∧ dfs_acc_inv a i) o).
+    apply Gdfs_ind with (P := λ l a o, smallest (λ i, l ⊆ i ∧ dfs_acc_invar a i) o).
     + repeat split; auto; now intros ? (? & []).
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
       * intros ? [ []%H3 | ]%G3; eauto.
@@ -496,14 +498,14 @@ Section dfs.
       This proof has a similar structure as the one of 
       (foldleft free) dfs in theories/dfs/dfs_term.v *)
 
-  Theorem dfs_acc_termination a i : ∀x, x ∈ i ∧ dfs_acc_inv a i → Ddfs a x.
+  Theorem dfs_acc_termination a i : ∀x, x ∈ i ∧ dfs_acc_invar a i → Ddfs a x.
   Proof.
     induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)).
     intros x (G1 & G2 & G3).
     destruct (in_dec x a) as [ H | H ].
     + now constructor 1.
     + constructor 2; trivial.
-      assert (IH : ∀ a' y, x::a ⊆ a' → y ∈ i ∧ dfs_acc_inv a' i → Ddfs a' y)
+      assert (IH : ∀ a' y, x::a ⊆ a' → y ∈ i ∧ dfs_acc_invar a' i → Ddfs a' y)
         by (intros; apply IHa; trivial; split; eauto).
       clear IHa; rename IH into IHa.
       assert (Hi : succ x ⊆ i)
@@ -530,9 +532,9 @@ Section dfs.
   Qed.
 
   (* The invariant for dfs is a list stable under succ *)
-  Definition dfs_inv i := ∀y, y ∈ i → succ y ⊆ i.
+  Definition dfs_invar i := ∀y, y ∈ i → succ y ⊆ i.
 
-  Local Fact dfs_inv_iff i : dfs_inv i ↔ dfs_acc_inv [] i.
+  Local Fact dfs_invar_iff i : dfs_invar i ↔ dfs_acc_invar [] i.
   Proof.
     split.
     + repeat split; eauto.
@@ -543,23 +545,23 @@ Section dfs.
   (* The partial correctness of dfs x := dfs_acc [] x.
      When it terminates, it outputs a (smallest) succ-stable
      list of which x is a member. *)
-  Theorem dfs_partially_correct x o :
-       Gdfs [] x o → smallest (λ i, x ∈ i ∧ dfs_inv i) o.
+  Corollary dfs_partially_correct x o :
+       Gdfs [] x o → smallest (λ i, x ∈ i ∧ dfs_invar i) o.
   Proof.
     intros (H1 & H2)%dfs_acc_partially_correct; split.
-    + now rewrite dfs_inv_iff.
-    + intro; rewrite dfs_inv_iff; auto.
+    + now rewrite dfs_invar_iff.
+    + intro; rewrite dfs_invar_iff; auto.
   Qed.
 
   (* Hence, as a sufficient and necessary condition for dfs to
-     terminate, an invariant must exist. *) 
+     terminate, an invariant must exist. *)
   Corollary dfs_weakest_pre_condition x :
-      (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_inv i.
+      (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_invar i.
   Proof.
     split.
     + intros (? & (? & _)%dfs_partially_correct); eauto.
     + intros (i & Hi).
-      rewrite dfs_inv_iff in Hi. 
+      rewrite dfs_invar_iff in Hi. 
       apply dfs_acc_termination, dfs_acc in Hi as []; eauto.
   Qed.
 
@@ -568,8 +570,9 @@ Section dfs.
      dfs_acc (nested with foldleft). Notice that the
      domain is the largest possible for dfs because of
      dfs_weakest_pre_condition. *) 
-  Theorem dfs x (dx : ∃i, x ∈ i ∧ dfs_inv i) : { i | smallest (λ i, x ∈ i ∧ dfs_inv i) i }.
+  Definition dfs x (dx : ∃i, x ∈ i ∧ dfs_invar i) : { i | smallest (λ i, x ∈ i ∧ dfs_invar i) i }.
   Proof.
+    (* We separate the code from the logic *)
     refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
     + now apply Dfs_iff_Gdfs, dfs_weakest_pre_condition.
     + now apply dfs_partially_correct in hm.
@@ -577,9 +580,9 @@ Section dfs.
 
 End dfs.
 
-Arguments dfs_inv {X}.
+Arguments dfs_invar {X}.
 
-Print dfs_inv.
+Print dfs_invar.
 Check dfs.
 Recursive Extraction dfs.
 
