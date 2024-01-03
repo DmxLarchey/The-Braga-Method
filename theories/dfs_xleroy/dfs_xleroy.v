@@ -96,7 +96,7 @@
 
 *)
 
-Require Import List Utf8 Extraction.
+Require Import List Relations Utf8 Extraction.
 
 Import ListNotations.
 
@@ -104,6 +104,8 @@ Import ListNotations.
    strict reverse inclusion between lists is a well-founded
    relation when restricted by a fixed upper-bound. *)
 Require Import induction.
+
+Arguments clos_refl_trans {_}.
 
 #[local] Infix "∈" := In (at level 70, no associativity).
 #[local] Infix "∉" := (λ x a, ¬ In x a) (at level 70, no associativity).
@@ -440,39 +442,48 @@ Section dfs.
 
   (** Now we describe the weakest pre-condition. *)
 
-  (* For P : list X → Prop, "l" is a smallest list sastifying
-     P for list inclusion. *)
-  Let smallest P l := P l ∧ ∀m, P m → l ⊆ m.
+  Implicit Type (α : X → Prop).
+
+  (** Remark DLW -> JFM: I needed to lift the notion 
+      of invariant to predicates so that the reflexive
+      and transtive closure (which might not be finite
+      a priori) can be proved to be an invariant. *)
+
+  (* For Ω : (X → Prop) → Prop, the set P is a smallest 
+     satisfying Ω for inclusion. *)
+  Let smallest Ω α := Ω α ∧ ∀β, Ω β → ∀x, α x → β x.
 
   (* The invariant for dfs_acc wrt to accumulator "a" is an
      upper bound of a stable under "succ" of its member
      which are not members of "a" already, formulated in
      a positive way. *)
-  Let dfs_acc_invar a i := a ⊆ i ∧ ∀y, y ∈ i → y ∈ a ∨ succ y ⊆ i.
+  Let dfs_acc_invar a α := (∀x, x ∈ a → α x) ∧ ∀x, α x → x ∈ a ∨ ∀y, y ∈ succ x → α y.
 
   (* This is the partial correctness of dfs_acc via its low-level
      characterization (ie Gdfs): the output of dfs_acc (when it exists)
      is a smallest invariant containing x. *)
   Theorem dfs_acc_partially_correct a x o :
-       Gdfs a x o → smallest (λ i, x ∈ i ∧ dfs_acc_invar a i) o.
+       Gdfs a x o → smallest (λ α, α x ∧ dfs_acc_invar a α) (λ y, y ∈ o).
   Proof.
     revert a x o.
     (** The property to be established for Gfoldleft Gdfs l a o has to be provided,
         here the smallest invariant containing l. *)
-    apply Gdfs_ind with (P := λ l a o, smallest (λ i, l ⊆ i ∧ dfs_acc_invar a i) o).
-    + repeat split; auto; now intros ? (? & []).
+    apply Gdfs_ind with (P := λ l a o, smallest (λ α, (∀y, y ∈ l → α y) ∧ dfs_acc_invar a α) (λ y, y ∈ o)).
+    + repeat split; easy || auto; now intros ? (? & []).
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
-      * intros ? [ []%H3 | ]%G3; eauto.
-      * intros i ([]%incl_cons_inv & ? & F4).
+      * intros ? [ [] | ?%G1 ]; eauto.
+      * intros ? [ []%H3| ]%G3; eauto.
+      * intros β (F1 & F2 & F3).
         apply G4; repeat split; eauto.
-        - apply H4; repeat split; eauto.
-        - intros ? []%F4; eauto.
+        - apply H4; repeat split; auto.
+        - intros ? []%F3; eauto.
     + repeat split; auto; now intros ? (? & []).
     + intros a x o Hx _ ((? & []%incl_cons_inv & H4) & H5); repeat split; eauto.
       * intros ? [ [ <- | ] | ]%H4; eauto.
       * intros i (G1 & G2 & G3).
         apply H5; repeat split; eauto.
         - destruct (G3 _ G1); auto; tauto.
+        - intros ? [ <- | ]; eauto.
         - intros ? []%G3; eauto.
   Qed.
 
@@ -500,14 +511,14 @@ Section dfs.
       This proof has a similar structure as the one of
       (foldleft free) dfs in theories/dfs/dfs_term.v *)
 
-  Theorem dfs_acc_termination a i : ∀x, x ∈ i ∧ dfs_acc_invar a i → Ddfs a x.
+  Theorem dfs_acc_termination a i : ∀x, x ∈ i ∧ dfs_acc_invar a (λ y, y ∈ i) → Ddfs a x.
   Proof.
     induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)).
     intros x (G1 & G2 & G3).
     destruct (in_dec x a) as [ H | H ].
     + now constructor 1.
     + constructor 2; trivial.
-      assert (IH : ∀ a' y, x::a ⊆ a' → y ∈ i ∧ dfs_acc_invar a' i → Ddfs a' y)
+      assert (IH : ∀ a' y, x::a ⊆ a' → y ∈ i ∧ dfs_acc_invar a' (λ y, y ∈ i) → Ddfs a' y)
         by (intros; apply IHa; trivial; split; eauto).
       clear IHa; rename IH into IHa.
       assert (Hi : succ x ⊆ i)
@@ -527,38 +538,38 @@ Section dfs.
         - intros o (F1 & F2)%dfs_acc_partially_correct.
           apply IHl; eauto.
           ++ destruct F1 as (? & []); eauto.
-          ++ apply F2.
+          ++ red; apply F2.
              destruct F1 as (? & []).
              repeat split; eauto.
              intros ? []%G3; eauto.
   Qed.
 
-  (* The invariant for dfs is a list stable under succ *)
-  Definition dfs_invar i := ∀y, y ∈ i → succ y ⊆ i.
+  (* The invariant for dfs is a set stable under succ *)
+  Let dfs_invar α := ∀ x y, α x → y ∈ succ x → α y.
 
-  Local Fact dfs_invar_iff i : dfs_invar i ↔ dfs_acc_invar [] i.
+  Local Fact dfs_invar_iff α : dfs_invar α ↔ dfs_acc_invar [] α.
   Proof.
     split.
-    + repeat split; eauto.
+    + repeat split; eauto || easy.
     + intros (? & H).
-      now intros ? [ [] | ]%H.
+      intros ? ? []%H ?; auto.
   Qed.
 
   (* The partial correctness of dfs x := dfs_acc [] x.
      When it terminates, it outputs a (smallest) succ-stable
      list of which x is a member. *)
   Corollary dfs_partially_correct x o :
-       Gdfs [] x o → smallest (λ i, x ∈ i ∧ dfs_invar i) o.
+       Gdfs [] x o → smallest (λ α, α x ∧ dfs_invar α) (λ y, y ∈ o).
   Proof.
     intros (H1 & H2)%dfs_acc_partially_correct; split.
     + now rewrite dfs_invar_iff.
-    + intro; rewrite dfs_invar_iff; auto.
+    + intro; rewrite dfs_invar_iff; apply H2.
   Qed.
 
   (* Hence, as a sufficient and necessary condition for dfs to
      terminate, an invariant must exist. *)
   Corollary dfs_weakest_pre_condition x :
-      (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_invar i.
+      (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_invar (λ y, y ∈ i).
   Proof.
     split.
     + intros (? & (? & _)%dfs_partially_correct); eauto.
@@ -567,24 +578,62 @@ Section dfs.
       apply dfs_acc_termination, dfs_acc in Hi as []; eauto.
   Qed.
 
+  Local Fact dfs_invar_clos_rt α x y :
+          dfs_invar α
+        → clos_refl_trans (λ u v, u ∈ succ v) y x
+        → α x
+        → α y.
+  Proof.
+    intros H; induction 1; auto.
+    intro; eapply H; eauto.
+  Qed.
+
+  Local Fact clos_rt_dfs_invar x : dfs_invar (λ y, clos_refl_trans (λ u v, u ∈ succ v) y x).
+  Proof. now econstructor 3; [ constructor 1 | eassumption ]. Qed.
+
+  (* We give another high-level characterization of the output 
+     of dfs, ie the smallest invariant containing x, irrelevant 
+     of whether it is listable or not, is the reflexive-transtive 
+     closure of succ up to x. *)
+  Lemma dfs_post_condition x α :
+         smallest (λ α, α x ∧ dfs_invar α) α
+       ↔ ∀y, α y ↔ clos_refl_trans (λ u v, u ∈ succ v) y x.
+  Proof.
+    split.
+    + intros ((H1 & H2) & H3); split.
+      * apply H3 with (β := λ y, clos_refl_trans (λ u v, u ∈ succ v) y x); split.
+        - constructor 2.
+        - apply clos_rt_dfs_invar.
+      * now intros ?%(dfs_invar_clos_rt _ _ _ H2).
+    + intros H; split; [ split | ].
+      * apply H; constructor 2.
+      * intros y z Hy%H ?.
+        apply H.
+        constructor 3 with y; auto; now constructor 1.
+      * intros β (H1 & H2) y Hy%H.
+        revert Hy H1; now apply dfs_invar_clos_rt.
+  Qed.
+
   (* This is the total correctness statement of dfs with a
      high-level specification. Internally dfs calls
      dfs_acc (nested with foldleft). Notice that the
      domain is the largest possible for dfs because of
-     dfs_weakest_pre_condition. *)
-  Definition dfs x (dx : ∃i, x ∈ i ∧ dfs_invar i) : { i | smallest (λ i, x ∈ i ∧ dfs_invar i) i }.
+     dfs_weakest_pre_condition. 
+
+     The post-condition on the output value is that it
+     is a list spanning exactly the reflexive and
+     transitive closure of (λ u v, u ∈ succ v) up to x. 
+  *)
+  Definition dfs x (dx : ∃i, x ∈ i ∧ dfs_invar (λ y, y ∈ i)) : {l | ∀y, y ∈ l ↔ clos_refl_trans (λ u v, u ∈ succ v) y x}.
   Proof.
     (* We separate the code from the logic *)
     refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
     + now apply Dfs_iff_Gdfs, dfs_weakest_pre_condition.
-    + now apply dfs_partially_correct in hm.
+    + now apply dfs_post_condition, dfs_partially_correct.
   Defined.
 
 End dfs.
 
-Arguments dfs_invar {X}.
-
-Print dfs_invar.
 Check dfs.
 Recursive Extraction dfs.
 
