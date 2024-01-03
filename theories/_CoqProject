@@ -33,6 +33,7 @@ dfs/dfs_term.v
 
 # Depth First Search nested with fold_left (cf Xavier Leroy CoqPL 2024)
 dfs_xleroy/dfs_xleroy.v
+dfs_xleroy/dfs_xleroy_inverted.v
 
 # Paulson's normalization
 
