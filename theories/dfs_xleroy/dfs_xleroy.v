@@ -357,14 +357,14 @@ Section dfs.
     Variables (P : list X → list X → list X → Prop)
               (Q : list X → X → list X → Prop)
 
-              (HP0 : ∀a, P [] a a)
+              (HP0 : ∀a, P a [] a)
 
               (HP1 : ∀ {a y l b o},
                          Gdfs a y b
                        → Q a y b
                        → Gfoldleft Gdfs b l o
-                       → P l b o
-                       → P (y::l) a o)
+                       → P b l o
+                       → P a (y::l) o)
 
               (HQ0 : ∀ {a x},
                          x ∈ a
@@ -373,11 +373,11 @@ Section dfs.
               (HQ1 : ∀ {a x o},
                          x ∉ a
                        → Gfoldleft Gdfs (x::a) (succ x) o
-                       → P (succ x) (x::a) o
+                       → P (x::a) (succ x) o
                        → Q a x o).
 
     Let Gfoldleft_ind (Gdfs_ind : ∀ {a x o}, Gdfs a x o → Q a x o) :=
-      fix loop {l a o} (gfl : Gfoldleft Gdfs l a o) {struct gfl} :=
+      fix loop {a l o} (gfl : Gfoldleft Gdfs a l o) {struct gfl} :=
         match gfl with
         | Gfl_nil a    => HP0 a
         | Gfl_cons f g => HP1 f (Gdfs_ind f) g (loop g)
@@ -395,6 +395,14 @@ Section dfs.
       | Gdfs_next h gfl => HQ1 h gfl (Gfoldleft_ind Gdfs_ind gfl)
       end.
 
+    Theorem Gdfs_mutual_ind : (∀ a l o, Gfoldleft Gdfs a l o → P a l o)
+                            ∧ (∀ a x o, Gdfs a x o → Q a x o).
+    Proof.
+      split.
+      + apply Gfoldleft_ind, Gdfs_ind.
+      + apply Gdfs_ind.
+    Qed.
+
     (* The same proof term, but using an Ltac script with nesting inlined. *)
     Let Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) {struct d} : Q a x o.
     Proof.
@@ -410,7 +418,7 @@ Section dfs.
   Local Lemma Gdfs_fun {a x o₁ o₂} : Gdfs a x o₁ → Gdfs a x o₂ → o₁ = o₂.
   Proof.
     intros H; revert o₂; pattern a, x, o₁; revert a x o₁ H.
-    apply Gdfs_ind with (P := λ l a o, ∀o2, Gfoldleft Gdfs a l o2 → o = o2).
+    apply Gdfs_ind with (P := λ a l o, ∀o2, Gfoldleft Gdfs a l o2 → o = o2).
     + now intros ? ? ?%Gfoldleft_inv.
     + intros ? ? ? ? ? _ IH1 _ IH2 ? (? & [])%Gfoldleft_inv.
       apply IH2; erewrite IH1; eauto.
@@ -421,7 +429,7 @@ Section dfs.
   (* And then the inclusion of Gdfs in Ddfs. *)
   Local Lemma Gdfs_incl_Ddfs : ∀ a x o, Gdfs a x o → Ddfs a x.
   Proof.
-    apply Gdfs_ind with (P := λ l a o, Dfoldleft Gdfs Ddfs a l)
+    apply Gdfs_ind with (P := λ a l o, Dfoldleft Gdfs Ddfs a l)
                         (Q := λ a x o, Ddfs a x);
       [ constructor 1 | | constructor 1 | constructor 2 ]; eauto.
     intros a x l b o1 H1 IH1 H2 IH2.
@@ -472,13 +480,11 @@ Section dfs.
   (* This is the partial correctness of dfs_acc via its low-level
      characterization (ie Gdfs): the output of dfs_acc (when it exists)
      is a smallest invariant containing x. *)
-  Theorem dfs_acc_partially_correct a x o :
-       Gdfs a x o → smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) (λ y, y ∈ o).
+  Theorem dfs_acc_partially_correct :
+        (∀ a l o, Gfoldleft Gdfs a l o → smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) ⦃o⦄)
+      ∧ (∀ a x o, Gdfs a x o → smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) ⦃o⦄).
   Proof.
-    revert a x o.
-    (** The property to be established for Gfoldleft Gdfs l a o has to be provided,
-        here the smallest invariant containing l. *)
-    apply Gdfs_ind with (P := λ l a o, smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) (λ y, y ∈ o)).
+    apply Gdfs_mutual_ind.
     + repeat split; easy || auto; red; auto.
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
       * intros ? [ [] | ?%G1 ]; eauto.
@@ -591,8 +597,8 @@ Section dfs.
     destruct (in_dec x a) as [ H | H ].
     + now constructor 1.
     + constructor 2; trivial.
-      assert (IH : ∀ a' y, ⦃x::a⦄ ⊆ ⦃a'⦄ → y ∈ i ∧ ⦃a'⦄ ⊆ ⦃i⦄ ∧ dfs_acc_invar a' ⦃i⦄ → Ddfs a' y).
-      1: intros ? ? ? (? & ? & ?); apply IHa; repeat split; eauto. 
+      assert (IH : ∀ a' y, ⦃x::a⦄ ⊆ ⦃a'⦄ → y ∈ i → ⦃a'⦄ ⊆ ⦃i⦄ → dfs_acc_invar a' ⦃i⦄ → Ddfs a' y).
+      1: intros; apply IHa; repeat split; eauto. 
       clear IHa; rename IH into IHa.
       assert (Hi : ⦃succ x⦄ ⊆ ⦃i⦄)
         by (destruct (G3 _ G1); now auto).
@@ -607,7 +613,6 @@ Section dfs.
       * constructor 1.
       * constructor 2.
         - apply IHa; auto.
-          repeat split; auto.
           intros ? []%G3; eauto.
         - intros o (F1 & F2)%dfs_acc_partially_correct.
           apply IHl; eauto.
@@ -653,7 +658,7 @@ Section dfs.
 
   Local Fact dfs_invar_clos_rt α x y :
           dfs_invar α
-        → clos_refl_trans (λ u v, u ∈ succ v) y x
+        → clos_refl_trans (λ v u, u ∈ succ v) x y
         → α x
         → α y.
   Proof.
@@ -661,8 +666,8 @@ Section dfs.
     intro; eapply H; eauto.
   Qed.
 
-  Local Fact clos_rt_dfs_invar x : dfs_invar (λ y, clos_refl_trans (λ u v, u ∈ succ v) y x).
-  Proof. now econstructor 3; [ constructor 1 | eassumption ]. Qed.
+  Local Fact clos_rt_dfs_invar x : dfs_invar (λ y, clos_refl_trans (λ v u, u ∈ succ v) x y).
+  Proof. now econstructor 3; [ eassumption | constructor 1 ]. Qed.
 
   (* We give another high-level characterization of the output 
      of dfs, ie the smallest invariant containing x, irrelevant 
@@ -670,11 +675,11 @@ Section dfs.
      closure of succ up to x. *)
   Lemma dfs_post_condition x α :
          smallest (λ α, α x ∧ dfs_invar α) α
-       ↔ ∀y, α y ↔ clos_refl_trans (λ u v, u ∈ succ v) y x.
+       ↔ ∀y, α y ↔ clos_refl_trans (λ v u, u ∈ succ v) x y.
   Proof.
     split.
     + intros ((H1 & H2) & H3); split.
-      * apply H3 with (β := λ y, clos_refl_trans (λ u v, u ∈ succ v) y x); split.
+      * apply H3 with (β := clos_refl_trans (λ v u, u ∈ succ v) x); split.
         - constructor 2.
         - apply clos_rt_dfs_invar.
       * now intros ?%(dfs_invar_clos_rt _ _ _ H2).
@@ -697,7 +702,8 @@ Section dfs.
      is a list spanning exactly the reflexive and
      transitive closure of (λ u v, u ∈ succ v) up to x. 
   *)
-  Definition dfs x (dx : ∃i, x ∈ i ∧ dfs_invar (λ y, y ∈ i)) : {l | ∀y, y ∈ l ↔ clos_refl_trans (λ u v, u ∈ succ v) y x}.
+  Definition dfs x (dx : ∃i, x ∈ i ∧ dfs_invar (λ y, y ∈ i)) :
+           {l | ∀y, y ∈ l ↔ clos_refl_trans (λ v u, u ∈ succ v) x y}.
   Proof.
     (* We separate the code from the logic *)
     refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
