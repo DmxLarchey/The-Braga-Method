@@ -469,12 +469,47 @@ Section dfs.
         destruct (H7 _ H5); auto; tauto.
   Qed.
 
+(*
+  Fact Ddfs_mono a b x : a ⊆ b → Ddfs a x → Ddfs b x.
+  Proof.
+    intros H1 H2; revert a x H2 b H1.
+    refine (fix loop1 a x d { struct d } := _).
+    intros b Hab.
+    destruct (in_dec x b) as [ Hxb | Hxb ].
+    1: now constructor 1.
+    constructor 2; trivial.
+    assert 
+    destruct d as [ a x Hax | a x Hax Ha ].
+    + intros b; constructor 1; auto. Guarded.
+    + intros b Hb.
+      destruct (in_dec x b) as [ H | H ].
+      * now constructor 1.
+      *
+
+
+    intros H1 (o & H2)%Dfs_iff_Gdfs; revert b H1; pattern a, x, o; revert a x o H2.
+    apply Gdfs_ind with (P := λ l a o, forall b, a ⊆ b -> Dfoldleft Gdfs Ddfs l b).
+    + constructor 1.
+    + intros a x l b o H1 IH1 H2 IH2 c Hc.
+      constructor 2; auto.
+      intros d Hd.
+      apply IH2.
+      admit.
+    + constructor 1; auto.
+    + intros a x o Hx H1 IH1 b Hb.
+      destruct (in_dec x b) as [ H | H ].
+      * now constructor 1.
+      * constructor 2; auto.
+  Admitted.
+
+*)
+
   (* This property does not holds.
      If b=[x] and a=[] then 
        - Gdfs b x [x]
        - while o st that Gdfs a x o
          can contain many more points that just x *) 
-  Fact Ddfs_mono a b x o : a ⊆ b → Gdfs a x o → ∃o', o ⊆ o' ∧ Gdfs b x o'.
+  Fact Gdfs_mono a b x o : a ⊆ b → Gdfs a x o → ∃o', (o ⊆ b++o' ∧ Gdfs b x o').
   Proof.
     intros H1 H2; revert b H1; pattern a, x, o; revert a x o H2.
     apply Gdfs_ind with (P := λ l a o, ∀b, a ⊆ b → ∃o', o ⊆ o' ∧ Gfoldleft Gdfs l b o').
@@ -490,6 +525,8 @@ Section dfs.
       exists (x::o'); split; eauto.
       constructor 2; auto.
   Admitted.
+
+*)
 
   Inductive bar (P : X → Prop) x : Prop :=
     | bar_stop : P x → bar P x

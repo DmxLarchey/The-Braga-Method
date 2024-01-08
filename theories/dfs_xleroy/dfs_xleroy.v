@@ -487,6 +487,27 @@ Section dfs.
         - intros ? []%G3; eauto.
   Qed.
 
+  Inductive crt_exclude a : X → X → Prop :=
+    | crt_ex_refl x : crt_exclude a x x
+    | crt_ex_step x y z : x ∉ a → y ∈ succ x → crt_exclude a y z → crt_exclude a x z.
+
+  Local Fact dfs_acc_invar_crt_exclude a α x y :
+          dfs_acc_invar a α
+        → crt_exclude a x y
+        → α x
+        → α y.
+  Proof.
+    intros H; induction 1; auto.
+    intros []%H; eauto; tauto.
+  Qed.
+
+  Local Fact crt_exclude_dfs_acc_invar a x : dfs_acc_invar a (λ y, y ∈ a ∨ crt_exclude a x y).
+  Proof. 
+    split; auto.
+    intros y []; auto.
+    induction H.
+  Admitted.
+
   (** We study a more general termination criteria, THE MOST
       GENERAL in fact, using partial correctness, which is typical
       of the case of nested recursive schemes. The proof below
