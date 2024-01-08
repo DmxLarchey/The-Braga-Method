@@ -469,11 +469,53 @@ Section dfs.
         destruct (H7 _ H5); auto; tauto.
   Qed.
 
+  (* This property does not holds.
+     If b=[x] and a=[] then 
+       - Gdfs b x [x]
+       - while o st that Gdfs a x o
+         can contain many more points that just x *) 
+  Fact Ddfs_mono a b x o : a ⊆ b → Gdfs a x o → ∃o', o ⊆ o' ∧ Gdfs b x o'.
+  Proof.
+    intros H1 H2; revert b H1; pattern a, x, o; revert a x o H2.
+    apply Gdfs_ind with (P := λ l a o, ∀b, a ⊆ b → ∃o', o ⊆ o' ∧ Gfoldleft Gdfs l b o').
+    + intros a b Hab; exists b; split; auto.
+    + intros a x l b o _ IH1 _ IH2 c Hac.
+      apply IH1 in Hac as (o1 & (o2 & [])%IH2 & G2).
+      exists o2; split; auto.
+      econstructor; eauto.
+    + intros a x Hxa b Hb; exists b; split; auto.
+    + intros a x o Hx H IH b Hab.
+      destruct IH with (1 := Hab) as (o' & G1 & G2).
+      destruct (in_dec x b).
+      exists (x::o'); split; eauto.
+      constructor 2; auto.
+  Admitted.
+
+  Inductive bar (P : X → Prop) x : Prop :=
+    | bar_stop : P x → bar P x
+    | bar_step : (forall y, y ∈ succ x → bar P y) → bar P x.
+
+  Lemma bar_Ddfs a x : bar (λ y, y ∈ a) x → Ddfs a x.
+  Proof.
+    induction 1 as [ x Hx | x Hx IHx ].
+    + now constructor 1.
+    + destruct (in_dec x a) as [ H | H ].
+      * now constructor 1.
+      * constructor 2; auto.
+        generalize (succ x) a IHx; clear a x Hx IHx H.
+        induction l as [ | x l IHl ]; intros a Hl; eauto.
+        constructor 2; eauto.
+        intros b Hb; apply IHl.
+        intros y Hy.
+        apply Ddfs_mono with a; auto.
+        now apply dfs_acc_partially_correct in Hb as ((? & ? & ?) & _).
+  Qed.
+
   (* Now we want to study termination via a theorem like this one ... *)
 
-  Theorem Gdfs_wf : ∀ a x o, Gdfs a x o → x ∈ a ∨ Acc (λ u v, u ∈ succ v) x.
+  Theorem Gdfs_wf : ∀ a x o, Gdfs a x o → bar (λ y, y ∈ a) x.
   Proof.
-    apply Gdfs_ind with (P := λ l a o, forall u y v, l = u++y::v -> y ∈ u++a ∨ Acc (λ u v, u ∈ succ v) y).
+    apply Gdfs_ind with (P := λ l a o, forall x, x ∈ l → bar (λ y, y ∈ a) x).
     + now destruct u.
     + intros a y l b o H1 [IH1 | IH1] H2 IH2.
       * intros [ | k u ] z v E; simpl in E.
