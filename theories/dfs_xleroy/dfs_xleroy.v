@@ -109,7 +109,8 @@ Arguments clos_refl_trans {_}.
 
 #[local] Infix "∈" := In (at level 70, no associativity).
 #[local] Infix "∉" := (λ x a, ¬ In x a) (at level 70, no associativity).
-#[local] Infix "⊆" := incl (at level 70, no associativity).
+#[local] Notation "P ⊆ Q" := (∀x, P x → Q x) (at level 70, no associativity, format "P  ⊆  Q").
+#[local] Notation "⦃ l ⦄" := (λ x, In x l) (at level 1, format "⦃ l ⦄").
 
 #[local] Hint Resolve in_eq in_cons
                       incl_nil_l incl_refl incl_tran
@@ -451,25 +452,34 @@ Section dfs.
 
   (* For Ω : (X → Prop) → Prop, the set P is a smallest 
      satisfying Ω for inclusion. *)
-  Let smallest Ω α := Ω α ∧ ∀β, Ω β → ∀x, α x → β x.
+  Let smallest Ω α := Ω α ∧ ∀β, Ω β → α ⊆ β.
 
   (* The invariant for dfs_acc wrt to accumulator "a" is an
      upper bound of a stable under "succ" of its member
      which are not members of "a" already, formulated in
      a positive way. *)
-  Let dfs_acc_invar a α := (∀x, x ∈ a → α x) ∧ ∀x, α x → x ∈ a ∨ ∀y, y ∈ succ x → α y.
+  Let dfs_acc_invar a α := ∀x, α x → x ∈ a ∨ ⦃succ x⦄ ⊆ α.
+
+  Local Fact dfs_acc_invar_equiv a α β :
+        (∀x, β x ↔ α x)
+      → dfs_acc_invar a α
+      → dfs_acc_invar a β.
+  Proof.
+    intros E H x []%E%H; eauto; right.
+    intros; apply E; eauto.
+  Qed.
 
   (* This is the partial correctness of dfs_acc via its low-level
      characterization (ie Gdfs): the output of dfs_acc (when it exists)
      is a smallest invariant containing x. *)
   Theorem dfs_acc_partially_correct a x o :
-       Gdfs a x o → smallest (λ α, α x ∧ dfs_acc_invar a α) (λ y, y ∈ o).
+       Gdfs a x o → smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) (λ y, y ∈ o).
   Proof.
     revert a x o.
     (** The property to be established for Gfoldleft Gdfs l a o has to be provided,
         here the smallest invariant containing l. *)
-    apply Gdfs_ind with (P := λ l a o, smallest (λ α, (∀y, y ∈ l → α y) ∧ dfs_acc_invar a α) (λ y, y ∈ o)).
-    + repeat split; easy || auto; now intros ? (? & []).
+    apply Gdfs_ind with (P := λ l a o, smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) (λ y, y ∈ o)).
+    + repeat split; easy || auto; red; auto.
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
       * intros ? [ [] | ?%G1 ]; eauto.
       * intros ? [ []%H3| ]%G3; eauto.
@@ -477,7 +487,9 @@ Section dfs.
         apply G4; repeat split; eauto.
         - apply H4; repeat split; auto.
         - intros ? []%F3; eauto.
-    + repeat split; auto; now intros ? (? & []).
+    + repeat split; auto.
+      * red; auto.
+      * now intros ? (? & []).
     + intros a x o Hx _ ((? & []%incl_cons_inv & H4) & H5); repeat split; eauto.
       * intros ? [ [ <- | ] | ]%H4; eauto.
       * intros i (G1 & G2 & G3).
@@ -487,9 +499,13 @@ Section dfs.
         - intros ? []%G3; eauto.
   Qed.
 
+  (* y can be reached from x by a succ sequence not crossing a,
+     except possibly at y *)
   Inductive crt_exclude a : X → X → Prop :=
     | crt_ex_refl x : crt_exclude a x x
     | crt_ex_step x y z : x ∉ a → y ∈ succ x → crt_exclude a y z → crt_exclude a x z.
+
+  Hint Constructors crt_exclude : core.
 
   Local Fact dfs_acc_invar_crt_exclude a α x y :
           dfs_acc_invar a α
@@ -502,12 +518,48 @@ Section dfs.
   Qed.
 
   Local Fact crt_exclude_dfs_acc_invar a x : dfs_acc_invar a (λ y, y ∈ a ∨ crt_exclude a x y).
-  Proof. 
-    split; auto.
-    intros y []; auto.
-    induction H.
-  Admitted.
+  Proof.
+    intros y [ H | H ]; auto.
+    induction H as [ x | x y z Hx Hy H1 [ IH1 | IH1 ] ]; eauto.
+    + destruct (in_dec x a); eauto.
+    + right; intros ? []%IH1; eauto.
+  Qed.
+ 
+  (* The output of dfs is the union of ⦃a⦄ and crt_exclude a x *)
+  Lemma dfs_acc_post_condition a x α :
+         smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) α
+       ↔ ∀y, α y ↔ y ∈ a ∨ crt_exclude a x y.
+  Proof.
+    split.
+    + intros ((H1 & H2 & H3) & H4).
+      intros y; split; revert y.
+      * apply H4; repeat split; eauto.
+        apply crt_exclude_dfs_acc_invar.
+      * intros ? []; auto.
+        eapply dfs_acc_invar_crt_exclude; eauto.
+    + intros H; repeat split.
+      * apply H; eauto.
+      * intros ? ?; apply H; auto.
+      * generalize (crt_exclude_dfs_acc_invar a x).
+        apply dfs_acc_invar_equiv, H.
+      * intros β (H1 & H2 & H3) y [Hy%H2 | Hy]%H; auto.
+        eapply dfs_acc_invar_crt_exclude; eauto. 
+  Qed.
 
+  (* What is the output of foldleft dfs l a ? *)
+  Lemma foldleft_dfs_post_condition a l α :
+         smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) α
+       ↔ ∀y, α y ↔ y ∈ a ∨ ∃x, x ∈ l ∧ crt_exclude a x y.
+  Proof.
+    (* fl dfs a [] = a 
+       fl dfs a [x] = fl dfs (dfs a x) [] = dfs a x = a ∪ crt_ex a x
+       fl dfs a [x;y] = fl dfs (dfs a x) [y]
+                      = fl dfs (a ∪ crt_ex a x) [y] 
+                      = dfs (a ∪ crt_ex a x) y
+                      = a ∪ crt_ex a x ∪ crt_ex (a ∪ crt_ex a x) y
+                      = a ∪ crt_ex a x ∪ crt_ex a y ?? *)
+  Admitted.
+ 
   (** We study a more general termination criteria, THE MOST
       GENERAL in fact, using partial correctness, which is typical
       of the case of nested recursive schemes. The proof below
@@ -532,19 +584,20 @@ Section dfs.
       This proof has a similar structure as the one of
       (foldleft free) dfs in theories/dfs/dfs_term.v *)
 
-  Theorem dfs_acc_termination a i : ∀x, x ∈ i ∧ dfs_acc_invar a (λ y, y ∈ i) → Ddfs a x.
+  Theorem dfs_acc_termination a i : ∀x, x ∈ i ∧ ⦃a⦄ ⊆ ⦃i⦄ ∧ dfs_acc_invar a ⦃i⦄ → Ddfs a x.
   Proof.
     induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)).
     intros x (G1 & G2 & G3).
     destruct (in_dec x a) as [ H | H ].
     + now constructor 1.
     + constructor 2; trivial.
-      assert (IH : ∀ a' y, x::a ⊆ a' → y ∈ i ∧ dfs_acc_invar a' (λ y, y ∈ i) → Ddfs a' y)
-        by (intros; apply IHa; trivial; split; eauto).
+      assert (IH : ∀ a' y, ⦃x::a⦄ ⊆ ⦃a'⦄ → y ∈ i ∧ ⦃a'⦄ ⊆ ⦃i⦄ ∧ dfs_acc_invar a' ⦃i⦄ → Ddfs a' y).
+      1: intros ? ? ? (? & ? & ?); apply IHa; repeat split; eauto. 
       clear IHa; rename IH into IHa.
-      assert (Hi : succ x ⊆ i)
+      assert (Hi : ⦃succ x⦄ ⊆ ⦃i⦄)
         by (destruct (G3 _ G1); now auto).
-      cut (x::a ⊆ i); [ | eauto ].
+      cut (⦃x::a⦄ ⊆ ⦃i⦄).
+      2: { intros ? [ <- | ]; eauto. }
       generalize (incl_refl (x::a)).
       clear H.
       revert Hi.
@@ -559,7 +612,7 @@ Section dfs.
         - intros o (F1 & F2)%dfs_acc_partially_correct.
           apply IHl; eauto.
           ++ destruct F1 as (? & []); eauto.
-          ++ red; apply F2.
+          ++ apply F2.
              destruct F1 as (? & []).
              repeat split; eauto.
              intros ? []%G3; eauto.
@@ -571,9 +624,8 @@ Section dfs.
   Local Fact dfs_invar_iff α : dfs_invar α ↔ dfs_acc_invar [] α.
   Proof.
     split.
-    + repeat split; eauto || easy.
-    + intros (? & H).
-      intros ? ? []%H ?; auto.
+    + right; eauto.
+    + intros H ? ? []%H ?; now auto.
   Qed.
 
   (* The partial correctness of dfs x := dfs_acc [] x.
@@ -584,7 +636,7 @@ Section dfs.
   Proof.
     intros (H1 & H2)%dfs_acc_partially_correct; split.
     + now rewrite dfs_invar_iff.
-    + intro; rewrite dfs_invar_iff; apply H2.
+    + intros ? (? & ?%dfs_invar_iff); apply H2; repeat split; now auto.
   Qed.
 
   (* Hence, as a sufficient and necessary condition for dfs to
@@ -594,9 +646,9 @@ Section dfs.
   Proof.
     split.
     + intros (? & (? & _)%dfs_partially_correct); eauto.
-    + intros (i & Hi).
-      rewrite dfs_invar_iff in Hi.
-      apply dfs_acc_termination, dfs_acc in Hi as []; eauto.
+    + intros (i & ? & ?%dfs_invar_iff).
+      apply Dfs_iff_Gdfs, dfs_acc_termination with i.
+      repeat split; now auto.
   Qed.
 
   Local Fact dfs_invar_clos_rt α x y :
