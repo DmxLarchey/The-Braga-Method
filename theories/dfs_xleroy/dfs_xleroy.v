@@ -116,6 +116,60 @@ Arguments clos_refl_trans {_}.
                       incl_nil_l incl_refl incl_tran
                       incl_cons incl_tl : core.
 
+#[local] Hint Constructors clos_refl_trans : core.
+
+Section crt_exclude.
+
+  Variables (X : Type) (R : X → X → Prop).
+
+  Implicit Types (P Q : X → Prop).
+
+  (** crt_exclude R P x y :
+      y can be reached from x by a R-sequence, 
+      not crossing P, except possibly at y *)
+  Inductive crt_exclude (P : X → Prop) : X → X → Prop :=
+    | crt_excl_refl x : crt_exclude P x x
+    | crt_excl_step x y z : ¬ P x → R x y → crt_exclude P y z → crt_exclude P x z.
+
+  Hint Constructors crt_exclude : core.
+
+  Fact crt_exclude_empty x y :
+         crt_exclude (fun _ => False) x y 
+       ↔ clos_refl_trans R x y.
+  Proof.
+    split.
+    + induction 1; eauto.
+    + revert x; apply clos_refl_trans_ind_right; eauto. 
+  Qed.
+
+  Fact crt_exclude_mono P Q : P ⊆ Q → ∀ x y, crt_exclude Q x y → crt_exclude P x y.
+  Proof. induction 2; eauto. Qed.
+
+  Hint Resolve crt_exclude_mono : core.
+
+  Let f P x y := P y ∨ crt_exclude P x y.
+
+  Fact fl_f P l y : fold_left f l P y ↔ P y ∨ ∃ x, x ∈ l ∧ crt_exclude P x y.
+  Proof.
+    induction l as [ | x l IHl ] in y, P |- *; simpl.
+    + split; auto; now intros [ | (? & ? & _) ].
+    + rewrite IHl; unfold f; split.
+      * intros [ [] | (u & ? & ?) ]; eauto.
+        right; exists u; split; eauto.
+        eapply crt_exclude_mono; [ | eassumption ]; simpl; auto.
+      * intros [ | (u & [ <- | Hu ] & ?) ]; eauto.
+        assert (P y ∨ crt_exclude P x y ∨ crt_exclude (λ u, P u ∨ crt_exclude P x u) u y) as [ | [] ]; eauto.
+        clear IHl Hu l.
+        induction H as [ | ? ? ? ? ? ? [ | [] ] ]; eauto.
+        do 2 right; constructor 2 with y; auto.
+  Admitted.
+
+End crt_exclude.
+
+Arguments crt_exclude {_}.
+
+#[local] Hint Constructors crt_exclude : core.
+
 Section foldleft.
 
   (** A partial and polymorphic version of foldleft *)
@@ -489,7 +543,7 @@ Section dfs.
     + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
       * intros ? [ [] | ?%G1 ]; eauto.
       * intros ? [ []%H3| ]%G3; eauto.
-      * intros β (F1 & F2 & F3).
+      * intros ? (F1 & F2 & F3).
         apply G4; repeat split; eauto.
         - apply H4; repeat split; auto.
         - intros ? []%F3; eauto.
@@ -505,6 +559,7 @@ Section dfs.
         - intros ? []%G3; eauto.
   Qed.
 
+(*
   (* y can be reached from x by a succ sequence not crossing a,
      except possibly at y *)
   Inductive crt_exclude a : X → X → Prop :=
@@ -512,10 +567,11 @@ Section dfs.
     | crt_ex_step x y z : x ∉ a → y ∈ succ x → crt_exclude a y z → crt_exclude a x z.
 
   Hint Constructors crt_exclude : core.
+*)
 
   Local Fact dfs_acc_invar_crt_exclude a α x y :
           dfs_acc_invar a α
-        → crt_exclude a x y
+        → crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y
         → α x
         → α y.
   Proof.
@@ -523,7 +579,7 @@ Section dfs.
     intros []%H; eauto; tauto.
   Qed.
 
-  Local Fact crt_exclude_dfs_acc_invar a x : dfs_acc_invar a (λ y, y ∈ a ∨ crt_exclude a x y).
+  Local Fact crt_exclude_dfs_acc_invar a x : dfs_acc_invar a (λ y, y ∈ a ∨ crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y).
   Proof.
     intros y [ H | H ]; auto.
     induction H as [ x | x y z Hx Hy H1 [ IH1 | IH1 ] ]; eauto.
@@ -534,7 +590,7 @@ Section dfs.
   (* The output of dfs is the union of ⦃a⦄ and crt_exclude a x *)
   Lemma dfs_acc_post_condition a x α :
          smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) α
-       ↔ ∀y, α y ↔ y ∈ a ∨ crt_exclude a x y.
+       ↔ ∀y, α y ↔ y ∈ a ∨ crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y.
   Proof.
     split.
     + intros ((H1 & H2 & H3) & H4).
@@ -555,7 +611,7 @@ Section dfs.
   (* What is the output of foldleft dfs l a ? *)
   Lemma foldleft_dfs_post_condition a l α :
          smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) α
-       ↔ ∀y, α y ↔ y ∈ a ∨ ∃x, x ∈ l ∧ crt_exclude a x y.
+       ↔ ∀y, α y ↔ y ∈ a ∨ ∃x, x ∈ l ∧ crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y.
   Proof.
     (* fl dfs a [] = a 
        fl dfs a [x] = fl dfs (dfs a x) [] = dfs a x = a ∪ crt_ex a x
