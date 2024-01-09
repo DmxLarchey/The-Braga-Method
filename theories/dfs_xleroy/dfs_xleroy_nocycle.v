@@ -272,7 +272,7 @@ Section dfs.
 
      while providing precisely the strict sub-term dfl out
      of d : Ddfs_next h dfl . *)
-  Let Ddfs_pi {a x} (d : Ddfs a x) :
+  Local Definition Ddfs_pi {a x} (d : Ddfs a x) :
       x ∉ a → Dfoldleft Gdfs Ddfs (succ x) a :=
     match d with
     | Ddfs_stop h     => λ C, match C h with end
@@ -377,6 +377,14 @@ Section dfs.
       | Gdfs_next h gfl => HQ1 h gfl (Gfoldleft_ind Gdfs_ind gfl)
       end.
 
+    Theorem Gdfs_mutual_ind : (∀ l a o, Gfoldleft Gdfs l a o → P l a o)
+                            ∧ (∀ a x o, Gdfs a x o → Q a x o).
+    Proof.
+      split.
+      + apply Gfoldleft_ind, Gdfs_ind.
+      + apply Gdfs_ind.
+    Qed.
+
     (* The same proof term, but using an Ltac script with nesting inlined. *)
     Let Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) {struct d} : Q a x o.
     Proof.
@@ -423,6 +431,42 @@ Section dfs.
     + now intros (? & ?%Gdfs_incl_Ddfs).
   Qed.
 
+  Notation next := (λ v u, u ∈ succ v).
+
+   (* We need a stronger post-condition to work with this version of dfs,
+      ie that it outputs the refl-trans closure of next from x and 
+      that no cycle is reachable from x. It is stronger than there is
+      a path without cycles. It is *every* path contains no cycle.  *)
+
+  Definition Gdfs_invar a α : 
+
+  Theorem dfs_acc_partially_correct :
+       (forall l a o, Gfoldleft Gdfs l a o -> forall y, ⦃o⦄ y <-> ⦃a⦄ y \/ exists x, In x l /\ crt_nocycle next ⦃a⦄ x y)
+    /\ (forall a x o, Gdfs a x o → forall y, ⦃o⦄ y <-> ⦃a⦄ y \/ crt_nocycle next ⦃a⦄ x y).
+  Proof.
+    apply Gdfs_mutual_ind.
+    + intros a y; simpl; firstorder.
+    + intros a x l b o H1 IH1 H2 IH2 y.
+      rewrite IH2, IH1; split.
+      * intros [ [ H3 | H3 ] | (z & H3 & H4) ]; eauto.
+        right; exists z; split; eauto.
+        revert H4; apply crt_nocycle_mono.
+        intros ? ?; apply IH1; auto.
+      * intros [ H | (z & [ <- | Hz ] & H) ]; eauto.
+        admit.
+    + intros a x Hxa y; split; auto.
+      intros [ | H ]; auto.
+      now destruct (crt_nocycle_member _ _ _ _ _ H Hxa).
+    + intros a x o Hx H1 IH1 y; split.
+      * intros [ <- | [ | ( z & ? & ?) ] %IH1 ]; eauto.
+        right; constructor 2 with z; auto.
+        admit.
+      *
+ 
+%crt_nocycle_member ].
+ Hya.
+    +
+
   (* This is the partial correctness of dfs_acc via its low-level 
      characterization (ie Gdfs): the output of dfs_acc (when it exists)
      is a smallest invariant containing x. *)
@@ -452,7 +496,7 @@ Section dfs.
         destruct (H7 _ H5); auto; tauto.
   Qed.
 
-  Notation next := (λ v u, u ∈ succ v).
+
 
   Corollary dfs_acc_crt_excluded a x o :
         Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.

@@ -73,10 +73,31 @@ Section crt_exclude.
         do 2 right; constructor 2 with y; auto.
   Admitted.
 
+  Inductive crt_nocycle : (X → Prop) → X → X → Prop :=
+    | crt_nc_refl P x : crt_nocycle P x x
+    | crt_nc_step P x y z : ¬ P x → R x y → crt_nocycle (eq x ∪ P) y z → crt_nocycle P x z.
+
+  Hint Constructors crt_nocycle : core.
+
+  Fact crt_nocycle_mono P Q : P ⊆ Q → ∀ x y, crt_nocycle Q x y → crt_nocycle P x y.
+  Proof. 
+    intros H1 x y H2; revert H2 P H1. 
+    induction 1 as [ | P x y z H1 H2 H3 IH3 ]; eauto.
+    intros Q HQ. 
+    constructor 2 with y; eauto. 
+    apply IH3; intros ? []; eauto.
+  Qed.
+
+  Fact crt_nocycle_member P x y : crt_nocycle P x y → P x → x = y.
+  Proof. induction 1; tauto. Qed. 
+
 End crt_exclude.
 
 Arguments crt_exclude {_}.
 #[global] Hint Constructors crt_exclude : core.
+
+Arguments crt_nocycle {_}.
+#[global] Hint Constructors crt_nocycle : core.
 
 Section dfs_post_condition.
 
