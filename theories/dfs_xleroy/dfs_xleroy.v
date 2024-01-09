@@ -110,7 +110,9 @@ Arguments clos_refl_trans {_}.
 #[local] Infix "∈" := In (at level 70, no associativity).
 #[local] Infix "∉" := (λ x a, ¬ In x a) (at level 70, no associativity).
 #[local] Notation "P ⊆ Q" := (∀x, P x → Q x) (at level 70, no associativity, format "P  ⊆  Q").
+#[local] Notation "P ≡ Q" := (∀x, P x ↔ Q x) (at level 70, no associativity, format "P  ≡  Q").
 #[local] Notation "⦃ l ⦄" := (λ x, In x l) (at level 1, format "⦃ l ⦄").
+#[local] Notation "P ∪ Q" := (λ x, P x ∨ Q x) (at level 20, left associativity, format "P  ∪  Q").
 
 #[local] Hint Resolve in_eq in_cons
                       incl_nil_l incl_refl incl_tran
@@ -516,6 +518,12 @@ Section dfs.
      satisfying Ω for inclusion. *)
   Let smallest Ω α := Ω α ∧ ∀β, Ω β → α ⊆ β.
 
+  Local Fact smallest_equiv Ω Ψ	: Ω ≡ Ψ → smallest Ω ≡ smallest Ψ.
+  Proof.
+    intros H a; split; intros (H1%H & H2); split; auto;
+      intros ? ?%H; now apply H2.
+  Qed.
+
   (* The invariant for dfs_acc wrt to accumulator "a" is an
      upper bound of a stable under "succ" of its member
      which are not members of "a" already, formulated in
@@ -523,20 +531,21 @@ Section dfs.
   Let dfs_acc_invar a α := ∀x, α x → x ∈ a ∨ ⦃succ x⦄ ⊆ α.
 
   Local Fact dfs_acc_invar_equiv a α β :
-        (∀x, β x ↔ α x)
-      → dfs_acc_invar a α
-      → dfs_acc_invar a β.
+        β ≡ α → dfs_acc_invar a α → dfs_acc_invar a β.
   Proof.
     intros E H x []%E%H; eauto; right.
     intros; apply E; eauto.
   Qed.
 
-  (* This is the partial correctness of dfs_acc via its low-level
-     characterization (ie Gdfs): the output of dfs_acc (when it exists)
-     is a smallest invariant containing x. *)
+  (* This is the partial correctness of dfs_acc 
+     together with that of (foldleft dfs_acc) 
+     obtained via their low-level characterization 
+     (ie Gfoldleft Gdfs / Gdfs) to a higher-level
+     characterization: their output is a smallest
+     invariant. *)
   Theorem dfs_acc_partially_correct :
         (∀ a l o, Gfoldleft Gdfs a l o → smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) ⦃o⦄)
-      ∧ (∀ a x o, Gdfs a x o → smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) ⦃o⦄).
+      ∧ (∀ a x o, Gdfs a x o           → smallest (λ α, α x     ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) ⦃o⦄).
   Proof.
     apply Gdfs_mutual_ind.
     + repeat split; easy || auto; red; auto.
@@ -559,19 +568,13 @@ Section dfs.
         - intros ? []%G3; eauto.
   Qed.
 
-(*
-  (* y can be reached from x by a succ sequence not crossing a,
-     except possibly at y *)
-  Inductive crt_exclude a : X → X → Prop :=
-    | crt_ex_refl x : crt_exclude a x x
-    | crt_ex_step x y z : x ∉ a → y ∈ succ x → crt_exclude a y z → crt_exclude a x z.
+  (** Now we get a better characterization of the smallest invariant *)
 
-  Hint Constructors crt_exclude : core.
-*)
+  Notation next := (λ v u, u ∈ succ v).
 
   Local Fact dfs_acc_invar_crt_exclude a α x y :
           dfs_acc_invar a α
-        → crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y
+        → crt_exclude next ⦃a⦄ x y
         → α x
         → α y.
   Proof.
@@ -579,7 +582,8 @@ Section dfs.
     intros []%H; eauto; tauto.
   Qed.
 
-  Local Fact crt_exclude_dfs_acc_invar a x : dfs_acc_invar a (λ y, y ∈ a ∨ crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y).
+  Local Fact crt_exclude_dfs_acc_invar a x :
+         dfs_acc_invar a (⦃a⦄ ∪ crt_exclude next ⦃a⦄ x).
   Proof.
     intros y [ H | H ]; auto.
     induction H as [ x | x y z Hx Hy H1 [ IH1 | IH1 ] ]; eauto.
@@ -587,10 +591,12 @@ Section dfs.
     + right; intros ? []%IH1; eauto.
   Qed.
  
-  (* The output of dfs is the union of ⦃a⦄ and crt_exclude a x *)
+  (* A high-level characterization of the output of
+     dfs_acc, provided it exist: it is equivalent
+     to the union of ⦃a⦄ and crt_exclude next ⦃a⦄ x *)
   Lemma dfs_acc_post_condition a x α :
          smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) α
-       ↔ ∀y, α y ↔ y ∈ a ∨ crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y.
+       ↔ α ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
   Proof.
     split.
     + intros ((H1 & H2 & H3) & H4).
@@ -611,7 +617,7 @@ Section dfs.
   (* What is the output of foldleft dfs l a ? *)
   Lemma foldleft_dfs_post_condition a l α :
          smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) α
-       ↔ ∀y, α y ↔ y ∈ a ∨ ∃x, x ∈ l ∧ crt_exclude (λ v u, u ∈ succ v) ⦃a⦄ x y.
+       ↔ ∀y, α y ↔ y ∈ a ∨ ∃x, x ∈ l ∧ crt_exclude next ⦃a⦄ x y.
   Proof.
     (* fl dfs a [] = a 
        fl dfs a [x] = fl dfs (dfs a x) [] = dfs a x = a ∪ crt_ex a x
@@ -619,7 +625,11 @@ Section dfs.
                       = fl dfs (a ∪ crt_ex a x) [y] 
                       = dfs (a ∪ crt_ex a x) y
                       = a ∪ crt_ex a x ∪ crt_ex (a ∪ crt_ex a x) y
-                      = a ∪ crt_ex a x ∪ crt_ex a y ?? *)
+                      = a ∪ crt_ex a x ∪ crt_ex a y ?? 
+
+       dfs a x = 
+         if in_dec x a then a else x::fl dfs a (succ x)
+    *)
   Admitted.
  
   (** We study a more general termination criteria, THE MOST
@@ -679,31 +689,40 @@ Section dfs.
              intros ? []%G3; eauto.
   Qed.
 
+  (** Now we switch to dfs := dfs_acc [] *)
+
   (* The invariant for dfs is a set stable under succ *)
   Let dfs_invar α := ∀ x y, α x → y ∈ succ x → α y.
 
-  Local Fact dfs_invar_iff α : dfs_invar α ↔ dfs_acc_invar [] α.
+  Local Fact dfs_invar_iff : dfs_invar ≡ dfs_acc_invar [].
   Proof.
     split.
     + right; eauto.
     + intros H ? ? []%H ?; now auto.
   Qed.
 
+  Local Fact smallest_invar_equiv x :
+        smallest (λ α, α x ∧ dfs_invar α)
+      ≡ smallest (λ α, α x ∧ ⦃[]⦄ ⊆ α ∧ dfs_acc_invar [] α).
+  Proof.
+    apply smallest_equiv.
+    intros ?; rewrite dfs_invar_iff; simpl; tauto.
+  Qed.
+ 
   (* The partial correctness of dfs x := dfs_acc [] x.
      When it terminates, it outputs a (smallest) succ-stable
      list of which x is a member. *)
   Corollary dfs_partially_correct x o :
-       Gdfs [] x o → smallest (λ α, α x ∧ dfs_invar α) (λ y, y ∈ o).
+       Gdfs [] x o → smallest (λ α, α x ∧ dfs_invar α) ⦃o⦄.
   Proof.
-    intros (H1 & H2)%dfs_acc_partially_correct; split.
-    + now rewrite dfs_invar_iff.
-    + intros ? (? & ?%dfs_invar_iff); apply H2; repeat split; now auto.
+    rewrite smallest_invar_equiv.
+    apply dfs_acc_partially_correct.
   Qed.
 
   (* Hence, as a sufficient and necessary condition for dfs to
      terminate, an invariant must exist. *)
   Corollary dfs_weakest_pre_condition x :
-      (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_invar (λ y, y ∈ i).
+      (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_invar ⦃i⦄.
   Proof.
     split.
     + intros (? & (? & _)%dfs_partially_correct); eauto.
@@ -712,54 +731,31 @@ Section dfs.
       repeat split; now auto.
   Qed.
 
-  Local Fact dfs_invar_clos_rt α x y :
-          dfs_invar α
-        → clos_refl_trans (λ v u, u ∈ succ v) x y
-        → α x
-        → α y.
-  Proof.
-    intros H; induction 1; auto.
-    intro; eapply H; eauto.
-  Qed.
-
-  Local Fact clos_rt_dfs_invar x : dfs_invar (λ y, clos_refl_trans (λ v u, u ∈ succ v) x y).
-  Proof. now econstructor 3; [ eassumption | constructor 1 ]. Qed.
-
-  (* We give another high-level characterization of the output 
-     of dfs, ie the smallest invariant containing x, irrelevant 
-     of whether it is listable or not, is the reflexive-transtive 
-     closure of succ up to x. *)
+  (* We give the high-level characterization of the output 
+     of dfs: all the values reachable from x by iterating
+     next. *)
   Lemma dfs_post_condition x α :
          smallest (λ α, α x ∧ dfs_invar α) α
-       ↔ ∀y, α y ↔ clos_refl_trans (λ v u, u ∈ succ v) x y.
+       ↔ α ≡ clos_refl_trans next x.
   Proof.
-    split.
-    + intros ((H1 & H2) & H3); split.
-      * apply H3 with (β := clos_refl_trans (λ v u, u ∈ succ v) x); split.
-        - constructor 2.
-        - apply clos_rt_dfs_invar.
-      * now intros ?%(dfs_invar_clos_rt _ _ _ H2).
-    + intros H; split; [ split | ].
-      * apply H; constructor 2.
-      * intros y z Hy%H ?.
-        apply H.
-        constructor 3 with y; auto; now constructor 1.
-      * intros β (H1 & H2) y Hy%H.
-        revert Hy H1; now apply dfs_invar_clos_rt.
+    rewrite smallest_invar_equiv,
+            dfs_acc_post_condition.
+    simpl; split; intros E y; rewrite E, crt_exclude_empty; tauto.
   Qed.
 
   (* This is the total correctness statement of dfs with a
      high-level specification. Internally dfs calls
      dfs_acc (nested with foldleft). Notice that the
      domain is the largest possible for dfs because of
-     dfs_weakest_pre_condition. 
+     dfs_weakest_pre_condition.
 
      The post-condition on the output value is that it
      is a list spanning exactly the reflexive and
-     transitive closure of (λ u v, u ∈ succ v) up to x. 
+     transitive closure of (λ v u, u ∈ succ v) starting
+     from x. 
   *)
-  Definition dfs x (dx : ∃i, x ∈ i ∧ dfs_invar (λ y, y ∈ i)) :
-           {l | ∀y, y ∈ l ↔ clos_refl_trans (λ v u, u ∈ succ v) x y}.
+  Definition dfs x (dx : ∃i, x ∈ i ∧ dfs_invar ⦃i⦄) :
+           {l | ⦃l⦄ ≡ clos_refl_trans next x}.
   Proof.
     (* We separate the code from the logic *)
     refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
