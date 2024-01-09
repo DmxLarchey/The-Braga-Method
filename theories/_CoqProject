@@ -32,6 +32,7 @@ dfs/dfs_partial_corr.v
 dfs/dfs_term.v
 
 # Depth First Search nested with fold_left (cf Xavier Leroy CoqPL 2024)
+dfs_xleroy/dfs_abstract.v
 dfs_xleroy/dfs_xleroy.v
 dfs_xleroy/dfs_xleroy_inverted.v
 dfs_xleroy/dfs_xleroy_nocycle.v
