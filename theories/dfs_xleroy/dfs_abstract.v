@@ -83,15 +83,33 @@ Section crt_exclude.
     + destruct IH3; eauto.
   Qed.
 
+  Lemma crt_exclude_union P Q x y :
+           weak_dec Q
+         → crt_exclude P x y
+         → crt_exclude (Q ∪ P) x y 
+         ∨ ∃q z, Q q ∧ R q z ∧ crt_exclude (Q ∪ P) z y.
+  Proof.
+    intros D.
+    induction 1 as [ x | x y z H1 H2 H3 IH3 ]; auto.
+    destruct IH3 as [ IH3 | IH3 ]; destruct (D x) as [ H4 | H4 ]; eauto.
+    + right; exists x, y; auto.
+    + left; constructor 2 with y; auto; tauto.
+  Qed.
+
   (* If there is a path from x to y excluding P, then
      the last occurence of x in this path gives a sub-path 
      from x to y which excludes {x} ∪ P *)
-  Fact crt_exclude_last P x y : crt_exclude P x y → x = y ∨ ∃z, ¬ P x ∧ R x z ∧ crt_exclude (eq x ∪ P) z y.
+  Corollary crt_exclude_last P x y :
+           weak_dec (eq x)
+         → crt_exclude P x y
+         → x = y ∨ ∃z, R x z ∧ crt_exclude (eq x ∪ P) z y.
   Proof.
-    (* This may need the weeak decidability of equality with x *)
-    
-
-  Admitted.
+    intros H1 H2.
+    destruct crt_exclude_union
+      with (1 := H1) (2 := H2)
+      as [ H | (? & z & <- & ? & ?) ]; eauto.
+    rewrite (crt_exclude_yes _ _ _ H); auto.
+  Qed.
 
   Let CRT a l x := ∃i, i ∈ l ∧ crt_exclude ⦃a⦄ i x.
 

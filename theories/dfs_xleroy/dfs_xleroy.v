@@ -470,10 +470,12 @@ Section dfs.
         right; constructor 2 with i; auto.
         revert H3; apply crt_exclude_mono; auto.
       * intros [ | Hxz ]; auto.
-        admit.
-  Admitted.
-
-
+        apply crt_exclude_last in Hxz
+          as [ -> | ]; eauto.
+        intros u. 
+        destruct (in_dec u [x]) as [ [ <- | [] ] | C ]; auto.
+        right; contradict C; subst; auto.
+  Qed.
 
   (* This is the partial correctness of dfs_acc 
      together with that of (foldleft dfs_acc) 
