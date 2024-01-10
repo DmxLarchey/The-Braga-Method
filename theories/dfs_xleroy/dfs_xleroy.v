@@ -438,6 +438,43 @@ Section dfs.
     + now intros (? & ?%Gdfs_incl_Ddfs).
   Qed.
 
+  Notation next := (λ v u, u ∈ succ v).
+
+  Let CRT a l x := ∃i, i ∈ l ∧ crt_exclude next ⦃a⦄ i x.
+
+  Theorem dfs_acc_partially_correct_direct :
+        (∀ a l o, Gfoldleft Gdfs a l o → ⦃o⦄ ≡ ⦃a⦄ ∪ CRT a l)
+      ∧ (∀ a x o, Gdfs a x o           → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x).
+  Proof.
+    apply Gdfs_mutual_ind; unfold CRT.
+    + intros; now rewrite crt_exclude_fold_nil.
+    + intros a x l b o _ E1 _ E2 y.
+      rewrite E2, E1; split.
+      * intros [ [] | (i & H1 & H2) ]; eauto.
+        right; exists i; split; auto.
+        revert H2; apply crt_exclude_mono.
+        intros; apply E1; auto.
+      * intros [ | (i & [ <- | Hi ] & H1) ]; auto.
+        apply crt_exclude_special with (x := x) in H1
+          as [ [ H1 | H1 ] | H1 ]; eauto.
+        - right; exists i; split; auto.
+          revert H1; apply crt_exclude_mono.
+          intro; apply E1.
+        - intro z; rewrite <- E1; destruct (in_dec z b); auto.
+    + intros a x Hax y; split; auto.
+      intros [ | H ]; auto.
+      now destruct (crt_exclude_yes _ _ _ _ _ H Hax).
+    + intros a x o Hax _ H1 z.
+      rewrite H1; split.
+      * intros [ [ <- | ] | (i & H2 & H3) ]; eauto.
+        right; constructor 2 with i; auto.
+        revert H3; apply crt_exclude_mono; auto.
+      * intros [ | Hxz ]; auto.
+        admit.
+  Admitted.
+
+
+
   (* This is the partial correctness of dfs_acc 
      together with that of (foldleft dfs_acc) 
      obtained via their low-level characterization 
@@ -469,7 +506,7 @@ Section dfs.
         - intros ? []%G3; eauto.
   Qed.
 
-  Notation next := (λ v u, u ∈ succ v).
+
 
   (** We study a more general termination criteria, THE MOST
       GENERAL in fact, using partial correctness, which is typical
