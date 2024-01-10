@@ -36,6 +36,7 @@ dfs_xleroy/dfs_abstract.v
 dfs_xleroy/dfs_xleroy.v
 dfs_xleroy/dfs_xleroy_inverted.v
 dfs_xleroy/dfs_xleroy_nocycle.v
+dfs_xleroy/dfs_inloop.v
 
 # Paulson's normalization
 
