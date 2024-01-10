@@ -56,6 +56,29 @@ Section crt_exclude.
 
   Hint Resolve crt_exclude_mono : core.
 
+  Fact crt_exclude_choice P Q x y :
+         (forall z, Q z \/ ~ Q z)
+       → crt_exclude P x y
+       → crt_exclude Q x y
+       ∨ exists z, crt_exclude P x z ∧ Q z ∧ crt_exclude Q z y.
+  Proof. Admitted.
+
+  Fact crt_exclude_special a x y :
+             ⦃a⦄ ∪ crt_exclude ⦃a⦄ x ∪ crt_exclude (⦃a⦄ ∪ crt_exclude ⦃a⦄ x) y
+    ≡ ⦃a⦄ ∪ crt_exclude ⦃a⦄ x ∪ crt_exclude ⦃a⦄ y.
+  Proof.
+    intros z; split.
+    + intros [ | H ]; auto; right.
+      revert H; apply crt_exclude_mono; auto.
+    + intros [ | H ]; auto.
+      destruct crt_exclude_choice 
+        with (2 := H)
+             (Q := ⦃a⦄ ∪ crt_exclude ⦃a⦄ x)
+        as [ H1 | (u & H1 & H2 & H3) ]; auto.
+      * admit.
+      * auto.
+  Admitted.
+
   Let f P x y := P y ∨ crt_exclude P x y.
 
   Fact fl_f P l y : fold_left f l P y ↔ P y ∨ ∃ x, x ∈ l ∧ crt_exclude P x y.
