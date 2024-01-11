@@ -69,6 +69,9 @@ Section crt_exclude.
   Fact crt_exclude_yes P x y : crt_exclude P x y → P x → x = y.
   Proof. induction 1; tauto. Qed.
 
+  Fact crt_exclude_inv P x y : crt_exclude P x y → x = y ∨ ¬ P x ∧ ∃z, R x z ∧ crt_exclude P z y.
+  Proof. induction 1; eauto. Qed.
+
   Notation weak_dec Q := (∀z, Q z ∨ ~ Q z).
 
   Fact crt_exclude_choice P Q x y :

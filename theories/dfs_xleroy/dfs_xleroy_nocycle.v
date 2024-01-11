@@ -225,6 +225,17 @@ Section dfs.
   Variables (in_dec : ∀ x l, {x ∈ l} + {x ∉ l})
             (succ : X → list X).
 
+  Local Fact in_wdec l x : x ∈ l ∨ x ∉ l.
+  Proof. destruct (in_dec x l); auto. Qed.
+
+  Local Fact eq_wdec (x y : X) : x = y ∨ x ≠  y.
+  Proof.
+    destruct (in_dec x [y]) as [ [ <- | [] ] | C ]; auto.
+    right; contradict C; subst; auto.
+  Qed.
+
+  Hint Resolve in_wdec eq_wdec : core.
+
   Unset Elimination Schemes.
 
   (** Because of nesting, the below inductive predicates Gdfs
@@ -432,78 +443,71 @@ Section dfs.
   Qed.
 
   Notation next := (λ v u, u ∈ succ v).
+  Notation crt_exclude_union R P l := (λ x, ∃i, i ∈ l ∧ crt_exclude R P i x).
 
-   (* We need a stronger post-condition to work with this version of dfs,
-      ie that it outputs the refl-trans closure of next from x and 
-      that no cycle is reachable from x. It is stronger than there is
-      a path without cycles. It is *every* path contains no cycle.  *)
+  (* (finitary branching) bar inductive classically meaning
+     that no infinite succ path can avoid P. *) 
+  Inductive bar (P : X → Prop) x : Prop :=
+    | bar_stop : P x → bar P x
+    | bar_step : (∀ y, y ∈ succ x → bar P y) → bar P x.
 
-  Definition Gdfs_invar a α : 
+  Fact bar_inv P x : bar P x → P x ∨ ∀ y, y ∈ succ x → bar P y.
+  Proof. destruct 1; auto. Qed.
 
-  Theorem dfs_acc_partially_correct :
-       (forall l a o, Gfoldleft Gdfs l a o -> forall y, ⦃o⦄ y <-> ⦃a⦄ y \/ exists x, In x l /\ crt_nocycle next ⦃a⦄ x y)
-    /\ (forall a x o, Gdfs a x o → forall y, ⦃o⦄ y <-> ⦃a⦄ y \/ crt_nocycle next ⦃a⦄ x y).
+  Fact crt_exclude_bar P x y : crt_exclude next P x y → bar P x → bar P y.
+  Proof.
+    induction 1 as [ | x y z H1 H2 H3 IH3 ]; auto.
+    intros [ []%H1 | ]%bar_inv; eauto.
+  Qed.
+
+   (* We get a stronger partial correctness post-condition that when considering
+      the Braga variant of the dfs allgorithm. Indeed, in this case,
+      when dfs a x outputs a result (ie terminates), it must further be that
+      bar ⦃a⦄ x holds, ie any infinite path from x must cross ⦃a⦄. *)
+
+  Theorem dfs_acc_partially_correct_mutual :
+        (∀ l a o, Gfoldleft Gdfs l a o → Forall (bar ⦃a⦄) l ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude_union next ⦃a⦄ l)
+      ∧ (∀ a x o, Gdfs a x o           → bar ⦃a⦄ x ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x).
   Proof.
     apply Gdfs_mutual_ind.
-    + intros a y; simpl; firstorder.
-    + intros a x l b o H1 IH1 H2 IH2 y.
-      rewrite IH2, IH1; split.
-      * intros [ [ H3 | H3 ] | (z & H3 & H4) ]; eauto.
-        right; exists z; split; eauto.
-        revert H4; apply crt_nocycle_mono.
-        intros ? ?; apply IH1; auto.
-      * intros [ H | (z & [ <- | Hz ] & H) ]; eauto.
-        admit.
-    + intros a x Hxa y; split; auto.
-      intros [ | H ]; auto.
-      now destruct (crt_nocycle_member _ _ _ _ _ H Hxa).
-    + intros a x o Hx H1 IH1 y; split.
-      * intros [ <- | [ | ( z & ? & ?) ] %IH1 ]; eauto.
-        right; constructor 2 with z; auto.
-        admit.
-      *
- 
-%crt_nocycle_member ].
- Hya.
-    +
+    + intros a; split; auto.
+      intros; now rewrite crt_exclude_union_nil.
+    + intros a x l b o _ (B1 & E1) _ (B2 & E2); split.
+      * constructor; auto.
+        revert B2; apply Forall_impl.
+        clear E2 l o.
+        induction 1 as [ y [ Hy | Hy ]%E1 | y Hy IHy ].
+        - now constructor 1.
+        - now apply crt_exclude_bar with (1 := Hy).
+        - now constructor 2. 
+      * intros y; rewrite E2, E1; split.
+        - intros [ [] | (i & H1 & H2) ]; eauto.
+          right; exists i; split; auto.
+          revert H2; apply crt_exclude_mono.
+          intros; apply E1; auto.
+        - intros [ | (i & [ <- | Hi ] & H1) ]; auto.
+          apply crt_exclude_special with (x := x) in H1
+            as [ [ H1 | H1 ] | H1 ]; eauto.
+          ++ right; exists i; split; auto.
+             revert H1; apply crt_exclude_mono.
+             intro; apply E1.
+          ++ intro z; rewrite <- E1; destruct (in_dec z b); auto.
+    + intros a x Hax; split.
+      * now constructor 1.
+      * intros y; split; auto.
+        intros [ | H ]; auto.
+        now destruct (crt_exclude_yes _ _ _ _ _ H Hax).
+    + intros a x o Hax _ (B1 & E1); split.
+      * constructor 2; now apply Forall_forall.
+      * intros z; simpl.
+        rewrite E1; split.
+        - intros [ <- | [ | (? & []) ] ]; eauto.
+        - intros [ | [ | [] ]%crt_exclude_inv ]; auto.
+  Qed.
 
-  (* This is the partial correctness of dfs_acc via its low-level 
-     characterization (ie Gdfs): the output of dfs_acc (when it exists)
-     is a smallest invariant containing x. *)
   Theorem dfs_acc_partially_correct a x o :
-       Gdfs a x o → smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar succ a α) ⦃o⦄.
-  Proof.
-    revert a x o.
-    (** The property to be established for Gfoldleft Gdfs l a o has to be provided,
-        here the smallest invariant containing l. *)
-    apply Gdfs_ind with (P := λ l a o, smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar succ a α) ⦃o⦄);
-      unfold dfs_acc_invar.
-    + repeat split; easy || auto; red; auto.
-    + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
-      * intros ? [ [] | ?%G1 ]; eauto.
-      * intros ? [ []%H3| ]%G3; eauto.
-      * intros ? (F1 & F2 & F3).
-        apply G4; repeat split; eauto.
-        - apply H4; repeat split; auto.
-        - intros ? []%F3; eauto.
-    + repeat split; auto.
-      now intros ? (? & []).
-    + intros a x o Hx _ ((H1 & H2 & H3) & H4); repeat split; auto.
-      * intros z [ <- | []%H3 ]; eauto.
-      * intros m (H5 & H6 & H7).
-        intros z [ <- | Hz ]; auto; revert z Hz.
-        apply H4; repeat split; eauto.
-        destruct (H7 _ H5); auto; tauto.
-  Qed.
-
-
-
-  Corollary dfs_acc_crt_excluded a x o :
-        Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
-  Proof.
-    intros ?%dfs_acc_partially_correct.
-    apply dfs_acc_post_condition; auto.
-  Qed.
+       Gdfs a x o → bar ⦃a⦄ x ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
+  Proof. apply dfs_acc_partially_correct_mutual. Qed.
 
   (* We need to study the cumulativity of Gdfs *)
   Fact Gdfs_mono a b x y o o' : Gdfs a y b → Gdfs a x o -> Gdfs b x o'.

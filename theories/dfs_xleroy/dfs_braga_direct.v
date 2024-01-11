@@ -233,7 +233,13 @@ Section dfs.
   Local Fact in_wdec l x : x ∈ l ∨ x ∉ l.
   Proof. destruct (in_dec x l); auto. Qed.
 
-  Hint Resolve in_wdec : core.
+  Local Fact eq_wdec (x y : X) : x = y ∨ x ≠  y.
+  Proof.
+    destruct (in_dec x [y]) as [ [ <- | [] ] | C ]; auto.
+    right; contradict C; subst; auto.
+  Qed.
+
+  Hint Resolve in_wdec eq_wdec : core.
 
   Unset Elimination Schemes.
 
@@ -479,9 +485,6 @@ Section dfs.
       * intros [ | Hxz ]; auto.
         apply crt_exclude_last in Hxz
           as [ -> | ]; eauto.
-        intros u. 
-        destruct (in_dec u [x]) as [ [ <- | [] ] | C ]; auto.
-        right; contradict C; subst; auto.
   Qed.
 
   Corollary dfs_acc_partially_correct a x o : Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
