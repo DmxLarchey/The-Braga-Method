@@ -91,7 +91,7 @@
 
 *)
 
-Require Import List Utf8 Extraction.
+Require Import List Relations Utf8 Extraction.
 
 Import ListNotations.
 
@@ -451,6 +451,13 @@ Section dfs.
     | bar_stop : P x → bar P x
     | bar_step : (∀ y, y ∈ succ x → bar P y) → bar P x.
 
+  Fact bar_empty x : bar (λ _, False) x ↔ Acc (λ u v, u ∈ succ v) x.
+  Proof.
+    split.
+    + induction 1; eauto; [ tauto | now constructor ].
+    + induction 1; now constructor 2.
+  Qed.
+
   Fact bar_inv P x : bar P x → P x ∨ ∀ y, y ∈ succ x → bar P y.
   Proof. destruct 1; auto. Qed.
 
@@ -505,105 +512,36 @@ Section dfs.
         - intros [ | [ | [] ]%crt_exclude_inv ]; auto.
   Qed.
 
-  Theorem dfs_acc_partially_correct a x o :
-       Gdfs a x o → bar ⦃a⦄ x ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
+  Corollary dfs_acc_pre_condition a x o : Gdfs a x o → bar ⦃a⦄ x.
   Proof. apply dfs_acc_partially_correct_mutual. Qed.
 
-  (* We need to study the cumulativity of Gdfs *)
-  Fact Gdfs_mono a b x y o o' : Gdfs a y b → Gdfs a x o -> Gdfs b x o'.
-  Admitted.
+  Corollary dfs_acc_post_condition a x o : Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
+  Proof. apply dfs_acc_partially_correct_mutual. Qed.
 
-  Fact Ddfs_mono a b y : Gdfs a y b → Ddfs a ⊆ Ddfs b.
+  Corollary dfs_weakest_pre_condition x : (∃o, Gdfs [] x o) ↔ Acc (λ u v, u ∈ succ v) x.
   Proof.
-    intros H1 x (o & H2)%Dfs_iff_Gdfs.
-    revert y b H1.
-    pattern a, x, o; revert a x o H2.
-    apply Gdfs_ind
-      with (P := λ l a o, forall y b, Gdfs a y b -> Dfoldleft Gdfs Ddfs l b).
-    + constructor 1.
-    + intros a x l b o H1 IH1 H2 IH2 y c Hc.
-      constructor 2; eauto.
-      intros; eapply IH2. 
-  Admitted.
-
-  Fact Ddfs_mono' a b x : ⦃a⦄ ⊆ ⦃b⦄ -> dfs_acc_invar succ a ⦃b⦄ → Ddfs a x → Ddfs b x.
-  Proof.
-    intros H1 H2 (o & Ho)%Dfs_iff_Gdfs; revert b H1 H2; pattern a, x, o; revert a x o Ho.
-    apply Gdfs_ind with (P := λ l a o, forall b, ⦃a⦄ ⊆ ⦃b⦄ -> dfs_acc_invar succ a ⦃b⦄ -> Dfoldleft Gdfs Ddfs l b).
-    + constructor 1.
-    + intros a x l b o H1 IH1 H2 IH2 c Hc1 Hc2.
-      constructor 2; auto.
-      intros d Hd.
-      (* Here we use partial correctness *)
-      generalize (dfs_acc_crt_excluded _ _ _ H1)
-                 (dfs_acc_crt_excluded _ _ _ Hd).
-      intros H3 H4.
-      apply IH2.
-      intros z [ | ]%H3.
-      * apply H4; eauto.
-      * admit.
-      * admit.
-    + constructor 1; auto.
-    + intros a x o Hx H1 IH1 b Hb.
-      destruct (in_dec x b) as [ H | H ].
-      * now constructor 1.
-      * constructor 2; auto.
-  Admitted.
-
-(*
-  (* This property does not holds.
-     If b=[x] and a=[] then 
-       - Gdfs b x [x]
-       - while o st that Gdfs a x o
-         can contain many more points that just x *) 
-  Fact Gdfs_mono a b x o : a ⊆ b → Gdfs a x o → ∃o', (o ⊆ b++o' ∧ Gdfs b x o').
-  Proof.
-    intros H1 H2; revert b H1; pattern a, x, o; revert a x o H2.
-    apply Gdfs_ind with (P := λ l a o, ∀b, a ⊆ b → ∃o', o ⊆ o' ∧ Gfoldleft Gdfs l b o').
-    + intros a b Hab; exists b; split; auto.
-    + intros a x l b o _ IH1 _ IH2 c Hac.
-      apply IH1 in Hac as (o1 & (o2 & [])%IH2 & G2).
-      exists o2; split; auto.
-      econstructor; eauto.
-    + intros a x Hxa b Hb; exists b; split; auto.
-    + intros a x o Hx H IH b Hab.
-      destruct IH with (1 := Hab) as (o' & G1 & G2).
-      destruct (in_dec x b).
-      exists (x::o'); split; eauto.
-      constructor 2; auto.
-  Admitted.
-
-*)
-
-  Inductive bar (P : X → Prop) x : Prop :=
-    | bar_stop : P x → bar P x
-    | bar_step : (forall y, y ∈ succ x → bar P y) → bar P x.
-
-  Hint Resolve Ddfs_mono : core.
-
-  Lemma bar_Ddfs a x : bar ⦃a⦄ x → Ddfs a x.
-  Proof.
-    induction 1 as [ x Hx | x Hx IHx ].
-    + now constructor 1.
-    + destruct (in_dec x a) as [ H | H ].
-      * now constructor 1.
-      * constructor 2; auto.
-        generalize (succ x) a IHx; clear a x Hx IHx H.
-        induction l; intros; eauto.
-        constructor 2; eauto.
+    split.
+    + intros (o & Ho); apply bar_empty, dfs_acc_pre_condition with (1 := Ho).
+    + intros; apply Dfs_iff_Gdfs, dfs_Acc_termination; auto.
   Qed.
 
-  (* Now we want to study termination via a theorem like this one ... *)
-
-  Theorem Gdfs_wf : ∀ a x o, Gdfs a x o → bar ⦃a⦄ x.
+  Corollary dfs_post_condition x o : Gdfs [] x o → ⦃o⦄ ≡ clos_refl_trans next x.
   Proof.
-    apply Gdfs_ind with (P := λ l a o, forall x, x ∈ l → bar ⦃a⦄ x).
-    + now simpl.
-    + intros a y l b o H1 [IH1 | IH1] H2 IH2.
-      * intros [ | k u ] z v E; simpl in E.
-        - inversion E; subst z v; simpl; auto.
-        - inversion E; subst l k.
-          destruct (IH2 _ _ _ eq_refl).
-  Admitted.
+    intros H y.
+    rewrite <- crt_exclude_empty, dfs_acc_post_condition; eauto.
+    simpl; tauto.
+  Qed.
+
+  (* This is the dfs algorithm associated to Gdfs with the most
+     general specification since the pre-condition is the weakest-possible. 
+     The post-condition does not include the absence of succ-cycles in
+     the output but this is implied by the pre-condition already. *) 
+  Definition dfs x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
+  Proof.
+    (* We separate the code from the logic *)
+    refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
+    + now apply Dfs_iff_Gdfs, dfs_weakest_pre_condition.
+    + now apply dfs_post_condition.
+  Defined.
 
 End dfs.
