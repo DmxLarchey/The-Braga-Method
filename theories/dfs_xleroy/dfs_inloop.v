@@ -395,6 +395,7 @@ Section dfs.
   (* The inductive domain is expressed with the following type instead of
      list X → list X → stack X → Prop, in order to be shared with dfs_stack_alt *)
   Inductive Ddfs_stack : list X → stack X → Prop :=
+  | Ddfs_stack_nil {a} :               Ddfs_stack a []
   | Ddfs_stack_nil_emp {a} :           Ddfs_stack a ([] :: [])
   | Ddfs_stack_nil_push {a l s}  :     Ddfs_stack a (l :: s)
                                      → Ddfs_stack a ([] :: l :: s)
@@ -482,12 +483,153 @@ Section dfs.
         end
     end δ.
 
+  (* small inversions for smaller inversions for Ddfs_stack *)
+
+  Inductive Ddfs_stack_n a : Ddfs_stack a [] → Prop :=
+  | Ddfs_stack_n_nil :  Ddfs_stack_n a Ddfs_stack_nil.
+  Inductive Ddfs_stack_ne a : Ddfs_stack a [[]] → Prop :=
+  | Ddfs_stack_ne_nil_emp :  Ddfs_stack_ne a Ddfs_stack_nil_emp.
+  Inductive Ddfs_stack_np a l s : Ddfs_stack a ([] :: l :: s) → Prop :=
+  | Ddfs_stack_np_nil_push : ∀ (δ : Ddfs_stack a (l :: s)),
+                             Ddfs_stack_np a l s (Ddfs_stack_nil_push δ).
+  Inductive Ddfs_stack_c a x l s : Ddfs_stack a ((x :: l) :: s) → Prop :=
+  | Ddfs_stack_cs_cons_stop : ∀ (yes : x ∈ a)
+                                (δ : Ddfs_stack a (l :: s)),
+                              Ddfs_stack_c a x l s (Ddfs_stack_cons_stop yes δ)
+  | Ddfs_stack_cn_cons_next : ∀ (no : x ∉ a)
+                                (δ : Ddfs_stack (x :: a) (successors x :: l :: s)),
+                              Ddfs_stack_c a x l s (Ddfs_stack_cons_next no δ).
+
+  Definition Ddfs_stack_dispatch {a s} : Ddfs_stack a s → Prop :=
+    match s return Ddfs_stack a s → Prop with
+    | [] => Ddfs_stack_n a
+    | [[]] => Ddfs_stack_ne a
+    | [] :: (l :: s) => Ddfs_stack_np a l s
+    | (x :: l) :: s => Ddfs_stack_c a x l s 
+    end.
+
+  Definition Ddfs_stack_inv {a s} (δ : Ddfs_stack a s) : Ddfs_stack_dispatch δ.
+  Proof. destruct δ; constructor. Defined.
+
+  (* End of small inversions of Ddfs_stack *)
+
+  (* Recursive equations of dfs_stack *)
+  Lemma dfs_stack_eqn1 {a} (δ : Ddfs_stack a [[]]) : dfs_stack a [] [] δ = a.
+  Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
+ 
+  Lemma dfs_stack_eqn2 {a l s} (δ : Ddfs_stack a ([] :: l :: s)) :
+    dfs_stack a [] (l :: s) δ = dfs_stack a l s (Ddfs_stack_nil_push_pi δ).
+  Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
+
+  Lemma dfs_stack_eqn3 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (yes : x ∈ a) :
+    dfs_stack a (x :: l) s δ = dfs_stack a l s (Ddfs_stack_cons_stop_pi δ yes).
+  Proof.
+    destruct (Ddfs_stack_inv δ) as [yes' δ | no δ]; cbn.
+    - destruct (in_dec x a) as [_ | no].
+      + reflexivity.
+      + case (no yes).
+    - case (no yes).
+  Qed.
+
+  Lemma dfs_stack_eqn4 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (no : x ∉ a) :
+    dfs_stack a (x :: l) s δ =
+    dfs_stack (x :: a) (successors x) (l :: s) (Ddfs_stack_cons_next_pi δ no).
+   Proof.
+     destruct (Ddfs_stack_inv δ) as [yes δ | no' δ]; cbn.
+     - case (no yes).
+     - destruct (in_dec x a) as [yes | _].
+      + case (no yes).
+      + reflexivity.
+   Qed.
+
+  (* Recursive equations of dfs_stack_alt *)
+  Lemma dfs_stack_alt_eqn0 {a} (δ : Ddfs_stack a []) : dfs_stack_alt a [] δ = a.
+  Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
+
+  Lemma dfs_stack_alt_eqn1 {a} (δ : Ddfs_stack a [[]]) : dfs_stack_alt a [[]] δ = a.
+  Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
+ 
+  Lemma dfs_stack_alt_eqn2 {a l s} (δ : Ddfs_stack a ([] :: l :: s)) :
+    dfs_stack_alt a ([] :: l :: s) δ = dfs_stack_alt a (l :: s) (Ddfs_stack_nil_push_pi δ).
+  Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
+
+  Lemma dfs_stack_alt_eqn3 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (yes : x ∈ a) :
+    dfs_stack_alt a ((x :: l) :: s) δ = dfs_stack_alt a (l :: s) (Ddfs_stack_cons_stop_pi δ yes).
+  Proof.
+    destruct (Ddfs_stack_inv δ) as [yes' δ | no δ]; cbn.
+    - destruct (in_dec x a) as [_ | no].
+      + reflexivity.
+      + case (no yes).
+    - case (no yes).
+  Qed.
+
+  Lemma dfs_stack_alt_eqn4 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (no : x ∉ a) :
+    dfs_stack_alt a ((x :: l) :: s) δ =
+    dfs_stack_alt (x :: a) (successors x :: l :: s) (Ddfs_stack_cons_next_pi δ no).
+   Proof.
+     destruct (Ddfs_stack_inv δ) as [yes δ | no' δ]; cbn.
+     - case (no yes).
+     - destruct (in_dec x a) as [yes | _].
+      + case (no yes).
+      + reflexivity.
+   Qed.
+
+   (* Show that dfs_stack_alt a (l :: s) = dfs_stack a l s *)
+   Lemma dfs_stack_same {a l s} (δ δ' : Ddfs_stack a (l :: s)) :
+     dfs_stack_alt a (l :: s) δ = dfs_stack a l s δ'.
+   Proof.
+     refine (
+     (fix loop a l s (δ δ' : Ddfs_stack a (l :: s)) {struct δ} : _ :=
+        match l return ∀ (δ δ' : Ddfs_stack a (l :: s)), _ with
+        | [] => λ δ δ',
+            match s return ∀ (δ δ' : Ddfs_stack a ([ ]:: s)), _ with
+            | [] => λ δ δ', _
+            | l :: s => λ δ δ', _
+            end δ δ'
+        | x :: l => λ δ δ',
+            match in_dec x a with
+            | left yes => _
+            | right no => _
+            end
+        end δ δ'          
+     ) a l s δ δ').
+     - rewrite dfs_stack_eqn1, dfs_stack_alt_eqn1. reflexivity.
+     - rewrite dfs_stack_eqn2, dfs_stack_alt_eqn2. apply loop.
+     - rewrite (dfs_stack_eqn3 _ yes), (dfs_stack_alt_eqn3 _ yes). apply loop.
+     - rewrite (dfs_stack_eqn4 _ no), (dfs_stack_alt_eqn4 _ no). apply loop.
+   Qed.
+
+   (* A more basic proof *)
+   Fixpoint dfs_stack_same_destruct a l s (δ δ' : Ddfs_stack a (l :: s)) {struct δ} :
+     dfs_stack_alt a (l :: s) δ = dfs_stack a l s δ'.
+   Proof.
+     destruct l as [ | x l Hl].
+     - destruct s as [ | l s].
+       + rewrite dfs_stack_eqn1, dfs_stack_alt_eqn1. reflexivity.
+       + rewrite dfs_stack_eqn2, dfs_stack_alt_eqn2. apply dfs_stack_same.
+     - destruct (in_dec x a) as [yes | no].
+       + rewrite (dfs_stack_eqn3 _ yes), (dfs_stack_alt_eqn3 _ yes).
+         apply dfs_stack_same.
+       + rewrite (dfs_stack_eqn4 _ no), (dfs_stack_alt_eqn4 _ no).
+         apply dfs_stack_same.
+   Qed.
+
+   (* Corollaire amusant *)
+   Corollary dfs_stack_domirr a l s (δ δ' : Ddfs_stack a (l :: s)) :
+     dfs_stack a l s δ = dfs_stack a l s δ'.
+   Proof.
+     rewrite <- (dfs_stack_same δ δ),  <- (dfs_stack_same δ δ').
+     reflexivity.
+   Qed.
+
+   
   (* TODO:
-     - show that dfs_stack_alt a (l :: s) = dfs_stack a l s
      - show that Gdfs_list a l (dfs_stack a l [])
        Idea: something like   iter s Gdfs_list a l (dfs_stack a l s)
        where iter is a relational fold (s R iterates R on s).
    *)
+
+
 
   (* 2.3 Flattening s in dfs_stack_alt provides the algorithm considered in [2] *)
 
