@@ -545,3 +545,8 @@ Section dfs.
   Defined.
 
 End dfs.
+
+Check dfs_weakest_pre_condition.
+Check dfs.
+
+Recursive Extraction dfs. 
