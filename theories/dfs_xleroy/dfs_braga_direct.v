@@ -230,6 +230,11 @@ Section dfs.
   Variables (in_dec : ∀ x l, {x ∈ l} + {x ∉ l})
             (succ : X → list X).
 
+  Local Fact in_wdec l x : x ∈ l ∨ x ∉ l.
+  Proof. destruct (in_dec x l); auto. Qed.
+
+  Hint Resolve in_wdec : core.
+
   Unset Elimination Schemes.
 
   (** Because of nesting, the below inductive predicates Gdfs
@@ -439,37 +444,48 @@ Section dfs.
   Qed.
 
   Notation next := (λ v u, u ∈ succ v).
+  Notation crt_exclude_union R P l := (λ x, ∃i, i ∈ l ∧ crt_exclude R P i x).
 
-  (* This is the partial correctness of dfs_acc 
-     together with that of (foldleft dfs_acc) 
-     obtained via their low-level characterization 
-     (ie Gfoldleft Gdfs / Gdfs) to a higher-level
-     characterization: their output is a smallest
-     invariant. *)
-  Theorem dfs_acc_partially_correct :
-        (∀ a l o, Gfoldleft Gdfs a l o → smallest (λ α, ⦃l⦄ ⊆ α ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar succ ⦃a⦄ α) ⦃o⦄)
-      ∧ (∀ a x o, Gdfs a x o           → smallest (λ α, α x     ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar succ ⦃a⦄ α) ⦃o⦄).
+  (* This is the direct proof of partial correctness of dfs_acc 
+     together with that of (foldleft dfs_acc)  obtained via their low-level 
+     characterization to a high-level characterization. *)
+  Theorem dfs_acc_partially_correct_mutual :
+        (∀ a l o, Gfoldleft Gdfs a l o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude_union next ⦃a⦄ l)
+      ∧ (∀ a x o, Gdfs a x o           → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x).
   Proof.
     apply Gdfs_mutual_ind.
-    + repeat split; easy || auto; red; auto.
-    + intros a x l b o _ ((H1 & H2 & H3) & H4) _ ((G1 & G2 & G3) & G4); repeat split; eauto.
-      * intros ? [ [] | ?%G1 ]; eauto.
-      * intros ? [ []%H3| ]%G3; eauto.
-      * intros ? (F1 & F2 & F3).
-        apply G4; repeat split; eauto.
-        - apply H4; repeat split; auto.
-        - intros ? []%F3; eauto.
-    + repeat split; auto.
-      * red; auto.
-      * now intros ? (? & []).
-    + intros a x o Hx _ ((? & []%incl_cons_inv & H4) & H5); repeat split; eauto.
-      * intros ? [ [ <- | ] | ]%H4; eauto.
-      * intros i (G1 & G2 & G3).
-        apply H5; repeat split; eauto.
-        - destruct (G3 _ G1); auto; tauto.
-        - intros ? [ <- | ]; eauto.
-        - intros ? []%G3; eauto.
+    + intros; now rewrite crt_exclude_union_nil.
+    + intros a x l b o _ E1 _ E2 y.
+      rewrite E2, E1; split.
+      * intros [ [] | (i & H1 & H2) ]; eauto.
+        right; exists i; split; auto.
+        revert H2; apply crt_exclude_mono.
+        intros; apply E1; auto.
+      * intros [ | (i & [ <- | Hi ] & H1) ]; auto.
+        apply crt_exclude_special with (x := x) in H1
+          as [ [ H1 | H1 ] | H1 ]; eauto.
+        - right; exists i; split; auto.
+          revert H1; apply crt_exclude_mono.
+          intro; apply E1.
+        - intro z; rewrite <- E1; destruct (in_dec z b); auto.
+    + intros a x Hax y; split; auto.
+      intros [ | H ]; auto.
+      now destruct (crt_exclude_yes _ _ _ _ _ H Hax).
+    + intros a x o Hax _ H1 z.
+      rewrite H1; split.
+      * intros [ [ <- | ] | (i & H2 & H3) ]; eauto.
+        right; constructor 2 with i; auto.
+        revert H3; apply crt_exclude_mono; auto.
+      * intros [ | Hxz ]; auto.
+        apply crt_exclude_last in Hxz
+          as [ -> | ]; eauto.
+        intros u. 
+        destruct (in_dec u [x]) as [ [ <- | [] ] | C ]; auto.
+        right; contradict C; subst; auto.
   Qed.
+
+  Corollary dfs_acc_partially_correct a x o : Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
+  Proof. apply dfs_acc_partially_correct_mutual. Qed.
 
   (** We study a more general termination criteria, THE MOST
       GENERAL in fact, using partial correctness, which is typical
@@ -519,13 +535,15 @@ Section dfs.
       * constructor 2.
         - apply IHa; auto.
           intros ? []%G3; eauto.
-        - intros o (F1 & F2)%dfs_acc_partially_correct.
+        - intros o Ho.
+          (* Here we use partial correctness for termination because of nesting *)
+          generalize (dfs_acc_partially_correct _ _ _ Ho); clear Ho; intros Ho.
           apply IHl; eauto.
-          ++ destruct F1 as (? & []); eauto.
-          ++ apply F2.
-             destruct F1 as (? & []).
+          ++ intros z ?%H2; apply Ho; auto.
+          ++ intros z Hz%Ho; revert z Hz.
+             apply (smallest_crt_exclude _ succ _ _ (in_wdec _)).
              repeat split; eauto.
-             intros ? []%G3; eauto.
+             revert G3; apply dfs_acc_invar_mono; eauto.
   Qed.
 
   (** Now we switch to dfs := dfs_acc [] *)
@@ -535,10 +553,11 @@ Section dfs.
      When it terminates, it outputs a (smallest) succ-stable
      list of which x is a member. *)
   Corollary dfs_partially_correct x o :
-       Gdfs [] x o → smallest (λ α, α x ∧ dfs_invar succ α) ⦃o⦄.
+       Gdfs [] x o → ⦃o⦄ ≡ clos_refl_trans next x.
   Proof.
-    rewrite smallest_invar_equiv.
-    apply dfs_acc_partially_correct.
+    intros H y.
+    rewrite <- crt_exclude_empty, dfs_acc_partially_correct; eauto.
+    simpl; tauto.
   Qed.
 
   (* Hence, as a sufficient and necessary condition for dfs to
@@ -547,7 +566,11 @@ Section dfs.
       (∃o, Gdfs [] x o) ↔ ∃i, x ∈ i ∧ dfs_invar succ ⦃i⦄.
   Proof.
     split.
-    + intros (? & (? & _)%dfs_partially_correct); eauto.
+    + intros (o & Ho).
+      generalize (dfs_acc_partially_correct _ _ _ Ho); clear Ho; intros Ho.
+      apply dfs_acc_post_condition in Ho; auto.
+      apply smallest_invar_equiv in Ho.
+      exists o; apply Ho.
     + intros (i & ? & ?%dfs_invar_iff).
       apply Dfs_iff_Gdfs, dfs_acc_termination with i.
       repeat split; now auto.
@@ -570,7 +593,7 @@ Section dfs.
     (* We separate the code from the logic *)
     refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
     + now apply Dfs_iff_Gdfs, dfs_weakest_pre_condition.
-    + now apply dfs_post_condition, dfs_partially_correct.
+    + now apply dfs_partially_correct.
   Defined.
 
 End dfs.

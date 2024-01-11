@@ -83,7 +83,7 @@ Section crt_exclude.
     + destruct IH3; eauto.
   Qed.
 
-  Lemma crt_exclude_union P Q x y :
+  Lemma crt_exclude_further P Q x y :
            weak_dec Q
          → crt_exclude P x y
          → crt_exclude (Q ∪ P) x y 
@@ -105,42 +105,19 @@ Section crt_exclude.
          → x = y ∨ ∃z, R x z ∧ crt_exclude (eq x ∪ P) z y.
   Proof.
     intros H1 H2.
-    destruct crt_exclude_union
+    destruct crt_exclude_further
       with (1 := H1) (2 := H2)
       as [ H | (? & z & <- & ? & ?) ]; eauto.
     rewrite (crt_exclude_yes _ _ _ H); auto.
   Qed.
 
-  Let CRT a l x := ∃i, i ∈ l ∧ crt_exclude ⦃a⦄ i x.
+  Notation crt_exclude_union P l := (λ x, ∃i, i ∈ l ∧ crt_exclude P i x).
 
-  Fact crt_exclude_fold_nil a : ⦃a⦄ ∪ CRT a [] ≡ ⦃a⦄.
+  Fact crt_exclude_union_nil a : ⦃a⦄ ∪ crt_exclude_union ⦃a⦄ [] ≡ ⦃a⦄.
   Proof.
     intros x; split; eauto.
     now intros [ | (? & [] & _) ].
   Qed.
-
-(*
-  Fact crt_exclude_fold_cons a l x :
-         weak_dec (⦃a⦄ ∪ CRT a l)
-       → ⦃a⦄ ∪ CRT a l ∪ crt_exclude (⦃a⦄ ∪ CRT a l) x
-       ≡ ⦃a⦄ ∪ CRT a (x::l).
-  Proof.
-    intros D z; split.
-    + intros [ [ H | (i & [] ) ] | H ]; eauto.
-      * right; exists i; eauto.
-      * right; exists x; split; auto.
-        revert H; apply crt_exclude_mono; auto.
-    + intros [ H | (i & [ <- | Hi ] & ?) ]; eauto.
-      destruct crt_exclude_choice 
-        with (2 := H)
-             (Q := ⦃a⦄ ∪ CRT a l)
-        as [ H1 | (u & H1 & H3) ]; auto.
-      * destruct H1 as [ H1 | (i & H1 & H2) ]; eauto.
-        - destruct (crt_exclude_yes _ _ _ H3 H1); auto.
-        - left; right; exists i; eauto.
-      * left; right; exists i; eauto.
-  Qed.
-*)
 
   Fact crt_exclude_special a x y :
       weak_dec (⦃a⦄ ∪ crt_exclude ⦃a⦄ x)
@@ -198,14 +175,25 @@ Section dfs_post_condition.
 
   Variable (X : Type).
 
-  Implicit Types (α : X → Prop) (l : list X).
+  Implicit Types (A B α : X → Prop).
   
-  Variables (in_dec : ∀ x l, {x ∈ l} + {x ∉ l})
-            (succ : X → list X).
+  Variables (succ : X → list X).
+
+  Implicit Type Ω : (X → Prop) → Prop.
 
   (* For Ω : (X → Prop) → Prop, the set P is a smallest 
      satisfying Ω for inclusion. *)
   Definition smallest Ω α := Ω α ∧ ∀β, Ω β → α ⊆ β.
+
+  Notation ext Ω := (∀ α β, α ≡ β → Ω α → Ω β).
+
+  Fact smallest_ext Ω : ext Ω → ext (smallest Ω).
+  Proof.
+    intros E a b H (H1 & H2); split.
+    + eapply E; eauto.
+    + intros c Hc z Hz%H; revert z Hz.
+      now apply H2.
+  Qed. 
 
   Fact smallest_equiv Ω Ψ	: Ω ≡ Ψ → smallest Ω ≡ smallest Ψ.
   Proof.
@@ -213,24 +201,33 @@ Section dfs_post_condition.
       intros ? ?%H; now apply H2.
   Qed.
 
-  (* The invariant for dfs_acc wrt to accumulator "a" is an
-     upper bound of a stable under "succ" of its member
-     which are not members of "a" already, formulated in
-     a positive way. *)
-  Definition dfs_acc_invar a α := ∀x, α x → x ∈ a ∨ ⦃succ x⦄ ⊆ α.
-
-  Fact dfs_acc_invar_equiv a α β :
-        β ≡ α → dfs_acc_invar a α → dfs_acc_invar a β.
+  Fact smallest_uniq Ω α β : smallest Ω α → smallest Ω β → α ≡ β.
   Proof.
-    intros E H x []%E%H; eauto; right.
-    intros; apply E; eauto.
+    intros H1 H2 x; split; revert x.
+    + apply H1, H2.
+    + apply H2, H1.
+  Qed.
+
+  (* The invariant for dfs_acc wrt to accumulator "A" is an
+     upper bound of a stable under "succ" of its member
+     which are not members of "A" already, formulated in
+     a positive way. *)
+  Definition dfs_acc_invar A α := ∀x, α x → A x ∨ ⦃succ x⦄ ⊆ α.
+
+  Fact dfs_acc_invar_mono A B α : A ⊆ B → dfs_acc_invar A α → dfs_acc_invar B α.
+  Proof. intros H1 H2 x []%H2; auto. Qed.
+
+  Fact dfs_acc_invar_ext A : ext (dfs_acc_invar A).
+  Proof.
+    intros ? ? E H ? []%E%H; eauto; right.
+    intros; apply E; auto.
   Qed.
 
   Notation next := (λ v u, u ∈ succ v).
 
-  Local Fact dfs_acc_invar_crt_exclude a α x y :
-          dfs_acc_invar a α
-        → crt_exclude next ⦃a⦄ x y
+  Local Fact dfs_acc_invar_crt_exclude A α x y :
+          dfs_acc_invar A α
+        → crt_exclude next A x y
         → α x
         → α y.
   Proof.
@@ -238,42 +235,60 @@ Section dfs_post_condition.
     intros []%H; eauto; tauto.
   Qed.
 
-  Local Fact crt_exclude_dfs_acc_invar a x :
-         dfs_acc_invar a (⦃a⦄ ∪ crt_exclude next ⦃a⦄ x).
+  Fact crt_exclude_dfs_acc_invar A x :
+         (∀ x, A x ∨ ¬ A x)
+       → dfs_acc_invar A (A ∪ crt_exclude next A x).
   Proof.
-    intros y [ H | H ]; auto.
+    intros D y [ H | H ]; auto.
     induction H as [ x | x y z Hx Hy H1 [ IH1 | IH1 ] ]; eauto.
-    + destruct (in_dec x a); eauto.
+    + destruct (D x); eauto.
     + right; intros ? []%IH1; eauto.
   Qed.
- 
+
+  Let INV A x α := α x ∧ A ⊆ α ∧ dfs_acc_invar A α.
+
+  Hint Resolve dfs_acc_invar_ext : core.
+
+  Local Fact INV_ext A x : ext (INV A x).
+  Proof.
+    intros alpha beta E (H1%E & H2 & H3); repeat split; eauto.
+    intros; apply E; auto.
+  Qed.
+
+  Lemma smallest_crt_exclude A x :
+         (∀ x, A x ∨ ¬ A x)
+       → smallest (INV A x) (A ∪ crt_exclude next A x).
+  Proof.
+    repeat split; eauto.
+    + apply crt_exclude_dfs_acc_invar; auto.
+    + intros β (H1 & H2 & H3) y [Hy%H2 | Hy]; auto.
+      eapply dfs_acc_invar_crt_exclude; eauto.
+  Qed. 
+
   (* A high-level characterization of the output of
      dfs_acc, provided it exist: it is equivalent
      to the union of ⦃a⦄ and crt_exclude next ⦃a⦄ x *)
-  Lemma dfs_acc_post_condition a x α :
-         smallest (λ α, α x ∧ ⦃a⦄ ⊆ α ∧ dfs_acc_invar a α) α
-       ↔ α ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
+  Lemma dfs_acc_post_condition A x α :
+         (∀ x, A x ∨ ¬ A x)
+       → smallest (λ α, α x ∧ A ⊆ α ∧ dfs_acc_invar A α) α
+       ↔ α ≡ A ∪ crt_exclude next A x.
   Proof.
-    split.
-    + intros ((H1 & H2 & H3) & H4).
-      intros y; split; revert y.
-      * apply H4; repeat split; eauto.
-        apply crt_exclude_dfs_acc_invar.
-      * intros ? []; auto.
-        eapply dfs_acc_invar_crt_exclude; eauto.
-    + intros H; repeat split.
-      * apply H; eauto.
-      * intros ? ?; apply H; auto.
-      * generalize (crt_exclude_dfs_acc_invar a x).
-        apply dfs_acc_invar_equiv, H.
-      * intros β (H1 & H2 & H3) y [Hy%H2 | Hy]%H; auto.
-        eapply dfs_acc_invar_crt_exclude; eauto. 
+    intros D; split.
+    + intro.
+      eapply smallest_uniq.
+      * eassumption.
+      * now apply smallest_crt_exclude.
+    + intros H. 
+      generalize (smallest_crt_exclude A x D).
+      apply smallest_ext.
+      * apply INV_ext.
+      * intro; rewrite <- H; tauto.
   Qed.
 
   (* The invariant for dfs is a set stable under succ *)
   Definition dfs_invar α := ∀ x y, α x → y ∈ succ x → α y.
 
-  Fact dfs_invar_iff : dfs_invar ≡ dfs_acc_invar [].
+  Fact dfs_invar_iff : dfs_invar ≡ dfs_acc_invar (λ _, False).
   Proof.
     split.
     + right; eauto.
@@ -282,7 +297,7 @@ Section dfs_post_condition.
 
   Fact smallest_invar_equiv x :
         smallest (λ α, α x ∧ dfs_invar α)
-      ≡ smallest (λ α, α x ∧ ⦃[]⦄ ⊆ α ∧ dfs_acc_invar [] α).
+      ≡ smallest (λ α, α x ∧ (λ _, False) ⊆ α ∧ dfs_acc_invar (λ _, False) α).
   Proof.
     apply smallest_equiv.
     intros ?; rewrite dfs_invar_iff; simpl; tauto.
@@ -293,7 +308,7 @@ Section dfs_post_condition.
        ↔ α ≡ clos_refl_trans next x.
   Proof.
     rewrite smallest_invar_equiv,
-            dfs_acc_post_condition.
+            dfs_acc_post_condition; [ | tauto ].
     simpl; split; intros E y; rewrite E, crt_exclude_empty; tauto.
   Qed.
 
