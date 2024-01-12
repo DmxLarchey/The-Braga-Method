@@ -77,17 +77,8 @@
     let dfs in_dec succ x = dfs_acc in_dec succ [] x
 
     (* Well-foundness of the relation (λ u v, u ∈ succ v) 
-       is sufficient for termination but NOT mandatory.
-
-       For instance, when succ x = [x], then dfs_acc/dfs 
-       both terminate. The weakest precondition is described 
-       below.
-
-       Since dfs in_dec succ x computes a list of nodes 
-       containing x and stable under succ, such an invariant
-       must exist for dfs to terminate, and this is indeed a
-       (the weakest) sufficient condition for termination.
-       See the code below for justifications. *)
+       at x is sufficient for termination of dfs in_dec [] x 
+       but also MANDATORY as established below. *)
 
 *)
 
@@ -95,9 +86,6 @@ Require Import List Relations Utf8 Extraction.
 
 Import ListNotations.
 
-(* We use the wf_sincl_maj induction principle, ie that
-   strict reverse inclusion between lists is a well-founded
-   relation when restricted by a fixed upper-bound. *)
 Require Import dfs_abstract.
 
 Section foldleft.
@@ -474,11 +462,11 @@ Section dfs.
 
   Fact crt_exclude_bar P x y : crt_exclude next P x y → bar P x → bar P y.
   Proof.
-    induction 1 as [ | x y z H1 H2 H3 IH3 ]; auto.
+    induction 1 as [ | x y z H1 H2 H3 IH3 ] using crt_exclude_ind; auto.
     intros [ []%H1 | ]%bar_inv; eauto.
   Qed.
 
-  Notation crt_exclude_union R P l := (λ x, ∃i, i ∈ l ∧ crt_exclude R P i x).
+  Notation crt_exclude_union R P L := (λ x, ∃i, L i ∧ crt_exclude R P i x).
 
   (** We get a stronger partial correctness post-condition that when considering
       the Braga variant of the dfs allgorithm. Indeed, in this case,
@@ -491,9 +479,9 @@ Section dfs.
           ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
   Proof.
     revert a x o.
-    apply Gdfs_ind with (P := λ l a o, Forall (bar ⦃a⦄) l ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude_union next ⦃a⦄ l).
+    apply Gdfs_ind with (P := λ l a o, Forall (bar ⦃a⦄) l ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude_union next ⦃a⦄ ⦃l⦄).
     + intros a; split; auto.
-      intros; now rewrite crt_exclude_union_nil.
+      intros; now rewrite crt_exclude_union_nil with (A := ⦃_⦄).
     + intros a x l b o _ (B1 & E1) _ (B2 & E2); split.
       * constructor; auto.
         revert B2; apply Forall_impl.

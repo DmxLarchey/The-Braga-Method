@@ -460,7 +460,7 @@ Section dfs.
       ∧ (∀ a x o, Gdfs a x o           → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x).
   Proof.
     apply Gdfs_mutual_ind.
-    + intros; now rewrite crt_exclude_union_nil.
+    + intros; now rewrite crt_exclude_union_nil with (A := ⦃_⦄).
     + intros a x l b o _ E1 _ E2 y.
       rewrite E2, E1; split.
       * intros [ [] | (i & H1 & H2) ]; eauto.
@@ -480,7 +480,7 @@ Section dfs.
     + intros a x o Hax _ H1 z.
       rewrite H1; split.
       * intros [ [ <- | ] | (i & H2 & H3) ]; eauto.
-        right; constructor 2 with i; auto.
+        right; apply crt_exclude_step with i; auto.
         revert H3; apply crt_exclude_mono; auto.
       * intros [ | Hxz ]; auto.
         apply crt_exclude_last in Hxz

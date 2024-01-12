@@ -16,12 +16,13 @@ Import ListNotations.
 Arguments clos_refl_trans {_}.
 #[global] Hint Constructors clos_refl_trans : core.
 
-#[global] Infix "∈" := In (at level 70, no associativity).
-#[global] Infix "∉" := (λ x a, ¬ x ∈ a) (at level 70, no associativity).
 #[global] Notation "P ⊆ Q" := (∀x, P x → Q x) (at level 70, no associativity, format "P  ⊆  Q").
 #[global] Notation "P ≡ Q" := (∀x, P x ↔ Q x) (at level 70, no associativity, format "P  ≡  Q").
-#[global] Notation "⦃ l ⦄" := (λ x, x ∈ l) (at level 1, format "⦃ l ⦄").
 #[global] Notation "P ∪ Q" := (λ x, P x ∨ Q x) (at level 20, left associativity, format "P  ∪  Q").
+
+#[global] Infix "∈" := In (at level 70, no associativity).
+#[global] Infix "∉" := (λ x a, ¬ x ∈ a) (at level 70, no associativity).
+#[global] Notation "⦃ l ⦄" := (λ x, x ∈ l) (at level 1, format "⦃ l ⦄").
 
 #[global] Hint Resolve in_eq in_cons
                        incl_nil_l incl_refl incl_tran
@@ -31,29 +32,49 @@ Section crt_exclude.
 
   Variables (X : Type) (R : X → X → Prop).
 
-  Implicit Types (P Q : X → Prop).
+  Implicit Types (A B : X → Prop).
 
-  (** crt_exclude R P x y means :
-      - there is a R-sequence x = x1 R x2 R ... R xn = y
-        where x1,...,x{n-1} do not belong to P
-      - orelse (equivalently) y can be reached from x
-        following the relation R while also not crossing 
-        the predicate P, except possibly at y *)
-  Inductive crt_exclude (P : X → Prop) : X → X → Prop :=
-    | crt_excl_refl x : crt_exclude P x x
-    | crt_excl_step x y z : ¬ P x → R x y → crt_exclude P y z → crt_exclude P x z.
+  Section crt_exclude_def.
 
-  Hint Constructors crt_exclude : core.
+    Variables A : X → Prop.
 
-  Definition crt_exclude_refl := crt_excl_refl.
+    (* Instead of an inductive definition like
 
-  Fact crt_exclude_trans P x y z : crt_exclude P x y → crt_exclude P y z → crt_exclude P x z.
-  Proof. induction 1; eauto. Qed.
+       Inductive crt_exclude : X → X → Prop :=
+         | crt_excl_refl x : crt_exclude P x x
+         | crt_excl_step x y z : ¬ A x → R x y → crt_exclude y z → crt_exclude x z.
 
-  Hint Resolve crt_exclude_trans : core.
+       we use an equivalent definition using the
+       existing clos_refl_trans, and establish
+       simulated constructors and recursors. *)
 
-  Fact crt_exclude_mono P Q : P ⊆ Q → ∀ x y, crt_exclude Q x y → crt_exclude P x y.
-  Proof. induction 2; eauto. Qed.
+    Definition crt_exclude := clos_refl_trans (λ x y, ¬ A x ∧ R x y).
+
+    Fact crt_exclude_refl x : crt_exclude x x.
+    Proof. constructor 2. Qed.
+
+    Fact crt_exclude_step x y z : ¬ A x → R x y → crt_exclude y z → crt_exclude x z.
+    Proof. constructor 3 with y; eauto. Qed.
+
+    Fact crt_exclude_trans x y z : crt_exclude x y → crt_exclude y z → crt_exclude x z.
+    Proof. econstructor 3; eauto. Qed.
+
+    Variables (P : X → X → Prop)
+              (HP0 : ∀x, P x x)
+              (HP1 : ∀ x y z, ¬ A x → R x y → crt_exclude y z → P y z → P x z).
+
+    Theorem crt_exclude_ind x y : crt_exclude x y → P x y.
+    Proof.
+      intros H%clos_rt_rt1n_iff.
+      induction H as [ | ? ? ? [] ?%clos_rt_rt1n_iff ]; eauto.
+    Qed.
+
+  End crt_exclude_def.
+
+  Hint Resolve crt_exclude_refl crt_exclude_step crt_exclude_trans : core.
+
+  Fact crt_exclude_mono A B : A ⊆ B → ∀ x y, crt_exclude B x y → crt_exclude A x y.
+  Proof. induction 2 using crt_exclude_ind; eauto. Qed.
 
   Hint Resolve crt_exclude_mono : core.
 
@@ -62,50 +83,50 @@ Section crt_exclude.
        ↔ clos_refl_trans R x y.
   Proof.
     split.
-    + induction 1; eauto.
+    + induction 1 using crt_exclude_ind; eauto.
     + revert x; apply clos_refl_trans_ind_right; eauto. 
   Qed.
 
-  Fact crt_exclude_yes P x y : crt_exclude P x y → P x → x = y.
-  Proof. induction 1; tauto. Qed.
+  Fact crt_exclude_yes A x y : crt_exclude A x y → A x → x = y.
+  Proof. induction 1 using crt_exclude_ind; tauto. Qed.
 
-  Fact crt_exclude_inv P x y : crt_exclude P x y → x = y ∨ ¬ P x ∧ ∃z, R x z ∧ crt_exclude P z y.
-  Proof. induction 1; eauto. Qed.
+  Fact crt_exclude_inv A x y : crt_exclude A x y → x = y ∨ ¬ A x ∧ ∃z, R x z ∧ crt_exclude A z y.
+  Proof. induction 1 using crt_exclude_ind; eauto. Qed.
 
-  Notation weak_dec Q := (∀z, Q z ∨ ~ Q z).
+  Notation weak_dec A := (∀z, A z ∨ ~ A z).
 
-  Fact crt_exclude_choice P Q x y :
-         weak_dec Q
-       → crt_exclude P x y
-       → crt_exclude Q x y ∨ ∃z, Q z ∧ crt_exclude P z y.
+  Fact crt_exclude_choice A B x y :
+         weak_dec B
+       → crt_exclude A x y
+       → crt_exclude B x y ∨ ∃z, B z ∧ crt_exclude A z y.
   Proof. 
-    intros D.
-    induction 1 as [ | x y z H1 H2 H3 IH3 ]; eauto.
-    destruct (D x) as [ H0 | H0 ].
+    intros wdec.
+    induction 1 as [ | ? ? ? ? ? ? IH ] using crt_exclude_ind; eauto.
+    destruct (wdec x).
     + right; exists x; eauto.
-    + destruct IH3; eauto.
+    + destruct IH; eauto.
   Qed.
 
-  Lemma crt_exclude_further P Q x y :
-           weak_dec Q
-         → crt_exclude P x y
-         → crt_exclude (Q ∪ P) x y 
-         ∨ ∃q z, Q q ∧ R q z ∧ crt_exclude (Q ∪ P) z y.
+  Lemma crt_exclude_further A B x y :
+           weak_dec B
+         → crt_exclude A x y
+         → crt_exclude (B ∪ A) x y 
+         ∨ ∃q z, B q ∧ R q z ∧ crt_exclude (B ∪ A) z y.
   Proof.
-    intros D.
-    induction 1 as [ x | x y z H1 H2 H3 IH3 ]; auto.
-    destruct IH3 as [ IH3 | IH3 ]; destruct (D x) as [ H4 | H4 ]; eauto.
+    intros wdec.
+    induction 1 as [ | x y ? ? ? ? IH ] using crt_exclude_ind; auto.
+    destruct IH; destruct (wdec x); eauto.
     + right; exists x, y; auto.
-    + left; constructor 2 with y; auto; tauto.
+    + left; apply crt_exclude_step with y; auto; tauto.
   Qed.
 
-  (* If there is a path from x to y excluding P, then
+  (* If there is a path from x to y excluding A, then
      the last occurence of x in this path gives a sub-path 
-     from x to y which excludes {x} ∪ P *)
-  Corollary crt_exclude_last P x y :
+     from x to y which excludes {x} ∪ A *)
+  Corollary crt_exclude_last A x y :
            weak_dec (eq x)
-         → crt_exclude P x y
-         → x = y ∨ ∃z, R x z ∧ crt_exclude (eq x ∪ P) z y.
+         → crt_exclude A x y
+         → x = y ∨ ∃z, R x z ∧ crt_exclude (eq x ∪ A) z y.
   Proof.
     intros H1 H2.
     destruct crt_exclude_further
@@ -114,65 +135,31 @@ Section crt_exclude.
     rewrite (crt_exclude_yes _ _ _ H); auto.
   Qed.
 
-  Notation crt_exclude_union P l := (λ x, ∃i, i ∈ l ∧ crt_exclude P i x).
+  Notation crt_exclude_union A L := (λ x, ∃i, L i ∧ crt_exclude A i x).
 
-  Fact crt_exclude_union_nil a : ⦃a⦄ ∪ crt_exclude_union ⦃a⦄ [] ≡ ⦃a⦄.
+  Fact crt_exclude_union_nil A : A ∪ crt_exclude_union A (λ _, False)  ≡ A.
   Proof.
     intros x; split; eauto.
     now intros [ | (? & [] & _) ].
   Qed.
 
-  Fact crt_exclude_special a x y :
-      weak_dec (⦃a⦄ ∪ crt_exclude ⦃a⦄ x)
-    → crt_exclude ⦃a⦄ y 
-    ⊆ ⦃a⦄ ∪ crt_exclude ⦃a⦄ x ∪ crt_exclude (⦃a⦄ ∪ crt_exclude ⦃a⦄ x) y.
+  Fact crt_exclude_special A x y :
+      let B := A ∪ crt_exclude A x
+      in  weak_dec B → crt_exclude A y ⊆ B ∪ crt_exclude B y.
   Proof.
-    intros D z H.
+    intros B D z H.
     destruct crt_exclude_choice
         with (2 := H)
-             (Q := ⦃a⦄ ∪ crt_exclude ⦃a⦄ x)
-        as [ H1 | (u & H1 & H2) ]; auto.
+             (B := B)
+        as [ H1 | (u & H1 & H2) ]; unfold B; auto.
     destruct H1 as [ H1 | H1 ]; eauto.
     destruct (crt_exclude_yes _ _ _ H2 H1); auto.
   Qed.
 
-  Fact crt_exclude_special' a x y :
-      weak_dec (⦃a⦄ ∪ crt_exclude ⦃a⦄ x)
-    → ⦃a⦄ ∪ crt_exclude ⦃a⦄ x ∪ crt_exclude (⦃a⦄ ∪ crt_exclude ⦃a⦄ x) y
-    ≡ ⦃a⦄ ∪ crt_exclude ⦃a⦄ x ∪ crt_exclude ⦃a⦄ y.
-  Proof.
-    intros D z; split.
-    + intros [ | H ]; auto; right.
-      revert H; apply crt_exclude_mono; auto.
-    + intros [ | H ]; auto.
-      now apply crt_exclude_special.
-  Qed.
-
-  Inductive crt_nocycle : (X → Prop) → X → X → Prop :=
-    | crt_nc_refl P x : crt_nocycle P x x
-    | crt_nc_step P x y z : ¬ P x → R x y → crt_nocycle (eq x ∪ P) y z → crt_nocycle P x z.
-
-  Hint Constructors crt_nocycle : core.
-
-  Fact crt_nocycle_mono P Q : P ⊆ Q → ∀ x y, crt_nocycle Q x y → crt_nocycle P x y.
-  Proof. 
-    intros H1 x y H2; revert H2 P H1. 
-    induction 1 as [ | P x y z H1 H2 H3 IH3 ]; eauto.
-    intros Q HQ. 
-    constructor 2 with y; eauto. 
-    apply IH3; intros ? []; eauto.
-  Qed.
-
-  Fact crt_nocycle_member P x y : crt_nocycle P x y → P x → x = y.
-  Proof. induction 1; tauto. Qed. 
-
 End crt_exclude.
 
 Arguments crt_exclude {_}.
-#[global] Hint Constructors crt_exclude : core.
-
-Arguments crt_nocycle {_}.
-#[global] Hint Constructors crt_nocycle : core.
+#[global] Hint Resolve crt_exclude_refl crt_exclude_step crt_exclude_trans : core.
 
 Section dfs_post_condition.
 
@@ -234,7 +221,7 @@ Section dfs_post_condition.
         → α x
         → α y.
   Proof.
-    intros H; induction 1; auto.
+    intros H; induction 1 using crt_exclude_ind; auto.
     intros []%H; eauto; tauto.
   Qed.
 
@@ -243,7 +230,7 @@ Section dfs_post_condition.
        → dfs_acc_invar A (A ∪ crt_exclude next A x).
   Proof.
     intros D y [ H | H ]; auto.
-    induction H as [ x | x y z Hx Hy H1 [ IH1 | IH1 ] ]; eauto.
+    induction H as [ x | x y z Hx Hy H1 [ IH1 | IH1 ] ] using crt_exclude_ind; eauto.
     + destruct (D x); eauto.
     + right; intros ? []%IH1; eauto.
   Qed.
