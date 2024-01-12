@@ -20,13 +20,59 @@ Arguments clos_refl_trans {_}.
 #[global] Notation "P ≡ Q" := (∀x, P x ↔ Q x) (at level 70, no associativity, format "P  ≡  Q").
 #[global] Notation "P ∪ Q" := (λ x, P x ∨ Q x) (at level 20, left associativity, format "P  ∪  Q").
 
-#[global] Infix "∈" := In (at level 70, no associativity).
-#[global] Infix "∉" := (λ x a, ¬ x ∈ a) (at level 70, no associativity).
-#[global] Notation "⦃ l ⦄" := (λ x, x ∈ l) (at level 1, format "⦃ l ⦄").
+Notation ext Ω := (∀ α β, α ≡ β → Ω α → Ω β).
 
-#[global] Hint Resolve in_eq in_cons
-                       incl_nil_l incl_refl incl_tran
-                       incl_cons incl_tl : core.
+(** The notion of smallest predicate for a property *)
+
+Section smallest.
+
+  Variable (X : Type).
+
+  Implicit Type (α : X → Prop) (Ω : (X → Prop) → Prop).
+
+  (* For Ω : (X → Prop) → Prop, the predicate α : X → Prop
+     is a smallest satisfying Ω for inclusion. *)
+  Definition smallest Ω α := Ω α ∧ ∀β, Ω β → α ⊆ β.
+
+  (* Smallest preserves extensionality *)
+  Fact smallest_ext Ω : ext Ω → ext (smallest Ω).
+  Proof.
+    intros E a b H (H1 & H2); split.
+    + eapply E; eauto.
+    + intros c Hc z Hz%H; revert z Hz.
+      now apply H2.
+  Qed.
+
+  (* Smallest is extensional *) 
+  Fact smallest_equiv Ω Ψ	: Ω ≡ Ψ → smallest Ω ≡ smallest Ψ.
+  Proof.
+    intros H a; split; intros (H1%H & H2); split; auto;
+      intros ? ?%H; now apply H2.
+  Qed.
+
+  (* Any smallest predicate is unique *)
+  Fact smallest_uniq Ω α β : smallest Ω α → smallest Ω β → α ≡ β.
+  Proof.
+    intros H1 H2 x; split; revert x.
+    + apply H1, H2.
+    + apply H2, H1.
+  Qed.
+
+End smallest.
+
+Arguments smallest {_}.
+
+(** Refl-trans closure avoinding a predicate 
+    Instead of an inductive definition like
+
+        Inductive crt_exclude {X} R A : X → X → Prop :=
+          | crt_excl_refl x : crt_exclude R A x x
+          | crt_excl_step x y z : ¬ A x → R x y → crt_exclude R A y z → crt_exclude R A x z.
+ 
+    we use an equivalent definition using the
+    existing clos_refl_trans inductive predicate, 
+    and establish simulated constructors and recursors
+    for crt_exclude. *)
 
 Section crt_exclude.
 
@@ -38,16 +84,8 @@ Section crt_exclude.
 
     Variables A : X → Prop.
 
-    (* Instead of an inductive definition like
-
-       Inductive crt_exclude : X → X → Prop :=
-         | crt_excl_refl x : crt_exclude P x x
-         | crt_excl_step x y z : ¬ A x → R x y → crt_exclude y z → crt_exclude x z.
-
-       we use an equivalent definition using the
-       existing clos_refl_trans, and establish
-       simulated constructors and recursors. *)
-
+    (* y can be reached starting from x following R 
+       but avoiding A, except possibly at y *)
     Definition crt_exclude := clos_refl_trans (λ x y, ¬ A x ∧ R x y).
 
     Fact crt_exclude_refl x : crt_exclude x x.
@@ -95,18 +133,6 @@ Section crt_exclude.
 
   Notation weak_dec A := (∀z, A z ∨ ~ A z).
 
-  Fact crt_exclude_choice A B x y :
-         weak_dec B
-       → crt_exclude A x y
-       → crt_exclude B x y ∨ ∃z, B z ∧ crt_exclude A z y.
-  Proof. 
-    intros wdec.
-    induction 1 as [ | ? ? ? ? ? ? IH ] using crt_exclude_ind; eauto.
-    destruct (wdec x).
-    + right; exists x; eauto.
-    + destruct IH; eauto.
-  Qed.
-
   Lemma crt_exclude_further A B x y :
            weak_dec B
          → crt_exclude A x y
@@ -143,7 +169,20 @@ Section crt_exclude.
     now intros [ | (? & [] & _) ].
   Qed.
 
-  Fact crt_exclude_special A x y :
+  Lemma crt_exclude_choice A B x y :
+         weak_dec B
+       → crt_exclude A x y
+       → crt_exclude B x y
+       ∨ ∃z, B z ∧ crt_exclude A z y.
+  Proof. 
+    intros wdec.
+    induction 1 as [ | ? ? ? ? ? ? IH ] using crt_exclude_ind; eauto.
+    destruct (wdec x).
+    + right; exists x; eauto.
+    + destruct IH; eauto.
+  Qed.
+
+  Lemma crt_exclude_special A x y :
       let B := A ∪ crt_exclude A x
       in  weak_dec B → crt_exclude A y ⊆ B ∪ crt_exclude B y.
   Proof.
@@ -161,42 +200,21 @@ End crt_exclude.
 Arguments crt_exclude {_}.
 #[global] Hint Resolve crt_exclude_refl crt_exclude_step crt_exclude_trans : core.
 
+(** Post-condition for dfs *)
+
+#[global] Infix "∈" := In (at level 70, no associativity).
+#[global] Infix "∉" := (λ x a, ¬ x ∈ a) (at level 70, no associativity).
+#[global] Notation "⦃ l ⦄" := (λ x, x ∈ l) (at level 1, format "⦃ l ⦄").
+
+#[global] Hint Resolve in_eq in_cons
+                       incl_nil_l incl_refl incl_tran
+                       incl_cons incl_tl : core.
+
 Section dfs_post_condition.
 
-  Variable (X : Type).
+  Variables (X : Type) (succ : X → list X).
 
   Implicit Types (A B α : X → Prop).
-  
-  Variables (succ : X → list X).
-
-  Implicit Type Ω : (X → Prop) → Prop.
-
-  (* For Ω : (X → Prop) → Prop, the set P is a smallest 
-     satisfying Ω for inclusion. *)
-  Definition smallest Ω α := Ω α ∧ ∀β, Ω β → α ⊆ β.
-
-  Notation ext Ω := (∀ α β, α ≡ β → Ω α → Ω β).
-
-  Fact smallest_ext Ω : ext Ω → ext (smallest Ω).
-  Proof.
-    intros E a b H (H1 & H2); split.
-    + eapply E; eauto.
-    + intros c Hc z Hz%H; revert z Hz.
-      now apply H2.
-  Qed. 
-
-  Fact smallest_equiv Ω Ψ	: Ω ≡ Ψ → smallest Ω ≡ smallest Ψ.
-  Proof.
-    intros H a; split; intros (H1%H & H2); split; auto;
-      intros ? ?%H; now apply H2.
-  Qed.
-
-  Fact smallest_uniq Ω α β : smallest Ω α → smallest Ω β → α ≡ β.
-  Proof.
-    intros H1 H2 x; split; revert x.
-    + apply H1, H2.
-    + apply H2, H1.
-  Qed.
 
   (* The invariant for dfs_acc wrt to accumulator "A" is an
      upper bound of a stable under "succ" of its member
@@ -304,7 +322,6 @@ Section dfs_post_condition.
 
 End dfs_post_condition.
 
-Arguments smallest {X}.
 Arguments dfs_acc_invar {X}.
 Arguments dfs_invar {X}.
 

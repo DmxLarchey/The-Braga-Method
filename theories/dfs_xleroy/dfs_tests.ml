@@ -42,26 +42,54 @@ let rev = rev_acc [];;
 
 let dfs succ a x = rev (dfs_rev succ a x);; 
 
-(* Ne renvoie pas la liste des noeuds en ordre préfixe
-   pour le graphe suivant:
+(* Pour le graphe suivant:
 
-                4 
-            +---+---+
-            2       3
+                 4 
+            +----+----+
+            2         3
          +--+--+   +--+--+
          0     1   1     2
                        +-+-+  
                        0   1
 
-   L'ordre préfixe c'est [4;2;0;1;3] 
+   L'ordre préfixe:
+     - gauche->droite [4;2;0;1;3]
+     - droite->gauche [4;3;2;1;0]
 
-   Mais l'algo, version X. Leroy oubien
-   en utilisant foldleft, renvoie [4;3;2;1;0] *)
-let succ x = if x > 1 then [x-2;x-1] else []
-in  (dfs_xl succ 4 [],
-     dfs_fl succ [] 4,
-     dfs succ [] 4,
-     dfs_no_in succ [] 4) ;;
+   L'algo, version X. Leroy renvoie [4;3;2;1;0] 
+   Donc ici c'est bien l'ordre préfixe droite -> gauche *)
+
+let test n =
+  let succ x = if x > 1 then [x-2;x-1] else []
+  in  (dfs_xl succ n [],
+       dfs succ [] n) ;;
+       
+test 4;;
+     
+(* Ne renvoie pas la liste des noeuds en ordre préfixe
+   pour le graphe suivant:
+   
+                 4 
+            +----+----+
+            3         2
+         +--+--+   +--+--+
+         2     1   1     0
+       +-+-+  
+       1   0
+       
+   L'ordre préfixe:
+     - gauche->droite [4;3;2;1;0]
+     - droite->gauche [4;2;0;1;3]
+
+   Mais l'algo, version X. Leroy renvoie [4;3;2;0;1] 
+   qui n'est aucun des deux parcours ci-dessus. *)
+  
+let test_rev n =
+  let succ x = if x > 1 then [x-1;x-2] else []
+  in  (dfs_xl succ n [],
+       dfs succ [] n);;
+       
+test_rev 4;;
 
 (* Il semble que dfs ... = rev (dfs_rev ...) renvoie
    bien l'ordre préfixe ... à vérfier formellement *)

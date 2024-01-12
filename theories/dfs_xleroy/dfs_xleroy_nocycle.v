@@ -21,6 +21,40 @@
     the same?). It avoids nesting foldleft by working on two
     lists directly.
 
+    Assuming in_dec and succ, the algorithm we study here 
+    in this file, the one proposed by X. Leroy in the above
+    reference is
+
+      let rec dfs_xl a x :=
+        match in_dec x a with
+        | true  -> a
+        | false -> x::foldleft dfs_xl (succ x) a
+
+    whereas in dfs_braga_direct.v we study 
+
+      let rec dfs_braga a x =
+        match in_dec x a with
+        | true  -> a
+        | false -> foldleft dfs_braga (succ x) (x::a)
+
+    Notice the difference in the position in the programs
+    where x is appended to the output (or accumulator a).
+    This has a major impact on the weakest pre-condition,
+    ie when does dfs_xl or dfs_braga actually terminate:
+    - the call (dfs_xl [] x) terminates if and only if
+      x is in the well-founded part of the succ relation,
+      hence when there are finitely many points succ-reachable
+      from x and also no cycle in that part of the succ-graph;
+    - the call (dfs_braga [] x) terminates if and only if
+      there are finitely many points succ-reachable from x. 
+      The existence of cycles do not impact termination.
+
+    Additionally, dfs_xl does output neither the left-right
+    nor the right-left prefix traversal of the graph.
+    dfs_braga seems to output the reverse of the left-right
+    prefix traversal of the graph. Here left (resp. right) 
+    is the head (resp. tail) of the list (succ x).
+
     Notice that X. Leroy presents his dfs example with an
     internal nesting of a (specialized version) of foldleft.
     We could also do that one but instead favor the
@@ -209,7 +243,7 @@ Section dfs.
 
   Variable (X : Type).
 
-  Implicit Type l : list X.
+  Implicit Types (l : list X) (x : X).
 
   Variables (in_dec : ∀ x l, {x ∈ l} + {x ∉ l})
             (succ : X → list X).
@@ -217,7 +251,7 @@ Section dfs.
   Local Fact in_wdec l x : x ∈ l ∨ x ∉ l.
   Proof. destruct (in_dec x l); auto. Qed.
 
-  Local Fact eq_wdec (x y : X) : x = y ∨ x ≠  y.
+  Local Fact eq_wdec x y : x = y ∨ x ≠  y.
   Proof.
     destruct (in_dec x [y]) as [ [ <- | [] ] | C ]; auto.
     right; contradict C; subst; auto.
@@ -283,43 +317,41 @@ Section dfs.
 
   (* We define dfs_acc (with an accumulator of already visited nodes)
      by structural induction on the (inductive) domain argument, nested
-     with a call to foldleft. *)
+     with a call to foldleft. Another (simpler) solution is to inline
+     the nested instance of foldleft Gdfs dfs_acc. *)
   Fixpoint dfs_acc a x (d : Ddfs a x) {struct d} : {o | Gdfs a x o}.
   Proof.
     (* We separate the code from the logic *)
     refine (match in_dec x a with
-    | left h  => exist _ a _
-    | right h =>
-              let (o,ho) := foldleft Gdfs dfs_acc (succ x) a (Ddfs_pi d h)
-              in exist _ (x::o) _
+    | left h  =>    exist _ a _
+    | right h => let (o,ho) := foldleft Gdfs dfs_acc (succ x) a (Ddfs_pi d h)
+                 in exist _ (x::o) _
     end); eauto.
   Defined.
 
-  Section termination_easy.
+  (** Termination (sufficiency), ie the predicate Ddfs [] x holds, 
+      is somewhat easy under well-foundedness of x in the succ relation. *)
 
-    (** Termination is somewhat easy under well-foundedness of x
-        in the succ relation. *)
-
-    Theorem dfs_Acc_termination a x : x ∈ a ∨ Acc (λ u v, u ∈ succ v) x → Ddfs a x.
-    Proof.
-      intros [ Hx | Hx ].
-      1: now constructor 1.
-      induction Hx as [ x _ IHx ] in a |- *.
-      destruct (in_dec x a) as [ | H ].
-      + now constructor 1.
-      + constructor 2; trivial.
-        clear H.
-        revert IHx; generalize (succ x) a; clear x a.
-        intro l; induction l; econstructor; eauto.
-    Qed.
-
-  End termination_easy.
+  Theorem dfs_acc_termination a x : x ∈ a ∨ Acc (λ u v, u ∈ succ v) x → Ddfs a x.
+  Proof.
+    intros [ | Hx ]; [ now constructor 1 | ].
+    induction Hx as [ x _ IHx ] in a |- *.
+    destruct (in_dec x a) as [ | H ].
+    + now constructor 1.
+    + constructor 2; trivial.
+      clear H.
+      revert IHx; generalize (succ x) a; clear x a.
+      intro l; induction l; econstructor; eauto.
+  Qed.
 
   Corollary dfs_termination x : Acc (λ u v, u ∈ succ v) x → Ddfs [] x.
-  Proof. intros; apply dfs_Acc_termination; auto. Qed.
+  Proof. intros; apply dfs_acc_termination; auto. Qed.
 
-  (** Below we show that the above strong termination condition
-      Acc (λ u v, u ∈ succ v) x is actually necessary for termination.
+  (** The study of necessary conditions for termination is more 
+      complicated and requires a proof of partial correctness.
+
+      Below we show that the above (strong) termination condition
+      Acc (λ u v, u ∈ succ v) x is actually *necessary* for termination.
  
       For this, we show that when the computational graph of dfs_acc
       outputs something from input a x, then it must be that
@@ -369,7 +401,7 @@ Section dfs.
        that the structural arguments are the computational graphs,
        not the inductive domains. Pattern matching on these is ok
        since the recursor is over Prop, not Set/Type. *)
-    Local Fixpoint Gdfs_ind {a x o} (d : Gdfs a x o) {struct d} : Q a x o :=
+    Fixpoint Gdfs_ind {a x o} (d : Gdfs a x o) {struct d} : Q a x o :=
       match d with
       | Gdfs_stop h     => HQ0 h
       | Gdfs_next h gfl => HQ1 h
@@ -380,6 +412,20 @@ Section dfs.
                                   gfl)
       end.
 
+    (* This is for completeness as well, showing that we can proceed
+       with Ltac but this does not display the structural decrease as
+       well as in the proof term above.
+       The same proof term as Gdfs_ind, but using an Ltac script 
+       with implemented via a call to "induction". *)
+    Local Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) {struct d} : Q a x o.
+    Proof.
+      destruct d as [ | ? ? ? H gfl ].
+      + now apply HQ0.
+      + apply HQ1; trivial.
+        clear H.
+        induction gfl; eauto.
+    Qed.
+
     (* This is for completeness but not really needed below *)
     Theorem Gdfs_mutual_ind : (∀ l a o, Gfoldleft Gdfs l a o → P l a o)
                             ∧ (∀ a x o, Gdfs a x o → Q a x o).
@@ -389,20 +435,6 @@ Section dfs.
         intros; eapply HP1; eauto.
         apply Gdfs_ind; auto.
       + apply @Gdfs_ind.
-    Qed.
-
-    (* This is for completeness as well, showing that we can proceed
-       with Ltac but this does not display the structural decrease as
-       well as in the proof term above.
-       The same proof term as Gdfs_ind, but using an Ltac script 
-       with implemented via a call to "induction". *)
-    Let Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) {struct d} : Q a x o.
-    Proof.
-      destruct d as [ | ? ? ? H gfl ].
-      + now apply HQ0.
-      + apply HQ1; trivial.
-        clear H.
-        induction gfl; eauto.
     Qed.
 
   End Gdfs_ind.
@@ -469,7 +501,7 @@ Section dfs.
   Notation crt_exclude_union R P L := (λ x, ∃i, L i ∧ crt_exclude R P i x).
 
   (** We get a stronger partial correctness post-condition that when considering
-      the Braga variant of the dfs allgorithm. Indeed, in this case,
+      the Braga variant of the dfs algorithm that . Indeed, in this case,
       when dfs a x outputs a result (ie terminates), it must further be that
       bar ⦃a⦄ x holds, ie any infinite path from x must cross ⦃a⦄. *)
 
