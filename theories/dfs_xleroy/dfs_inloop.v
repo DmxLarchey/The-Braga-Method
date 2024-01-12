@@ -23,6 +23,37 @@ Import ListNotations.
 #[local] Infix "∉" := (λ x a, ¬ In x a) (at level 70, no associativity).
 #[local] Infix "⊆" := incl (at level 70, no associativity).
 
+(* Needed for dfs_stack *)
+(* TODO : use it fir Gdfs_list as well (but keep Ddfs_list mutual recursive) *)
+Inductive iterel {X Y : Type} (R : X → Y → X → Prop) (a : X) : list Y → X → Prop :=
+| iter_stop : iterel R a [] a
+| iter_next {y b} {l : list Y} {c} : R a y b → iterel R b l c → iterel R a (y :: l) c.
+
+(* Small inversion of iterel *)
+Inductive iterel_nil {X Y : Type} (R : X → Y → X → Prop) (a : X) : X → Prop :=
+| iter_nil_stop : iterel_nil R a a.
+Inductive iterel_cons {X Y : Type} (R : X → Y → X → Prop) (a : X) y (l : list Y) : X → Prop :=
+| iter_cons_next b c : R a y b → iterel R b l c → iterel_cons R a y l c.
+Definition iterel_dispatch {X Y} (R : X → Y → X → Prop) (a : X) (l : list Y) : X → Prop :=
+  match l with
+  | [] => iterel_nil R a
+  | y :: l => iterel_cons R a y l
+  end.
+
+Lemma iterel_inv {X Y : Type} (R : X → Y → X → Prop)
+  {a : X} {l : list Y} {b} (i : iterel R a l b) : iterel_dispatch R a l b.
+Proof. destruct i; econstructor; eassumption. Qed.
+(* End of small inversion *)
+
+Lemma iter_first {X Y} (R : X → Y → X → Prop) y1 y2 a (l : list Y) b :
+  (∀ b, R a y1 b → R a y2 b) → iterel R a (y1 :: l) b → iterel R a (y2 :: l) b.
+Proof.
+  intros rr i.
+  destruct (iterel_inv R i) as [b c r i0]. apply iter_next with b.
+  - apply rr, r.
+  - apply i0.
+Qed.
+
 Section dfs.
 
   Variable (X : Type).
@@ -582,7 +613,7 @@ Section dfs.
      (fix loop a l s (δ δ' : Ddfs_stack a (l :: s)) {struct δ} : _ :=
         match l return ∀ (δ δ' : Ddfs_stack a (l :: s)), _ with
         | [] => λ δ δ',
-            match s return ∀ (δ δ' : Ddfs_stack a ([ ]:: s)), _ with
+            match s return ∀ (δ δ' : Ddfs_stack a ([] :: s)), _ with
             | [] => λ δ δ', _
             | l :: s => λ δ δ', _
             end δ δ'
@@ -622,14 +653,50 @@ Section dfs.
      reflexivity.
    Qed.
 
-   
-  (* TODO:
-     - show that Gdfs_list a l (dfs_stack a l [])
-       Idea: something like   iter s Gdfs_list a l (dfs_stack a l s)
-       where iter is a relational fold (s R iterates R on s).
-   *)
+   Lemma iterel_succ {x a l s d} :
+         x ∉ a
+      → iterel Gdfs_list (x :: a) (successors x :: l :: s) d
+      → iterel Gdfs_list a ((x :: l) :: s) d.
+   Proof.
+     intros no ixad.
+     destruct (iterel_inv _ ixad) as [b c γxab ibd].
+     destruct (iterel_inv _ ibd) as [c d γbc icd].
+     apply iter_next with c.
+     - apply (Gdfs_list_cons (Gdfs_next no γxab) γbc).
+     - exact icd.
+   Qed.
 
-
+   Lemma dfs_stack_alt_Gdfs a s (δ : Ddfs_stack a s) : iterel Gdfs_list a s (dfs_stack_alt a s δ).
+   Proof.
+     refine (
+     (fix loop a s (δ : Ddfs_stack a s) {struct δ} : _ :=
+        match s return ∀ (δ : Ddfs_stack a s), _ with
+        | [] => λ δ, _
+        | [[]] => λ δ, _
+        | [] :: s => λ δ, _
+        | (x :: l) :: s => λ δ,
+            match in_dec x a with
+            | left yes => _
+            | right no => _
+            end
+        end δ          
+     ) a s δ).
+     - rewrite dfs_stack_alt_eqn0. apply iter_stop.
+     - rewrite dfs_stack_alt_eqn1. apply iter_next with a.
+       + apply Gdfs_list_nil.
+       + apply iter_stop.
+     - rewrite dfs_stack_alt_eqn2. apply iter_next with a.
+       + apply Gdfs_list_nil.
+       + apply loop.
+     - rewrite (dfs_stack_alt_eqn3 _ yes).
+       apply (iter_first _ l).
+       + intros b γab. 
+         apply (Gdfs_list_cons (Gdfs_stop yes) γab).
+       + apply loop.
+     - rewrite (dfs_stack_alt_eqn4 _ no).
+       apply (iterel_succ no).
+       apply loop.
+   Qed.
 
   (* 2.3 Flattening s in dfs_stack_alt provides the algorithm considered in [2] *)
 
