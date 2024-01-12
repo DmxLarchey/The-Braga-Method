@@ -211,6 +211,7 @@ Section foldleft.
 End foldleft.
 
 Arguments Gfoldleft {X Y}.
+Arguments Gfoldleft_ind {_ _ _ _} _ _ {_ _ _}.
 Arguments Gfl_nil {X Y F}.
 Arguments Gfl_cons {X Y F _ _ _ _ _}.
 Arguments Dfoldleft {X Y}.
@@ -326,24 +327,28 @@ Section dfs.
 
   End termination_easy.
 
-  (** Below we do not assume the above strong termination criterium
-      and show the properties of dfs_acc by reasonning exclusively
-      on the low-level specification of dfs_acc via the computational
-      graph Gdfs, ie w/o establishing fixpoint equations for dfs_acc,
-      which could be done as an alternative approach (using Gdfs_fun).
+  Corollary dfs_termination x : Acc (λ u v, u ∈ succ v) x → Ddfs [] x.
+  Proof. intros; apply dfs_Acc_termination; auto. Qed.
 
-      We prove partial correctness and then termination under
-      the weakest pre-condition of the existence of a specific
-      invariant. dfs_acc actually outputs a least of such
-      invariant. *)
+  (** Below we show that the above strong termination condition
+      Acc (λ u v, u ∈ succ v) x is actually necessary for termination.
+ 
+      For this, we show that when the computational graph of dfs_acc
+      outputs something from input a x, then it must be that
+      any infinite succ sequence from x eventually meets a.
 
+      This is one aspect of partial correctness, the other aspect
+      being that the output of dfs_acc a x is a list containing
+      the y that are either in a or reachable from x using a 
+      (succ) path no crossing a. *)
+ 
   Section Gdfs_ind.
 
     (** First, a useful mutual induction principle 
         for (Gfoldleft Gdfs) / Gdfs which allows to show:
         - functionality of Gdfs
         - inclusion of Gdfs into Ddfs
-        - partial correctness of dfs_acc 
+        - partial correctness of dfs_acc
 
         Notice that we have to use a nested fixpoint here. *)
 
@@ -352,12 +357,12 @@ Section dfs.
 
               (HP0 : ∀a, P [] a a)
 
-              (HP1 : ∀ {a y l b o},
-                         Gdfs a y b 
-                       → Q a y b 
+              (HP1 : ∀ {a x l b o},
+                         Gdfs a x b 
+                       → Q a x b 
                        → Gfoldleft Gdfs l b o
                        → P l b o  
-                       → P (y::l) a o)
+                       → P (x::l) a o)
 
               (HQ0 : ∀ {a x},
                          x ∈ a
@@ -369,39 +374,46 @@ Section dfs.
                        → P (succ x) a o
                        → Q a x (x::o)).
 
-    Let Gfoldleft_ind (Gdfs_ind : ∀ {a x o}, Gdfs a x o → Q a x o) :=
-      fix loop {l a o} (gfl : Gfoldleft Gdfs l a o) {struct gfl} :=
-        match gfl with
-        | Gfl_nil a    => HP0 a
-        | Gfl_cons f g => HP1 f (Gdfs_ind f) g (loop g)
-        end.
-
-    (* This requires a nesting with Gfoldleft_ind above. It could be
-       done inline (see below) but we separate here for readability.
+    (* This requires a nesting with the generic Gfoldleft_ind above.
+       It could be done with an inlined nested fixpoint but we separate
+       here for readability.
        This nesting is comparable to that of foldleft/dfs_acc except
        that the structural arguments are the computational graphs,
        not the inductive domains. Pattern matching on these is ok
        since the recursor is over Prop, not Set/Type. *)
-    Local Fixpoint Gdfs_ind a x o (d : Gdfs a x o) {struct d} : Q a x o :=
+    Local Fixpoint Gdfs_ind {a x o} (d : Gdfs a x o) {struct d} : Q a x o :=
       match d with
       | Gdfs_stop h     => HQ0 h
-      | Gdfs_next h gfl => HQ1 h gfl (Gfoldleft_ind Gdfs_ind gfl)
+      | Gdfs_next h gfl => HQ1 h
+                               gfl
+                               (Gfoldleft_ind
+                                  HP0
+                                  (λ _ _ _ _ _ h1 h2 h3, HP1 h1 (Gdfs_ind h1) h2 h3) 
+                                  gfl)
       end.
 
+    (* This is for completeness but not really needed below *)
     Theorem Gdfs_mutual_ind : (∀ l a o, Gfoldleft Gdfs l a o → P l a o)
                             ∧ (∀ a x o, Gdfs a x o → Q a x o).
     Proof.
-      split.
-      + apply Gfoldleft_ind, Gdfs_ind.
-      + apply Gdfs_ind.
+      split; eauto.
+      + apply Gfoldleft_ind; eauto.
+        intros; eapply HP1; eauto.
+        apply Gdfs_ind; auto.
+      + apply @Gdfs_ind.
     Qed.
 
-    (* The same proof term, but using an Ltac script with nesting inlined. *)
+    (* This is for completeness as well, showing that we can proceed
+       with Ltac but this does not display the structural decrease as
+       well as in the proof term above.
+       The same proof term as Gdfs_ind, but using an Ltac script 
+       with implemented via a call to "induction". *)
     Let Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) {struct d} : Q a x o.
     Proof.
-      destruct d as [ | ? ? ? ? gfl ].
+      destruct d as [ | ? ? ? H gfl ].
       + now apply HQ0.
       + apply HQ1; trivial.
+        clear H.
         induction gfl; eauto.
     Qed.
 
@@ -443,7 +455,6 @@ Section dfs.
   Qed.
 
   Notation next := (λ v u, u ∈ succ v).
-  Notation crt_exclude_union R P l := (λ x, ∃i, i ∈ l ∧ crt_exclude R P i x).
 
   (* (finitary branching) bar inductive classically meaning
      that no infinite succ path can avoid P. *) 
@@ -467,16 +478,20 @@ Section dfs.
     intros [ []%H1 | ]%bar_inv; eauto.
   Qed.
 
-   (* We get a stronger partial correctness post-condition that when considering
+  Notation crt_exclude_union R P l := (λ x, ∃i, i ∈ l ∧ crt_exclude R P i x).
+
+  (** We get a stronger partial correctness post-condition that when considering
       the Braga variant of the dfs allgorithm. Indeed, in this case,
       when dfs a x outputs a result (ie terminates), it must further be that
       bar ⦃a⦄ x holds, ie any infinite path from x must cross ⦃a⦄. *)
 
-  Theorem dfs_acc_partially_correct_mutual :
-        (∀ l a o, Gfoldleft Gdfs l a o → Forall (bar ⦃a⦄) l ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude_union next ⦃a⦄ l)
-      ∧ (∀ a x o, Gdfs a x o           → bar ⦃a⦄ x ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x).
+  Theorem dfs_acc_partially_correct a x o :
+            Gdfs a x o
+          → bar ⦃a⦄ x
+          ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
   Proof.
-    apply Gdfs_mutual_ind.
+    revert a x o.
+    apply Gdfs_ind with (P := λ l a o, Forall (bar ⦃a⦄) l ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude_union next ⦃a⦄ l).
     + intros a; split; auto.
       intros; now rewrite crt_exclude_union_nil.
     + intros a x l b o _ (B1 & E1) _ (B2 & E2); split.
@@ -513,23 +528,30 @@ Section dfs.
   Qed.
 
   Corollary dfs_acc_pre_condition a x o : Gdfs a x o → bar ⦃a⦄ x.
-  Proof. apply dfs_acc_partially_correct_mutual. Qed.
+  Proof. apply dfs_acc_partially_correct. Qed.
 
   Corollary dfs_acc_post_condition a x o : Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
-  Proof. apply dfs_acc_partially_correct_mutual. Qed.
+  Proof. apply dfs_acc_partially_correct. Qed.
 
-  Corollary dfs_weakest_pre_condition x : (∃o, Gdfs [] x o) ↔ Acc (λ u v, u ∈ succ v) x.
-  Proof.
-    split.
-    + intros (o & Ho); apply bar_empty, dfs_acc_pre_condition with (1 := Ho).
-    + intros; apply Dfs_iff_Gdfs, dfs_Acc_termination; auto.
-  Qed.
+  Lemma dfs_pre_condition x o : Gdfs [] x o → Acc (λ u v, u ∈ succ v) x.
+  Proof. now intros ?%dfs_acc_pre_condition%bar_empty. Qed.
 
-  Corollary dfs_post_condition x o : Gdfs [] x o → ⦃o⦄ ≡ clos_refl_trans next x.
+  Lemma dfs_post_condition x o : Gdfs [] x o → ⦃o⦄ ≡ clos_refl_trans next x.
   Proof.
     intros H y.
     rewrite <- crt_exclude_empty, dfs_acc_post_condition; eauto.
     simpl; tauto.
+  Qed.
+
+  Hint Resolve dfs_pre_condition : core.
+
+  Theorem dfs_weakest_pre_condition x :
+            (∃o, Gdfs [] x o)
+          ↔ Acc (λ u v, u ∈ succ v) x.
+  Proof.
+    split.
+    + intros []; eauto.
+    + now intros ?%dfs_termination%Dfs_iff_Gdfs.
   Qed.
 
   (* This is the dfs algorithm associated to Gdfs with the most
