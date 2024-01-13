@@ -340,14 +340,15 @@ Section dfs.
   Proof.
     (* We separate the code from the logic *)
     refine (match in_dec x a with
-    | left h  =>    exist _ a _
+    | left h  => 
+            exist _ a _
     | right h => 
          let (o,ho) :=
-          (fix dfs_list l a (dl : Dfoldleft Gdfs Ddfs l a) {struct dl} : sig (Gfoldleft Gdfs l a) :=
+          (fix dfs_list l a dl {struct dl} : sig (Gfoldleft Gdfs l a) :=
             match l return Dfoldleft _ _ l _ → _ with
             | []   => λ _, exist _ a _
             | y::m => λ d, let (b,hb) := dfs_acc_inlined a y (Dfl_pi1 d) in
-                           let (o,ho) := dfs_list m b (Dfl_pi2 d hb)         in
+                           let (o,ho) := dfs_list m b (Dfl_pi2 d hb)     in
                            exist _ o _
             end dl) (succ x) a (Ddfs_pi d h) 
          in exist _ (x::o) _
@@ -357,10 +358,10 @@ Section dfs.
   (** Termination (sufficiency), ie the predicate Ddfs [] x holds, 
       is somewhat easy under well-foundedness of x in the succ relation. *)
 
-  Theorem dfs_acc_termination a x : x ∈ a ∨ Acc (λ u v, u ∈ succ v) x → Ddfs a x.
+  Theorem dfs_termination_Acc x : Acc (λ u v, u ∈ succ v) x → Ddfs [] x.
   Proof.
-    intros [ | Hx ]; [ now constructor 1 | ].
-    induction Hx as [ x _ IHx ] in a |- *.
+    intros H; generalize ([] : list X); revert H.
+    induction 1 as [ x _ IHx ]; intros a.
     destruct (in_dec x a) as [ | H ].
     + now constructor 1.
     + constructor 2; trivial.
@@ -368,9 +369,6 @@ Section dfs.
       revert IHx; generalize (succ x) a; clear x a.
       intro l; induction l; econstructor; eauto.
   Qed.
-
-  Corollary dfs_termination x : Acc (λ u v, u ∈ succ v) x → Ddfs [] x.
-  Proof. intros; apply dfs_acc_termination; auto. Qed.
 
   (** The study of necessary conditions for termination is more 
       complicated and requires a proof of partial correctness.
@@ -578,6 +576,43 @@ Section dfs.
   Corollary dfs_acc_post_condition a x o : Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
   Proof. apply dfs_acc_partially_correct. Qed.
 
+  (* Termination of dfs_acc with non empty a(ccumulator) is
+     more complicated than that of dfs := dfs_acc [].
+     In particular, we use partial correctness for this. *)
+  Lemma dfs_acc_termination_bar P x : bar P x → ∀a, P ⊆ ⦃a⦄ → Ddfs a x.
+  Proof.
+    induction 1 as [ x Hx | x Hx IHx ].
+    + constructor 1; eauto.
+    + intros a Ha.
+      destruct (in_dec x a) as [ | H ].
+      * constructor 1; auto.
+      * constructor 2; trivial.
+        clear H.
+        revert IHx a Ha.
+        rewrite <- Forall_forall.
+        generalize (succ x).
+        clear x Hx.
+        induction 1 as [ | x l H Hl IHl ]; intros a Ha.
+        - constructor 1.
+        - constructor 2; eauto.
+          intros o Ho.
+          apply IHl.
+          intros b Hb%Ha.
+          apply dfs_acc_post_condition with (1 := Ho); auto.
+  Qed.
+
+  Hint Resolve dfs_acc_pre_condition : core.
+
+  (* We get a precise (necessary and sufficient) condition for
+     the termination of dfs_acc with an arbitrary a(ccumulator). *)
+  Theorem dfs_acc_weakest_pre_condition a x :
+            (∃o, Gdfs a x o) ↔ bar ⦃a⦄ x.
+  Proof.
+    split.
+    + intros []; eauto.
+    + intros H; apply Dfs_iff_Gdfs, dfs_acc_termination_bar with (1 := H); auto.
+  Qed.
+
   Lemma dfs_pre_condition x o : Gdfs [] x o → Acc (λ u v, u ∈ succ v) x.
   Proof. now intros ?%dfs_acc_pre_condition%bar_empty. Qed.
 
@@ -591,12 +626,11 @@ Section dfs.
   Hint Resolve dfs_pre_condition : core.
 
   Theorem dfs_weakest_pre_condition x :
-            (∃o, Gdfs [] x o)
-          ↔ Acc (λ u v, u ∈ succ v) x.
+            (∃o, Gdfs [] x o) ↔ Acc (λ u v, u ∈ succ v) x.
   Proof.
     split.
     + intros []; eauto.
-    + now intros ?%dfs_termination%Dfs_iff_Gdfs.
+    + now intros ?%dfs_termination_Acc%Dfs_iff_Gdfs.
   Qed.
 
   (* This is the dfs algorithm associated to Gdfs with the most
