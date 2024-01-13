@@ -189,7 +189,7 @@ Section foldleft.
     | Dfl_cons d _ => λ _, d
     end.
 
-  Let Dfl_pi1 {y l a} : Dfoldleft (y::l) a → D a y :=
+  Local Definition Dfl_pi1 {y l a} : Dfoldleft (y::l) a → D a y :=
     λ dfl, Dfoldleft_pi1 dfl I.
 
   (* Second projection of the domain, inverting
@@ -208,7 +208,7 @@ Section foldleft.
     | Dfl_cons _ f => λ _, f
     end.
 
-  Let Dfl_pi2 {y l a b} : Dfoldleft (y::l) a → F a y b → Dfoldleft l b :=
+  Local Definition Dfl_pi2 {y l a b} : Dfoldleft (y::l) a → F a y b → Dfoldleft l b :=
     λ dfl, Dfoldleft_pi2 dfl I b.
 
   (* Beware that foldleft is by structural induction on the domain
@@ -238,6 +238,11 @@ Arguments Gfl_nil {X Y F}.
 Arguments Gfl_cons {X Y F _ _ _ _ _}.
 Arguments Dfoldleft {X Y}.
 Arguments foldleft {X Y} F {D}.
+
+Check Dfl_pi2.
+Arguments Dfl_pi2 {X Y F D _ _ _ _}.
+Arguments Dfl_pi1 {X Y F D _ _ _}.
+
 
 Section dfs.
 
@@ -326,6 +331,26 @@ Section dfs.
     | left h  =>    exist _ a _
     | right h => let (o,ho) := foldleft Gdfs dfs_acc (succ x) a (Ddfs_pi d h)
                  in exist _ (x::o) _
+    end); eauto.
+  Defined.
+
+  Hint Constructors Gfoldleft : core.
+
+  Fixpoint dfs_acc_inlined a x (d : Ddfs a x) {struct d} : {o | Gdfs a x o}.
+  Proof.
+    (* We separate the code from the logic *)
+    refine (match in_dec x a with
+    | left h  =>    exist _ a _
+    | right h => 
+         let (o,ho) :=
+          (fix dfs_list l a (dl : Dfoldleft Gdfs Ddfs l a) {struct dl} : sig (Gfoldleft Gdfs l a) :=
+            match l return Dfoldleft _ _ l _ → _ with
+            | []   => λ _, exist _ a _
+            | y::m => λ d, let (b,hb) := dfs_acc_inlined a y (Dfl_pi1 d) in
+                           let (o,ho) := dfs_list m b (Dfl_pi2 d hb)         in
+                           exist _ o _
+            end dl) (succ x) a (Ddfs_pi d h) 
+         in exist _ (x::o) _
     end); eauto.
   Defined.
 
@@ -586,9 +611,19 @@ Section dfs.
     + now apply dfs_post_condition.
   Defined.
 
+  Definition dfs_inlined x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
+  Proof.
+    (* We separate the code from the logic *)
+    refine (let (m,hm) := dfs_acc_inlined [] x _ in exist _ m _).
+    + now apply Dfs_iff_Gdfs, dfs_weakest_pre_condition.
+    + now apply dfs_post_condition.
+  Defined.
+
 End dfs.
 
 Check dfs_weakest_pre_condition.
-Check dfs.
+Check dfs_inlined.
 
-Recursive Extraction dfs. 
+Extraction Inline dfs_acc_inlined.
+
+Recursive Extraction dfs dfs_inlined. 
