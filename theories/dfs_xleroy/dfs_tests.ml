@@ -8,30 +8,27 @@ in_dec 1 [0;2];;
 
 let rec dfs_xl succ x accu =
   if in_dec x accu then accu
-  else let rec dfs_list l accu =
-         match l with 
-         | []   -> accu
-         | y::m -> dfs_list m (dfs_xl succ y accu)
-       in x::dfs_list (succ x) accu;;
+  else
+    let rec dfs_list l accu =
+      match l with 
+      | []   -> accu
+      | y::m -> dfs_list m (dfs_xl succ y accu)
+    in x::dfs_list (succ x) accu;;
 
 let rec foldleft f x l =
   match l with
   | []   -> x
   | y::m -> foldleft f (f x y) m;;
 
-let rec dfs_fl succ a x =
-  if in_dec x a then a
-  else x::foldleft (dfs_fl succ) a (succ x);; 
-
-let rec dfs_no_in succ a x =
-  x::foldleft (dfs_no_in succ) a (succ x);; 
+let dfs_fl succ =
+  let rec dfs_acc a x =
+    if in_dec x a then a
+    else x::foldleft dfs_acc a (succ x)
+  in dfs_acc [];; 
 
 let rec dfs_rev succ a x =
   if in_dec x a then a
   else foldleft (dfs_rev succ) (x::a) (succ x);; 
-
-let rec dfs_no_in succ a x =
-  x::foldleft (dfs_no_in succ) a (succ x);; 
 
 let rec rev_acc a l =
   match l with
@@ -40,9 +37,10 @@ let rec rev_acc a l =
 
 let rev = rev_acc [];;
 
-let dfs succ a x = rev (dfs_rev succ a x);; 
+(* dfs_braga reversed *)
+let dfs_br succ a x = rev (dfs_rev succ a x);; 
 
-(* Pour le graphe suivant:
+(* For the following graph:
 
                  4 
             +----+----+
@@ -52,22 +50,27 @@ let dfs succ a x = rev (dfs_rev succ a x);;
                        +-+-+  
                        0   1
 
-   L'ordre préfixe:
-     - gauche->droite [4;2;0;1;3]
-     - droite->gauche [4;3;2;1;0]
+   The prefix order is:
+     - left -> right [4;2;0;1;3]
+     - right -> left [4;3;2;1;0]
 
-   L'algo, version X. Leroy renvoie [4;3;2;1;0] 
-   Donc ici c'est bien l'ordre préfixe droite -> gauche *)
+   dfs_xl outputs [4;3;2;1;0] (prefix RL)
+   dfs_fl outputs [4;3;2;1;0] (prefix RL)
+   dfs_br outputs [4;2;0;1;3] (prefix LR)
+
+ *)
 
 let test n =
   let succ x = if x > 1 then [x-2;x-1] else []
   in  (dfs_xl succ n [],
-       dfs succ [] n) ;;
+       dfs_fl succ n,
+       dfs_br succ [] n) ;;
        
 test 4;;
      
-(* Ne renvoie pas la liste des noeuds en ordre préfixe
-   pour le graphe suivant:
+(* For the following graph, dfs_[xl,fl]
+   output neither the LR nor the RL prefix
+   order :
    
                  4 
             +----+----+
@@ -76,21 +79,27 @@ test 4;;
          2     1   1     0
        +-+-+  
        1   0
-       
-   L'ordre préfixe:
-     - gauche->droite [4;3;2;1;0]
-     - droite->gauche [4;2;0;1;3]
 
-   Mais l'algo, version X. Leroy renvoie [4;3;2;0;1] 
-   qui n'est aucun des deux parcours ci-dessus. *)
+   The prefix order is:
+     - left -> right [4;3;2;1;0]
+     - right -> left [4;2;0;1;3]
+
+   dfs_xl outputs [4;3;2;0;1] (neither LR nor RL)
+   dfs_fl outputs [4;3;2;0;1] (neither LR nor RL)
+   dfs_br outputs [4;3;2;1;0]) (prefix LR)
+   *)
   
 let test_rev n =
   let succ x = if x > 1 then [x-1;x-2] else []
   in  (dfs_xl succ n [],
-       dfs succ [] n);;
+       dfs_fl succ n,
+       dfs_br succ [] n);;
        
 test_rev 4;;
 
-(* Il semble que dfs ... = rev (dfs_rev ...) renvoie
-   bien l'ordre préfixe ... à vérfier formellement *)
+(* So neither dfs_xl nor dfs_fl (which compute the same
+   list) output the prefix traversal. However, it seems
+   dfs_br ouputs the prefix left-right traversal (after
+   reversal of the output list. This remains to be
+   established with a proof. *)
 
