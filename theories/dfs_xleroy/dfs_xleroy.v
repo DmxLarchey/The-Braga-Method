@@ -444,7 +444,7 @@ Section dfs_xleroy.
     intros [ []%H1 | ]%bar_inv; eauto.
   Qed.
 
-  (** There is a P_avoiding R-path from a point of L to y *)
+  (** There is a P-avoiding R-path from a point of L to y *)
   Notation crt_exclude_union R P L := (λ y, ∃i, L i ∧ crt_exclude R P i y).
 
   (** We get a stronger partial correctness post-condition that when
