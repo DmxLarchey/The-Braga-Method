@@ -149,7 +149,7 @@ Section dfs_xleroy.
   Local Fact in_wdec l x : x ∈ l ∨ x ∉ l.
   Proof. destruct (in_dec x l); auto. Qed.
 
-  Local Fact eq_wdec x y : x = y ∨ x ≠  y.
+  Local Fact eq_wdec x y : x = y ∨ x ≠ y.
   Proof.
     destruct (in_dec x [y]) as [ [ <- | [] ] | C ]; auto.
     right; contradict C; subst; auto.
@@ -256,8 +256,8 @@ Section dfs_xleroy.
           (fix dfs_list l a dl {struct dl} : sig (Gfoldleft Gdfs l a) :=
             match l return Dfoldleft _ _ l _ → _ with
             | []   => λ _, exist _ a _
-            | y::m => λ d, let (b,hb) := dfs_int y a (Dfl_pi1 d) in
-                           let (o,ho) := dfs_list m b (Dfl_pi2 d hb)     in
+            | y::m => λ d, let (b,hb) := dfs_int y a (Dfl_pi1 d)     in
+                           let (o,ho) := dfs_list m b (Dfl_pi2 d hb) in
                            exist _ o _
             end dl) (succ x) a (Ddfs_pi d h) 
          in exist _ (x::o) _
@@ -292,7 +292,7 @@ Section dfs_xleroy.
       but only in the case of dfs_xl x := dfs x [].
  
       For this, we show that when the computational graph of dfs
-      outputs something from inputs "a" and "x", then it must be that
+      outputs something from inputs "x" and "a", then it must be that
       any infinite succ sequence from "x" eventually meets "a", expressed
       as the bar inductive predicate (bar ⦃a⦄ x).
 
@@ -444,7 +444,7 @@ Section dfs_xleroy.
     intros [ []%H1 | ]%bar_inv; eauto.
   Qed.
 
-  (** There is a P avoiding R-path from a point of L to y *)
+  (** There is a P_avoiding R-path from a point of L to y *)
   Notation crt_exclude_union R P L := (λ y, ∃i, L i ∧ crt_exclude R P i y).
 
   (** We get a stronger partial correctness post-condition that when
