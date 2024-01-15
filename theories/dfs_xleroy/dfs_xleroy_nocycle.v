@@ -1,21 +1,23 @@
 (**************************************************************)
 (*   Copyright Dominique Larchey-Wendling [*]                 *)
+(*             JF Monin                   [**]                *)
 (*                                                            *)
 (*                             [*] Affiliation LORIA -- CNRS  *)
+(*                            [**] Affiliation Verimag -- UGA *)
 (**************************************************************)
 (*      This file is distributed under the terms of the       *)
 (*         CeCILL v2.1 FREE SOFTWARE LICENSE AGREEMENT        *)
 (**************************************************************)
 
 (** Following the "Braga method", we proceed with 
-    the extraction of dfs using dfs_acc nested with 
-    foldleft (either externally or internal, see below),
-    ie one of the examples discussed by X. Leroy in its
-    CoqPL 2024 paper:
+    the extraction of dfs_xl using dfs (with an accumulator)
+    nested with foldleft (either externally or internal, 
+    see below), ie one of the examples discussed by X. Leroy
+    in its CoqPL 2024 paper:
 
        https://inria.hal.science/hal-04356563/document
 
-    The dfs algo. as originaly presented in the "Braga" book
+    The DFS algo. as originaly presented in the "Braga" book
     chapter, and in the files theories/dfs/*.v herein, is
     different but computes a similar output. It avoids 
     nesting foldleft by working on two lists directly.
@@ -25,62 +27,71 @@
     in this file, the one proposed by X. Leroy in the above
     reference is
 
-      let rec dfs_xl a x :=
-        match in_dec x a with
-        | true  -> a
-        | false -> x::foldleft dfs_xl (succ x) a
+      let dfs_xl x :=
+        let rec dfs x a =
+          match in_dec x a with
+          | true  -> a
+          | false -> x::foldleft dfs (succ x) a
+        in dfs x []
+ 
+    whereas in dfs_braga.v we study 
 
-    whereas in dfs_braga_direct.v we study 
-
-      let rec dfs_braga a x =
-        match in_dec x a with
-        | true  -> a
-        | false -> foldleft dfs_braga (succ x) (x::a)
+      let rec dfs_braga x =
+        let rec dfs x a =
+          match in_dec x a with
+          | true  -> a
+          | false -> foldleft dfs (succ x) (x::a)
+        in dfs x []
 
     Notice the difference in the position in the programs
     where "x" is appended to the output (or accumulator "a").
-    This has a major impact on the weakest pre-condition,
+    This has a *major* impact on the weakest pre-condition,
     ie when does dfs_xl or dfs_braga actually terminate:
-    - the call (dfs_xl [] x) terminates if and only if
+    - the call (dfs_xl x) terminates if and *only if*
       "x" is in the well-founded part of the succ relation,
       hence when there are finitely many points succ-reachable
       from "x" and also no cycle exists in that part of the
       succ-graph;
-    - the call (dfs_braga [] x) terminates if and only if
+    - the call (dfs_braga x) terminates if and only if
       there are finitely many points succ-reachable from
       "x". The existence of cycles does not impact termination.
 
     Additionally, dfs_xl does output neither the left-right
-    nor the right-left prefix traversal of the graph.
-    dfs_braga seems to output the reverse of the left-right
-    prefix traversal of the graph. Here left (resp. right) 
-    is the head (resp. tail) of the list (succ x). See the
-    file dfs_xleroy/dfs_tests.ml for counter-examples.
+    nor the right-left prefix traversal of the graph. Here left 
+    (resp. right) means the head (resp. tail) of the list "succ x". 
+    See the file dfs_xleroy/dfs_tests.ml for counter-examples.
 
-    Notice that X. Leroy presents his dfs example with an
-    internal nesting of a (specialized version) of foldleft.
-    We implement that internal nesting one but we also
-    implement an external nesting of a "parametric" foldleft,
+    On the other hand, dfs_braga seems to output the reverse 
+    of the left-right prefix traversal of the graph. To be
+    confirmed with a proof though.
+
+    Notice that X. Leroy presents his dfs_xl example with an
+    internal nesting of a (specialized version) of foldleft,
+    denoted as dfs_int and dfs_xl_int below.
+
+    We implement that internal nesting but we also implement 
+    an external nesting of a "parametric" foldleft,
     which adds some extra complexity to this example, ie
     managing a partial high-order functional program of 
     which the parameters are partial functions, however 
     possibly instructive for other cases.
 
     Below we also discuss the restrictive (a bit too strong
-    in the case of dfs_acc) termination argument X. Leroy uses,
-    ie that the successor graph is well-founded, and later, after
-    the proof of partial correctness, we give the "weakest pre-condition"
-    for termination of dfs and dfs_acc.
+    in the case of dfs_[int/ext]) termination argument X. Leroy 
+    uses, ie that the successor graph is well-founded, and later,
+    after the proof of partial correctness, we give the 
+    "weakest pre-condition" for termination of both dfs
+    and dfs_xl.
 
-    (* f : 'a -> 'b -> 'a
+    (* f : 'b -> 'a -> 'a
        l : 'b list
        x : 'a
        foldleft f l x : 'a *)
 
-    let rec foldleft f l x =
+    let rec foldleft f l a =
       match l with
-      | []   -> x
-      | y::l -> foldleft f l (f x y);;
+      | []   -> a
+      | y::l -> foldleft f l (f y a);;
 
     (* Below, we have 
 
@@ -90,32 +101,32 @@
        where (in_dec x a) tests whether x belongs to a or not 
        and (succ x) computes the (list of) successors of x *)
 
-    (* (dfs_acc in_dec succ a x) computes the list of nodes
+    (* (dfs x a) computes the list of nodes
        encountered in a depth first search traversal of
        a graph (described by "succ") starting at "x", avoiding
        repeating nodes or crossing "a" twice. 
 
-       a : 'a list
        x : 'a
-       dfs_acc in_dec succ a x : 'a list *)
+       a : 'a list
+       dfs x a : 'a list *)
 
-    let rec dfs_acc in_dec succ a x =
+    let rec dfs x a =
       match in_dec x a with
       | true  -> a
-      | false -> x::foldleft (dfs_acc in_dec succ) (succ x) a.
+      | false -> x::foldleft dfs (succ x) a
 
-    (* (dfs in_dec succ a x) computes the list of nodes
+    (* (dfs_xl x) computes the list of nodes
        encountered in a depth first search traversal of
        a graph (ie succ) starting at "x" and avoiding
        repetitions
 
        x : 'a
-       dfs in_dec succ x : 'a list *)
+       dfs_xl x : 'a list *)
 
-    let dfs in_dec succ x = dfs_acc in_dec succ [] x
+    let dfs_xl x = dfs x []
 
     (* Well-foundness of the relation (λ u v, u ∈ succ v) 
-       at x is sufficient for termination of dfs in_dec [] x 
+       at x is sufficient for termination of dfs_xl x 
        but also MANDATORY as established below. *)
 
 *)
@@ -126,126 +137,7 @@ Import ListNotations.
 
 Require Import dfs_abstract.
 
-Section foldleft.
-
-  (** A partial and polymorphic version of foldleft *)
-
-  Variables (X Y : Type)
-            (F : X → Y → X → Prop)
-            (D : X → Y → Prop)
-            (f : ∀ x y, D x y → {o | F x y o}).
-
-  Implicit Type (l : list Y).
-
-  (* The computational graph of foldleft f, parameterized
-     by the computational graph of f. *)
-  Inductive Gfoldleft : list Y → X → X → Prop :=
-    | Gfl_nil a            : Gfoldleft [] a a
-    | Gfl_cons {a y l b o} : F a y b 
-                           → Gfoldleft l b o 
-                           → Gfoldleft (y::l) a o.
-
-  (* The inductive domain of foldleft f, parameterized
-     by the domain of f. *)
-  Inductive Dfoldleft : list Y → X → Prop :=
-    | Dfl_nil a            : Dfoldleft [] a
-    | Dfl_cons {a y l}     : D a y 
-                           → (∀b, F a y b → Dfoldleft l b) 
-                           → Dfoldleft (y::l) a.
-
-  Hint Constructors Gfoldleft Dfoldleft : core.
-
-  Local Fact Gfoldleft_inv {m a o} :
-       Gfoldleft m a o
-     → match m with
-       | []   => a = o
-       | y::l => ∃b, F a y b ∧ Gfoldleft l b o
-       end.
-  Proof. destruct 1; eauto. Qed.
-
-  Let is_nnil l := match l with [] => False | _ => True end.
-
-  Let dhead {l} : is_nnil l → Y :=
-    match l with
-    | []   => λ void, match void with end
-    | y::_ => λ _, y
-    end.
-  
-  Let dtail {l} : is_nnil l → list Y :=
-    match l with
-    | []   => λ void, match void with end
-    | _::l => λ _, l
-    end.
-
-  (* First projection of the domain, inverting
-     the second constructor 
-             
-             d : D a y        f : ...
-           ------------------------------
-                 dfl : Dfl_cons d f 
-
-     while providing precisely the strict sub-term d
-     out of dfl. *)
-  Let Dfoldleft_pi1 {m a} (dfl : Dfoldleft m a) :
-      ∀ (hm : is_nnil m), D a (dhead hm) :=
-    match dfl with
-    | Dfl_nil _    => λ void, match void with end
-    | Dfl_cons d _ => λ _, d
-    end.
-
-  Local Definition Dfl_pi1 {y l a} : Dfoldleft (y::l) a → D a y :=
-    λ dfl, Dfoldleft_pi1 dfl I.
-
-  (* Second projection of the domain, inverting
-     the second constructor
-
-             d : ...   f : ∀b, F a y b → Dfoldleft l b
-           ---------------------------------------------
-                     dfl : Dfl_cons d f 
-
-     while providing precisely the strict sub-term f
-     out of dfl. *)
-  Let Dfoldleft_pi2 {m a} (dfl : Dfoldleft m a) :
-      ∀ (hm : is_nnil m) b, F a (dhead hm) b → Dfoldleft (dtail hm) b :=
-    match dfl with
-    | Dfl_nil _    => λ void, match void with end
-    | Dfl_cons _ f => λ _, f
-    end.
-
-  Local Definition Dfl_pi2 {y l a b} : Dfoldleft (y::l) a → F a y b → Dfoldleft l b :=
-    λ dfl, Dfoldleft_pi2 dfl I b.
-
-  (* Beware that foldleft is by structural induction on the domain
-     predicate, not on l!! Induction on l works for foldleft alone
-     but not when nested with dfs_acc below. It seems the guardedness
-     checker cannot analyse situations where an argument is indeed
-     decreasing but the path is not completely covered by structural
-     arguments. *)
-  Fixpoint foldleft l a (d : Dfoldleft l a) {struct d} : {o | Gfoldleft l a o}.
-  Proof.
-    (* We separate the code from the logic. Notice dependent
-       pattern matching below with d reverted into the scope
-       of the match. *)
-    refine (match l return Dfoldleft l _ → _ with
-    | []   => λ _, exist _ a _
-    | y::m => λ d, let (b,hb) := f a y (Dfl_pi1 d)           in
-                   let (o,ho) := foldleft m b (Dfl_pi2 d hb) in
-                   exist _ o _
-    end d); eauto.
-  Defined.
-
-End foldleft.
-
-Arguments Gfoldleft {X Y}.
-Arguments Gfoldleft_ind {_ _ _ _} _ _ {_ _ _}.
-Arguments Gfl_nil {X Y F}.
-Arguments Gfl_cons {X Y F _ _ _ _ _}.
-Arguments Dfl_pi1 {X Y F D _ _ _}.
-Arguments Dfl_pi2 {X Y F D _ _ _ _}.
-Arguments Dfoldleft {X Y}.
-Arguments foldleft {X Y} F {D}.
-
-Section dfs.
+Section dfs_xleroy.
 
   Variable (X : Type).
 
@@ -272,31 +164,33 @@ Section dfs.
       implement our own by hand, ie nested fixpoints, see
       Gdfs_ind below.*)
 
-  (* This is the computational graph of dfs_acc (below),
-     ie the computaional steps described as an inductive
-     relation, here nested with that for (foldleft dfs_acc). *)
-  Inductive Gdfs : list X → X → list X → Prop :=
-    | Gdfs_stop {a x} :     x ∈ a
-                          → Gdfs a x a
-    | Gdfs_next {a x o} :   x ∉ a
+  (* This is the computational graph of dfs (below),
+     ie the computational steps described as an inductive
+     relation, here nested with that for (foldleft dfs). *)
+  Inductive Gdfs : X → list X → list X → Prop :=
+    | Gdfs_stop {x a} :     x ∈ a
+                          → Gdfs x a a
+    | Gdfs_next {x a o} :   x ∉ a
                           → Gfoldleft Gdfs (succ x) a o
-                          → Gdfs a x (x::o).
+                          → Gdfs x a (x::o).
 
-  (* The inductive domain of dfs_acc. *)
-  Inductive Ddfs : list X → X → Prop :=
-    | Ddfs_stop {a x} :     x ∈ a
-                          → Ddfs a x
-    | Ddfs_next {a x} :     x ∉ a
+  (* The inductive domain of dfs used as a structural 
+     termination argument for the computation of dfs.
+     The correspondance with Gdfs is established below. *)
+  Inductive Ddfs : X → list X → Prop :=
+    | Ddfs_stop {x a} :     x ∈ a
+                          → Ddfs x a
+    | Ddfs_next {x a} :     x ∉ a
                           → Dfoldleft Gdfs Ddfs (succ x) a
-                          → Ddfs a x.
+                          → Ddfs x a.
 
   Set Elimination Schemes.
 
-  Local Fact Gdfs_inv0 a x o : Gdfs a x o → x ∈ a → a = o.
+  Local Fact Gdfs_inv0 x a o : Gdfs x a o → x ∈ a → a = o.
   Proof. now destruct 1. Qed.
 
-  Local Fact Gdfs_inv1 a x o :
-          Gdfs a x o
+  Local Fact Gdfs_inv1 x a o :
+          Gdfs x a o
         → x ∉ a
         → match o with 
           | []   => False 
@@ -313,7 +207,7 @@ Section dfs.
 
      while providing precisely the strict sub-term dfl out
      of d : Ddfs_next h dfl . *)
-  Local Definition Ddfs_pi {a x} (d : Ddfs a x) :
+  Local Definition Ddfs_pi {x a} (d : Ddfs x a) :
       x ∉ a → Dfoldleft Gdfs Ddfs (succ x) a :=
     match d with
     | Ddfs_stop yes   => λ no, match no yes with end
@@ -323,11 +217,11 @@ Section dfs.
   Hint Constructors Dfoldleft Gfoldleft Gdfs : core.
 
   (** We can already define dfs with an accumulator nested
-      with foldleft both with an external (dfs_acc) and an internal
-      nesting (dfs_acc_internal). Here the pre/post conditions
+      with foldleft both with an external (dfs_ext) and an internal
+      nesting (dfs_int). Here the pre/post conditions
       are of low-level (computational) nature. *)
 
-  (* We define dfs_acc (with an accumulator of already visited nodes)
+  (* We define dfs (with an accumulator of already visited nodes)
      by structural induction on the (inductive) domain argument, nested
      with an external call to foldleft.
 
@@ -337,22 +231,22 @@ Section dfs.
      postponed with a hole _ but we use a manually defined term Ddfs_pi 
      above that is intentionnaly and carefully hand-written to witness 
      structural decrease. *)
-  Fixpoint dfs_acc a x (d : Ddfs a x) {struct d} : {o | Gdfs a x o}.
+  Fixpoint dfs_ext x a (d : Ddfs x a) {struct d} : {o | Gdfs x a o}.
   Proof.
     refine (match in_dec x a with
     | left h  =>    exist _ a _
-    | right h => let (o,ho) := foldleft Gdfs dfs_acc (succ x) a (Ddfs_pi d h)
+    | right h => let (o,ho) := foldleft Gdfs dfs_ext (succ x) a (Ddfs_pi d h)
                  in exist _ (x::o) _
     end); eauto.
   Defined.
 
-  (* We define dfs_acc (with an accumulator of already visited nodes)
+  (* We define dfs (with an accumulator of already visited nodes)
      by structural induction on the (inductive) domain argument, nested
      with an internal call to (a specialize version of) foldleft. 
 
      Since we inline foldleft, we also need to use the structural projections
      Dfl_pi[1,2] of its domain to justify structural decrease. *)
-  Fixpoint dfs_acc_internal a x (d : Ddfs a x) {struct d} : {o | Gdfs a x o}.
+  Fixpoint dfs_int x a (d : Ddfs x a) {struct d} : {o | Gdfs x a o}.
   Proof.
     refine (match in_dec x a with
     | left h  => 
@@ -362,7 +256,7 @@ Section dfs.
           (fix dfs_list l a dl {struct dl} : sig (Gfoldleft Gdfs l a) :=
             match l return Dfoldleft _ _ l _ → _ with
             | []   => λ _, exist _ a _
-            | y::m => λ d, let (b,hb) := dfs_acc_internal a y (Dfl_pi1 d) in
+            | y::m => λ d, let (b,hb) := dfs_int y a (Dfl_pi1 d) in
                            let (o,ho) := dfs_list m b (Dfl_pi2 d hb)     in
                            exist _ o _
             end dl) (succ x) a (Ddfs_pi d h) 
@@ -372,14 +266,14 @@ Section dfs.
 
   (** Now we study the high-level semantics, ie both termination
       and partial correctness. We start with the (a bit strong for
-      dfs_acc) termination argument proposed by X. Leroy that does
+      dfs_[int,ext]) termination argument proposed by X. Leroy that does
       not need partial correctness information to establish termination,
-      a situation which in unusual for nested algorithms. *) 
+      a situation which is a bit unusual for nested algorithms. *) 
 
-  (** Termination (sufficiency), ie the predicate Ddfs a x holds, 
+  (** Termination (sufficiency), ie the predicate Ddfs x a holds, 
       is somewhat easy under well-foundedness of x in the succ relation. *)
 
-  Theorem dfs_acc_termination_Acc a x : Acc (λ u v, u ∈ succ v) x → Ddfs a x.
+  Theorem dfs_termination_Acc x a : Acc (λ u v, u ∈ succ v) x → Ddfs x a.
   Proof.
     induction 1 as [ x _ IHx ] in a |- *.
     destruct (in_dec x a) as [ | H ].
@@ -395,15 +289,15 @@ Section dfs.
 
       Below we show that the above (strong) termination condition
       Acc (λ u v, u ∈ succ v) x is actually *necessary* for termination,
-      but only in the case of dfs x := dfs_acc [] x.
+      but only in the case of dfs_xl x := dfs x [].
  
-      For this, we show that when the computational graph of dfs_acc
+      For this, we show that when the computational graph of dfs
       outputs something from inputs "a" and "x", then it must be that
       any infinite succ sequence from "x" eventually meets "a", expressed
       as the bar inductive predicate (bar ⦃a⦄ x).
 
       This is one aspect of partial correctness, the other aspect
-      being that the output of (dfs_acc a x) is a list containing
+      being that the output of (dfs x a) is a list containing
       the "y" that are either in "a" or reachable from "x" using a 
       (succ) path no crossing "a". *)
 
@@ -416,40 +310,40 @@ Section dfs.
         for (Gfoldleft Gdfs) / Gdfs which allows to show:
         - functionality of Gdfs
         - inclusion of Gdfs into Ddfs
-        - partial correctness of dfs_acc & dfs_acc_internal
+        - partial correctness of dfs_[int,ext]
 
         Notice that we have to use a nested fixpoint here. *)
 
     Variables (P : list X → list X → list X → Prop)
-              (Q : list X → X → list X → Prop)
+              (Q : X → list X → list X → Prop)
 
               (HP0 : ∀a, P [] a a)
 
-              (HP1 : ∀ {a x l b o},
-                         Gdfs a x b 
-                       → Q a x b 
+              (HP1 : ∀ {x a l b o},
+                         Gdfs x a b 
+                       → Q x a b 
                        → Gfoldleft Gdfs l b o
                        → P l b o  
                        → P (x::l) a o)
 
-              (HQ0 : ∀ {a x},
+              (HQ0 : ∀ {x a},
                          x ∈ a
-                       → Q a x a)
+                       → Q x a a)
 
-              (HQ1 : ∀ {a x o},
+              (HQ1 : ∀ {x a o},
                          x ∉ a
                        → Gfoldleft Gdfs (succ x) a o
                        → P (succ x) a o
-                       → Q a x (x::o)).
+                       → Q x a (x::o)).
 
     (* This requires a nesting with the generic Gfoldleft_ind above.
        It could be done with an inlined nested fixpoint but we separate
        here for readability.
-       This nesting is comparable to that of foldleft/dfs_acc except
+       This nesting is comparable to that of foldleft/dfs except
        that the structural arguments are the computational graphs,
        not the inductive domains. Pattern matching on these is ok
-       since the recursor is over Prop, not Set/Type. *)
-    Fixpoint Gdfs_ind {a x o} (d : Gdfs a x o) {struct d} : Q a x o :=
+       since the recursor is over Prop, ie neither Set nor Type. *)
+    Fixpoint Gdfs_ind {x a o} (d : Gdfs x a o) {struct d} : Q x a o :=
       match d with
       | Gdfs_stop h     => HQ0 h
       | Gdfs_next h gfl => HQ1 h
@@ -465,7 +359,7 @@ Section dfs.
        well as in the proof term above.
        The same proof term as Gdfs_ind, but using an Ltac script 
        with implemented via a call to "induction". *)
-    Local Fixpoint Gdfs_ind_script a x o (d : Gdfs a x o) {struct d} : Q a x o.
+    Local Fixpoint Gdfs_ind_script x a o (d : Gdfs x a o) {struct d} : Q x a o.
     Proof.
       destruct d as [ | ? ? ? H gfl ].
       + now apply HQ0.
@@ -476,7 +370,7 @@ Section dfs.
 
     (* This is for completeness but not really needed below *)
     Theorem Gdfs_mutual_ind : (∀ l a o, Gfoldleft Gdfs l a o → P l a o)
-                            ∧ (∀ a x o, Gdfs a x o → Q a x o).
+                            ∧ (∀ x a o, Gdfs x a o → Q x a o).
     Proof.
       split; eauto.
       + apply Gfoldleft_ind; eauto.
@@ -488,9 +382,9 @@ Section dfs.
   End Gdfs_ind.
 
   (* We can deduce functionality of Gdfs. *)
-  Local Lemma Gdfs_fun {a x o₁ o₂} : Gdfs a x o₁ → Gdfs a x o₂ → o₁ = o₂.
+  Local Lemma Gdfs_fun {x a o₁ o₂} : Gdfs x a o₁ → Gdfs x a o₂ → o₁ = o₂.
   Proof.
-    intros H; revert o₂; pattern a, x, o₁; revert a x o₁ H.
+    intros H; revert o₂; pattern x, a, o₁; revert x a o₁ H.
     apply Gdfs_ind with (P := λ l a o, ∀o2, Gfoldleft Gdfs l a o2 → o = o2).
     + now intros ? ? ?%Gfoldleft_inv.
     + intros ? ? ? ? ? _ IH1 _ IH2 ? (? & [])%Gfoldleft_inv.
@@ -500,27 +394,27 @@ Section dfs.
   Qed.
 
   (* And then the inclusion of Gdfs in Ddfs. *)
-  Local Lemma Gdfs_incl_Ddfs : ∀ a x o, Gdfs a x o → Ddfs a x.
+  Local Lemma Gdfs_incl_Ddfs : ∀ x a o, Gdfs x a o → Ddfs x a.
   Proof.
     apply Gdfs_ind with (P := λ l a o, Dfoldleft Gdfs Ddfs l a)
-                        (Q := λ a x o, Ddfs a x);
+                        (Q := λ x a o, Ddfs x a);
       [ constructor 1 | | constructor 1 | constructor 2 ]; eauto.
-    intros a x l b o1 H1 IH1 H2 IH2.
+    intros x a l b o1 H1 IH1 H2 IH2.
     constructor; auto.
     intros ? H3.
     now rewrite (Gdfs_fun H3 H1).
   Qed.
 
   (* Hence the domain Ddfs, characterized inductivelly
-     for the purpose of defining dfs_acc by structural
+     for the purpose of defining dfs_[int,ext] by structural
      induction on it, is indeed (equivalent to) the 
      projection of the computational graph Gdfs, ie
-     Ddfs indeed characterizes termination of dfs_acc
+     Ddfs indeed characterizes termination of dfs
      according to its description as Gdfs. *)
-  Theorem Dfs_iff_Gdfs a x : Ddfs a x ↔ ∃o, Gdfs a x o.
+  Theorem Dfs_iff_Gdfs x a : Ddfs x a ↔ ∃o, Gdfs x a o.
   Proof.
     split.
-    + intros (o & ?)%dfs_acc; now exists o.
+    + intros (o & ?)%dfs_int; now exists o.
     + now intros (? & ?%Gdfs_incl_Ddfs).
   Qed.
 
@@ -554,20 +448,20 @@ Section dfs.
   Notation crt_exclude_union R P L := (λ y, ∃i, L i ∧ crt_exclude R P i y).
 
   (** We get a stronger partial correctness post-condition that when
-      considering the dfs_braga variant of the dfs algorithm. Indeed,
-      in this case when dfs_acc a x outputs a result (ie terminates), it 
-      must be that bar ⦃a⦄ x further holds, ie any infinite path from x 
-      must cross ⦃a⦄. *)
-  Theorem dfs_acc_partially_correct a x o :
-            Gdfs a x o
+      considering the dfs_braga variant of the DFS algorithm. Indeed,
+      in this case when dfs x a outputs a result (ie terminates), it 
+      must be that bar ⦃a⦄ x further holds, ie any infinite path from
+      x must cross ⦃a⦄. *)
+  Theorem dfs_partially_correct x a o :
+            Gdfs x a o
           → bar ⦃a⦄ x
           ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
   Proof.
-    revert a x o.
+    revert x a o.
     apply Gdfs_ind with (P := λ l a o, Forall (bar ⦃a⦄) l ∧ ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude_union next ⦃a⦄ ⦃l⦄).
     + intros a; split; auto.
       intros; now rewrite crt_exclude_union_nil with (A := ⦃_⦄).
-    + intros a x l b o _ (B1 & E1) _ (B2 & E2); split.
+    + intros x a l b o _ (B1 & E1) _ (B2 & E2); split.
       * constructor; auto.
         revert B2; apply Forall_impl.
         clear E2 l o.
@@ -587,12 +481,12 @@ Section dfs.
              revert H1; apply crt_exclude_mono.
              intro; apply E1.
           ++ intro z; rewrite <- E1; destruct (in_dec z b); auto.
-    + intros a x Hax; split.
+    + intros x a Hax; split.
       * now constructor 1.
       * intros y; split; auto.
         intros [ | H ]; auto.
         now destruct (crt_exclude_yes _ _ _ _ _ H Hax).
-    + intros a x o Hax _ (B1 & E1); split.
+    + intros x a o Hax _ (B1 & E1); split.
       * constructor 2; now apply Forall_forall.
       * intros z; simpl.
         rewrite E1; split.
@@ -600,16 +494,16 @@ Section dfs.
         - intros [ | [ | [] ]%crt_exclude_inv ]; auto.
   Qed.
 
-  Corollary dfs_acc_pre_condition a x o : Gdfs a x o → bar ⦃a⦄ x.
-  Proof. apply dfs_acc_partially_correct. Qed.
+  Corollary dfs_pre_condition x a o : Gdfs x a o → bar ⦃a⦄ x.
+  Proof. apply dfs_partially_correct. Qed.
 
-  Corollary dfs_acc_post_condition a x o : Gdfs a x o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
-  Proof. apply dfs_acc_partially_correct. Qed.
+  Corollary dfs_post_condition x a o : Gdfs x a o → ⦃o⦄ ≡ ⦃a⦄ ∪ crt_exclude next ⦃a⦄ x.
+  Proof. apply dfs_partially_correct. Qed.
 
-  (* Termination of dfs_acc with non empty a(ccumulator) is
-     more complicated than that of dfs := dfs_acc [].
+  (* Termination of dfs_[int,ext] with non empty a(ccumulator) is
+     more complicated than that of dfs_xl x := dfs x [].
      In particular, we use partial correctness for this. *)
-  Lemma dfs_acc_termination_bar P x : bar P x → ∀a, P ⊆ ⦃a⦄ → Ddfs a x.
+  Lemma dfs_termination_bar P x : bar P x → ∀a, P ⊆ ⦃a⦄ → Ddfs x a.
   Proof.
     induction 1 as [ x Hx | x Hx IHx ].
     + constructor 1; eauto.
@@ -628,67 +522,80 @@ Section dfs.
           intros o Ho.
           apply IHl.
           intros b Hb%Ha.
-          apply dfs_acc_post_condition with (1 := Ho); auto.
-  Qed.
-
-  Hint Resolve dfs_acc_pre_condition : core.
-
-  (* We get a precise (necessary and sufficient) condition for
-     the termination of dfs_acc with an arbitrary a(ccumulator). *)
-  Theorem dfs_acc_weakest_pre_condition a x :
-            (∃o, Gdfs a x o) ↔ bar ⦃a⦄ x.
-  Proof.
-    split.
-    + intros []; eauto.
-    + intros H; apply Dfs_iff_Gdfs, dfs_acc_termination_bar with (1 := H); auto.
-  Qed.
-
-  Lemma dfs_pre_condition x o : Gdfs [] x o → Acc (λ u v, u ∈ succ v) x.
-  Proof. now intros ?%dfs_acc_pre_condition%bar_empty. Qed.
-
-  Lemma dfs_post_condition x o : Gdfs [] x o → ⦃o⦄ ≡ clos_refl_trans next x.
-  Proof.
-    intros H y.
-    rewrite <- crt_exclude_empty, dfs_acc_post_condition; eauto.
-    simpl; tauto.
+          apply dfs_post_condition with (1 := Ho); auto.
   Qed.
 
   Hint Resolve dfs_pre_condition : core.
 
-  Theorem dfs_weakest_pre_condition x :
-            (∃o, Gdfs [] x o) ↔ Acc (λ u v, u ∈ succ v) x.
+  (* We get a precise (necessary and sufficient) condition for
+     the termination of dfs with an arbitrary a(ccumulator). *)
+  Theorem dfs_weakest_pre_condition x a :
+            (∃o, Gdfs x a o) ↔ bar ⦃a⦄ x.
   Proof.
     split.
     + intros []; eauto.
-    + now intros ?%(dfs_acc_termination_Acc [])%Dfs_iff_Gdfs.
+    + intros H; apply Dfs_iff_Gdfs, dfs_termination_bar with (1 := H); auto.
   Qed.
 
-  (* This is the dfs algorithm associated to Gdfs with the most
+  Lemma dfs_xl_pre_condition x o : Gdfs x [] o → Acc (λ u v, u ∈ succ v) x.
+  Proof. now intros ?%dfs_pre_condition%bar_empty. Qed.
+
+  Lemma dfs_xl_post_condition x o : Gdfs x [] o → ⦃o⦄ ≡ clos_refl_trans next x.
+  Proof.
+    intros H y.
+    rewrite <- crt_exclude_empty, dfs_post_condition; eauto.
+    simpl; tauto.
+  Qed.
+
+  Hint Resolve dfs_xl_pre_condition : core.
+
+  Theorem dfs_xl_weakest_pre_condition x :
+            (∃o, Gdfs x [] o) ↔ Acc (λ u v, u ∈ succ v) x.
+  Proof.
+    split.
+    + intros []; eauto.
+    + now intros ?%(dfs_termination_Acc _ [])%Dfs_iff_Gdfs.
+  Qed.
+
+  (* This is the dfs_xl algorithm associated to Gdfs with the most
      general specification since the pre-condition is the weakest-possible. 
      The post-condition does not include the absence of succ-cycles in
      the output but this is implied by the pre-condition already. *) 
-  Definition dfs x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
+  Definition dfs_xl_ext x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
   Proof.
     (* We separate the code from the logic *)
-    refine (let (m,hm) := dfs_acc [] x _ in exist _ m _).
-    + now apply Dfs_iff_Gdfs, dfs_weakest_pre_condition.
-    + now apply dfs_post_condition.
+    refine (let (m,hm) := dfs_ext x [] _ in exist _ m _).
+    + now apply Dfs_iff_Gdfs, dfs_xl_weakest_pre_condition.
+    + now apply dfs_xl_post_condition.
   Defined.
 
-  Definition dfs_xl x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
+  (* The same with internal nesting of foldleft *) 
+  Definition dfs_xl_int x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
   Proof.
     (* We separate the code from the logic *)
-    refine (let (m,hm) := dfs_acc_internal [] x _ in exist _ m _).
-    + now apply Dfs_iff_Gdfs, dfs_weakest_pre_condition.
-    + now apply dfs_post_condition.
+    refine (let (m,hm) := dfs_int x [] _ in exist _ m _).
+    + now apply Dfs_iff_Gdfs, dfs_xl_weakest_pre_condition.
+    + now apply dfs_xl_post_condition.
   Defined.
 
-End dfs.
+End dfs_xleroy.
 
-Check dfs_weakest_pre_condition.
-Check dfs.
-Check dfs_xl.
+Check dfs_xl_weakest_pre_condition.
+Check dfs_xl_ext.
+Check dfs_xl_int.
 
-Extraction Inline dfs_acc dfs_acc_internal.
+(* We can extract dfs_xl_ext with external nesting of foldleft *)
+Extraction Inline dfs_ext.
+Recursive Extraction dfs_xl_ext.
 
-Recursive Extraction dfs dfs_xl. 
+(* We can extract dfs_xl_int with internal nesting of foldleft, ie
+   the reference algorithm of X. Leroy. *)
+Extraction Inline dfs_int.
+Extraction dfs_xl_int.
+
+(* If we further instruct the extraction mechanism to inline
+   foldleft, then when extracting dfs_xl_ext as above, we get the
+   SAME extraction as for dfs_xl_int, except for irrelevant 
+   internal names. *)
+Extraction Inline foldleft.
+Extraction dfs_xl_ext. 
