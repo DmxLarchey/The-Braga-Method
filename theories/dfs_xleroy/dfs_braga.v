@@ -180,7 +180,7 @@ Section dfs_braga.
 
      while providing precisely the strict sub-term dfl out
      of d : Ddfs_next h dfl . *)
-  Let Ddfs_pi {x a} (d : Ddfs x a) :
+  Local Definition Ddfs_pi {x a} (d : Ddfs x a) :
       x ∉ a → Dfoldleft Gdfs Ddfs (succ x) (x::a) :=
     match d with
     | Ddfs_stop h     => λ C, match C h with end
@@ -519,17 +519,51 @@ Section dfs_braga.
     | Gdfs_bk_in {v x l o} : x ∈ v → Gdfs_book v l o → Gdfs_book v (x::l) o
     | Gdfs_bk_out {v x l o} : x ∉ v → Gdfs_book (x::v) (succ x++l) o → Gdfs_book v (x::l) o.
 
+  Fact Gdfs_book_inv v l o :
+         Gdfs_book v l o
+       → match l with
+         | []   => v = o
+         | x::l => (x ∈ v → Gdfs_book v l o)
+                 ∧ (x ∉ v → Gdfs_book (x::v) (succ x++l) o)
+         end.
+  Proof. destruct 1; tauto. Qed.
+
+  Hint Constructors Gdfs_book : core.
+
+  Fact Gdfs_book_app v w l m o : Gdfs_book v l w → Gdfs_book w m o → Gdfs_book v (l++m) o.
+  Proof.
+    induction 1 in m, o |- *; simpl; eauto.
+    constructor 3; eauto.
+    rewrite <- app_ass; auto.
+  Qed.
+
+  Hint Resolve Gdfs_book_app : core.
+
   Lemma Gdfs_book_fl_dfs v l o : Gdfs_book v l o → Gfoldleft Gdfs l v o.
   Proof. induction 1 as [ | | ? ? ? ? ? ? (? & [])%Gfoldleft_app_inv ]; eauto. Qed.
 
-  (* When the dfs_book algorithm (terminates and) computes an output o,
-     the dfs_braga algorithm terminates and computes the same output o. *)
-  Theorem Gdfs_book_braga x o : Gdfs_book [] [x] o → Gdfs x [] o.
-  Proof. now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_book_fl_dfs%Gfoldleft_inv. Qed.
+  Lemma Gdfs_Gdfs_book x a o : Gdfs x a o → Gdfs_book a [x] o.
+  Proof.
+    revert x a o; apply Gdfs_ind with (P := λ l a o, Gdfs_book a l o); eauto.
+    + intros x a l b o H1 IH1 H2 IH2.
+      destruct (in_dec x a) as [ Hxa | Hxa ].
+      * constructor 2; auto.
+        apply Gdfs_book_inv, proj1 in IH1; auto.
+        apply IH1, Gdfs_book_inv in Hxa; now subst.
+      * constructor 3; auto.
+        apply Gdfs_book_inv, proj2 in IH1; auto.
+        rewrite <- app_nil_end in IH1; eauto.
+  Qed.
 
-  (** Notice than it is proved in dfs/dfs_term.v that dfs_book terminates
-      on the same weakest pre-condition so both programs output the same 
-      thing on any input in their (common) domain. (easy proof) *)
+ (* The dfs_book algorithm and the dfs_braga algorithm have
+    equivalent input/output relations. So they have the same
+    domain and the same outputs. *)
+  Theorem Gdfs_book_braga x o : Gdfs_book [] [x] o ↔ Gdfs x [] o.
+  Proof. 
+    split. 
+    + now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_book_fl_dfs%Gfoldleft_inv.
+    + apply Gdfs_Gdfs_book.
+  Qed.
 
 End dfs_braga.
 
