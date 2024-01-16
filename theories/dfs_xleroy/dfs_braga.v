@@ -13,7 +13,7 @@
 
              theories/dfs_xleroy/dfs_xleroy.v
 
-    and implements the following dfs algorithm
+    and implements the following DFS algorithm
 
       let dfs_braga x =
         let rec dfs x a =
@@ -22,11 +22,13 @@
           | false -> foldleft dfs (succ x) (x::a)
          in dfs x []
 
-    both with external nesting of foldleft following 
-    the "Braga method" steps. This algorithm compares 
-    mostly to the original DFS algorithm as discussed 
-    in the "Braga" book chapter and in the files 
-    theories/dfs/*.v herein.
+    with external nesting of foldleft following 
+    the "Braga method" steps. Internal nesting of foldleft
+    can be obtained by a further Extraction Inline directive.
+
+    For its semantics, this algorithm compares mostly to the 
+    original DFS algorithm as discussed in the "Braga" book 
+    chapter and in the files theories/dfs/*.v herein.
 
       let dfs_book x =
         let rec dfs v l =
@@ -39,15 +41,20 @@
         in dfs [] [x]
 
     These two algoritms (dfs_braga & dfs_book) are different 
-    but compute similar (possibly even the same, TO CHECK)
-    outputs and have the same weakest pre-condition, the 
-    existence of a finite set containing "x" and stable under
-    "succ". In particular, loops in the succ graph have no
-    impact on termination. The output is the list of points
-    succ-reachable from x (avoiding repetitions, not proved
-    here). The order seems to be the reverse of prefix 
-    left-right traversal of the graph (remains TO BE
-    ESTABLISHED).
+    but compute the SAME outputs. This equivalence is established
+    below as theorem Gdfs_book_braga showing that their respective 
+    computational graphs are equivalent. Hence, they also have the 
+    same weakest pre-condition: the existence of a finite set 
+    containing "x" and stable under "succ". In particular, loops 
+    in the succ graph have no impact on termination.
+
+    Their (common) output is the list of points succ-reachable 
+    from x. Repetitions are avoided (this is not proved in here
+    but the result is available as dfs_no_dups in the file
+    theories/dfs/dfs_partial_corr.v).
+
+    The order of the output seems to be the reverse of prefix 
+    left-right traversal of the graph (remains TO BE ESTABLISHED).
 
     (* f : 'b -> 'a -> 'a
        l : 'b list
@@ -515,18 +522,22 @@ Section dfs_braga.
 
   (* dfs_book as a computational graph *)
   Inductive Gdfs_book : list X → list X → list X → Prop :=
-    | Gdfs_bk_stop v : Gdfs_book v [] v
-    | Gdfs_bk_in {v x l o} : x ∈ v → Gdfs_book v l o → Gdfs_book v (x::l) o
-    | Gdfs_bk_out {v x l o} : x ∉ v → Gdfs_book (x::v) (succ x++l) o → Gdfs_book v (x::l) o.
+    | Gdfs_bk_stop v :        Gdfs_book v [] v
+    | Gdfs_bk_in {v x l o} :  x ∈ v
+                            → Gdfs_book v l o
+                            → Gdfs_book v (x::l) o
+    | Gdfs_bk_out {v x l o} : x ∉ v
+                            → Gdfs_book (x::v) (succ x++l) o
+                            → Gdfs_book v (x::l) o.
 
   Fact Gdfs_book_inv v l o :
          Gdfs_book v l o
        → match l with
          | []   => v = o
-         | x::l => (x ∈ v → Gdfs_book v l o)
-                 ∧ (x ∉ v → Gdfs_book (x::v) (succ x++l) o)
+         | x::l => x ∈ v ∧ Gdfs_book v l o
+                 ∨ x ∉ v ∧ Gdfs_book (x::v) (succ x++l) o
          end.
-  Proof. destruct 1; tauto. Qed.
+  Proof. destruct 1; auto. Qed.
 
   Hint Constructors Gdfs_book : core.
 
@@ -539,29 +550,23 @@ Section dfs_braga.
 
   Hint Resolve Gdfs_book_app : core.
 
-  Lemma Gdfs_book_fl_dfs v l o : Gdfs_book v l o → Gfoldleft Gdfs l v o.
+  Lemma Gdfs_book_Gfoldleft_dfs v l o : Gdfs_book v l o → Gfoldleft Gdfs l v o.
   Proof. induction 1 as [ | | ? ? ? ? ? ? (? & [])%Gfoldleft_app_inv ]; eauto. Qed.
 
   Lemma Gdfs_Gdfs_book x a o : Gdfs x a o → Gdfs_book a [x] o.
   Proof.
     revert x a o; apply Gdfs_ind with (P := λ l a o, Gdfs_book a l o); eauto.
-    + intros x a l b o H1 IH1 H2 IH2.
-      destruct (in_dec x a) as [ Hxa | Hxa ].
-      * constructor 2; auto.
-        apply Gdfs_book_inv, proj1 in IH1; auto.
-        apply IH1, Gdfs_book_inv in Hxa; now subst.
-      * constructor 3; auto.
-        apply Gdfs_book_inv, proj2 in IH1; auto.
-        rewrite <- app_nil_end in IH1; eauto.
+    intros ? ? ? ? ? _ [ (? & <-%Gdfs_book_inv) | (? & H2) ]%Gdfs_book_inv _ ?; eauto.
+    rewrite <- app_nil_end in H2; eauto.
   Qed.
 
  (* The dfs_book algorithm and the dfs_braga algorithm have
     equivalent input/output relations. So they have the same
     domain and the same outputs. *)
   Theorem Gdfs_book_braga x o : Gdfs_book [] [x] o ↔ Gdfs x [] o.
-  Proof. 
-    split. 
-    + now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_book_fl_dfs%Gfoldleft_inv.
+  Proof.
+    split.
+    + now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_book_Gfoldleft_dfs%Gfoldleft_inv.
     + apply Gdfs_Gdfs_book.
   Qed.
 

@@ -251,7 +251,7 @@ Section foldleft.
      → ∃b, Gfoldleft l a b
          ∧ Gfoldleft m b o.
   Proof.
-    induction l as [ | x l IHl ] in a, o |- *; simpl; eauto.
+    induction l as [ | ? ? IHl ] in a,o |- *; simpl; eauto.
     intros (? & ? & (? & [])%IHl)%Gfoldleft_inv; eauto.
   Qed.
 
