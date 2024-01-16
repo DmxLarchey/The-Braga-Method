@@ -118,7 +118,7 @@ Import ListNotations.
    relation when restricted by a fixed upper-bound. *)
 Require Import induction dfs_abstract.
 
-Section dfs.
+Section dfs_braga.
 
   Variable (X : Type).
 
@@ -501,7 +501,37 @@ Section dfs.
     + now apply dfs_braga_partially_correct.
   Defined.
 
-End dfs.
+   (** Reminder:
+
+      let dfs_book x =
+        let rec dfs v l =
+          match l with 
+          | []   -> v
+          | x::l ->
+            match in_dec x v
+            | true  -> dfs v l
+            | false -> dfs (x::v) (succ x)@l
+        in dfs [] [x] *)
+
+  (* dfs_book as a computational graph *)
+  Inductive Gdfs_book : list X → list X → list X → Prop :=
+    | Gdfs_bk_stop v : Gdfs_book v [] v
+    | Gdfs_bk_in {v x l o} : x ∈ v → Gdfs_book v l o → Gdfs_book v (x::l) o
+    | Gdfs_bk_out {v x l o} : x ∉ v → Gdfs_book (x::v) (succ x++l) o → Gdfs_book v (x::l) o.
+
+  Lemma Gdfs_book_fl_dfs v l o : Gdfs_book v l o → Gfoldleft Gdfs l v o.
+  Proof. induction 1 as [ | | ? ? ? ? ? ? (? & [])%Gfoldleft_app_inv ]; eauto. Qed.
+
+  (* When the dfs_book algorithm (terminates and) computes an output o,
+     the dfs_braga algorithm terminates and computes the same output o. *)
+  Theorem Gdfs_book_braga x o : Gdfs_book [] [x] o → Gdfs x [] o.
+  Proof. now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_book_fl_dfs%Gfoldleft_inv. Qed.
+
+  (** Notice than it is proved in dfs/dfs_term.v that dfs_book terminates
+      on the same weakest pre-condition so both programs output the same 
+      thing on any input in their (common) domain. (easy proof) *)
+
+End dfs_braga.
 
 Check dfs_braga.
 
@@ -510,6 +540,7 @@ Recursive Extraction dfs_braga.
 
 Extraction Inline foldleft.
 Extraction dfs_braga.
+
 
 
 

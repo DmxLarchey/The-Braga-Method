@@ -246,6 +246,15 @@ Section foldleft.
        end.
   Proof. destruct 1; eauto. Qed.
 
+  Fact Gfoldleft_app_inv {l m a o} :
+       Gfoldleft (l++m) a o
+     → ∃b, Gfoldleft l a b
+         ∧ Gfoldleft m b o.
+  Proof.
+    induction l as [ | x l IHl ] in a, o |- *; simpl; eauto.
+    intros (? & ? & (? & [])%IHl)%Gfoldleft_inv; eauto.
+  Qed.
+
   Let is_nnil l := match l with [] => False | _ => True end.
 
   Let dhead {l} : is_nnil l → Y :=
