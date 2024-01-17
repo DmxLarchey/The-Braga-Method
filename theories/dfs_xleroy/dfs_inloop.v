@@ -496,14 +496,14 @@ Section dfs.
   (* End of small inversions of Ddfs_stack *)
 
   (* Recursive equations of dfs_list_stack *)
-  Lemma dfs_list_stack_eqn1 {a} (δ : Ddfs_stack a [[]]) : dfs_list_stack a [] [] δ = a.
+  Fact dfs_list_stack_eqn1 {a} (δ : Ddfs_stack a [[]]) : dfs_list_stack a [] [] δ = a.
   Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
 
-  Lemma dfs_list_stack_eqn2 {a l s} (δ : Ddfs_stack a ([] :: l :: s)) :
+  Fact dfs_list_stack_eqn2 {a l s} (δ : Ddfs_stack a ([] :: l :: s)) :
     dfs_list_stack a [] (l :: s) δ = dfs_list_stack a l s (Ddfs_stack_nil_push_pi δ).
   Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
 
-  Lemma dfs_list_stack_eqn3 {a x l s} (yes : x ∈ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
+  Fact dfs_list_stack_eqn3 {a x l s} (yes : x ∈ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_list_stack a (x :: l) s δ = dfs_list_stack a l s (Ddfs_stack_cons_stop_pi δ yes).
   Proof.
     destruct (Ddfs_stack_inv δ) as [yes' δ | no δ]; cbn.
@@ -513,7 +513,7 @@ Section dfs.
     - case (no yes).
   Qed.
 
-  Lemma dfs_list_stack_eqn4 {a x l s} (no : x ∉ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
+  Fact dfs_list_stack_eqn4 {a x l s} (no : x ∉ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_list_stack a (x :: l) s δ =
     dfs_list_stack (x :: a) (successors x) (l :: s) (Ddfs_stack_cons_next_pi δ no).
    Proof.
@@ -590,17 +590,17 @@ Section dfs.
 
   (* ---------------------------------------------------------------------- *)
   (* Recursive equations of dfs_stack *)
-  Lemma dfs_stack_eqn0 {a} (δ : Ddfs_stack a []) : dfs_stack a [] δ = a.
+  Fact dfs_stack_eqn0 {a} (δ : Ddfs_stack a []) : dfs_stack a [] δ = a.
   Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
 
-  Lemma dfs_stack_eqn1 {a} (δ : Ddfs_stack a [[]]) : dfs_stack a [[]] δ = a.
+  Fact dfs_stack_eqn1 {a} (δ : Ddfs_stack a [[]]) : dfs_stack a [[]] δ = a.
   Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
 
-  Lemma dfs_stack_eqn2 {a l s} (δ : Ddfs_stack a ([] :: l :: s)) :
+  Fact dfs_stack_eqn2 {a l s} (δ : Ddfs_stack a ([] :: l :: s)) :
     dfs_stack a ([] :: l :: s) δ = dfs_stack a (l :: s) (Ddfs_stack_nil_push_pi δ).
   Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
 
-  Lemma dfs_stack_eqn3 {a x l s} (yes : x ∈ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
+  Fact dfs_stack_eqn3 {a x l s} (yes : x ∈ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_stack a ((x :: l) :: s) δ = dfs_stack a (l :: s) (Ddfs_stack_cons_stop_pi δ yes).
   Proof.
     destruct (Ddfs_stack_inv δ) as [yes' δ | no δ]; cbn.
@@ -610,7 +610,7 @@ Section dfs.
     - case (no yes).
   Qed.
 
-  Lemma dfs_stack_eqn4 {a x l s} (no : x ∉ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
+  Fact dfs_stack_eqn4 {a x l s} (no : x ∉ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_stack a ((x :: l) :: s) δ =
     dfs_stack (x :: a) (successors x :: l :: s) (Ddfs_stack_cons_next_pi δ no).
    Proof.
@@ -750,10 +750,162 @@ Section dfs.
      - rewrite (dfs_stack_eqn4 no).  apply (Gdfs_stack_corr4 no), loop.
    Qed.
 
-  (* 2.3 Flattening s in dfs_stack provides the algorithm considered in [2] *)
+   (* 2.3 Flattening s in dfs_stack provides the algorithm considered in [2] *)
+
+   Fixpoint flatten {X : Type} (ll : list (list X)) : list X :=
+     match ll with
+     | [] => []
+     | l :: ll => l ++ flatten ll
+     end.
+
+   (* Inductive domain of dfs_flatten *)
    
-  (* TODO: see title of 2.3, et vérifier, car j'ai relu [2] très vite... *)
+   Inductive Ddfs_flatten : list X → list X → Prop :=
+   | Ddfs_flatten_nil {a} :              Ddfs_flatten a []
+   | Ddfs_flatten_cons_stop {a x ls} :   x ∈ a
+                                      → Ddfs_flatten a ls
+                                      → Ddfs_flatten a (x :: ls)
+   | Ddfs_flatten_cons_next {a x ls} :   x ∉ a
+                                      → Ddfs_flatten (x :: a) (successors x ++ ls)
+                                      → Ddfs_flatten a (x :: ls).
+
+  (* Structurally smaller projections *)
+
+  Definition Ddfs_flatten_cons_stop_pi {a x ls} (δ : Ddfs_flatten a (x :: ls)) :
+    x ∈ a → Ddfs_flatten a ls :=
+    match δ in Ddfs_flatten a xls return
+          let guard := match xls with x :: ls => True | _ => False end in
+          let x     := match xls with x :: ls => x    | _ => x     end in
+          let ls    := match xls with x :: ls => ls   | _ => ls    end in
+          guard → x ∈ a → Ddfs_flatten a ls with
+    | Ddfs_flatten_cons_stop yes δ => λ _ _, δ
+    | Ddfs_flatten_cons_next no δ  => λ _ yes, match no yes with end
+    | _               => λ absu _, match absu with end
+    end I.
+
+  Definition Ddfs_flatten_cons_next_pi {a x ls} (δ : Ddfs_flatten a (x :: ls)) :
+    x ∉ a → Ddfs_flatten (x :: a) (successors x ++ ls) :=
+    match δ in Ddfs_flatten a xls return
+          let guard := match xls with x :: ls => True | _ => False end in
+          let x     := match xls with x :: ls => x    | _ => x     end in
+          let ls    := match xls with x :: ls => ls   | _ => ls    end in
+          guard → x ∉ a → Ddfs_flatten (x :: a) (successors x ++ ls) with
+    | Ddfs_flatten_cons_next no δ  => λ _ _, δ
+    | Ddfs_flatten_cons_stop yes δ => λ _ no, match no yes with end
+    | _               => λ absu _, match absu with end
+    end I.
+   
+  Fixpoint dfs_flatten a s (δ : Ddfs_flatten a s) {struct δ} : list X :=
+    match s                                                       (* *) return Ddfs_flatten a s → _
+    with
+    | []     =>                                                   (* *) λ _,
+                a
+    | x :: ls =>                                                  (* *) λ δ,
+        match in_dec x a with
+        | left yes => dfs_flatten a ls                            (* *) (Ddfs_flatten_cons_stop_pi δ yes)
+        | right no => dfs_flatten (x :: a) (successors x ++ ls)   (* *) (Ddfs_flatten_cons_next_pi δ no)
+        end
+    end δ.
+
+  (* small inversions for smaller inversions for Ddfs_flatten *)
+
+  Inductive Ddfs_flatten_n a : Ddfs_flatten a [] → Prop :=
+  | Ddfs_flatten_n_nil :  Ddfs_flatten_n a Ddfs_flatten_nil.
+  Inductive Ddfs_flatten_c a x ls : Ddfs_flatten a (x :: ls) → Prop :=
+  | Ddfs_flatten_cs_cons_stop : ∀ (yes : x ∈ a)
+                                (δ : Ddfs_flatten a ls),
+                              Ddfs_flatten_c a x ls (Ddfs_flatten_cons_stop yes δ)
+  | Ddfs_flatten_cn_cons_next : ∀ (no : x ∉ a)
+                                (δ : Ddfs_flatten (x :: a) (successors x ++ ls)),
+                              Ddfs_flatten_c a x ls (Ddfs_flatten_cons_next no δ).
+
+  Definition Ddfs_flatten_dispatch {a s} : Ddfs_flatten a s → Prop :=
+    match s return Ddfs_flatten a s → Prop with
+    | [] => Ddfs_flatten_n a
+    | x :: ls => Ddfs_flatten_c a x ls
+    end.
+
+  Definition Ddfs_flatten_inv {a s} (δ : Ddfs_flatten a s) : Ddfs_flatten_dispatch δ.
+  Proof. destruct δ; constructor. Defined.
+
+  (* End of small inversions of Ddfs_flatten *)
+
+  (* Recursive equations of dfs_flatten *)
+  Fact dfs_flatten_eqn1 {a} (δ : Ddfs_flatten a []) : dfs_flatten a [] δ = a.
+  Proof. destruct (Ddfs_flatten_inv δ); cbn. reflexivity. Qed.
+
+  Fact dfs_flatten_eqn3 {a x ls} (yes : x ∈ a) (δ : Ddfs_flatten a (x :: ls)) :
+    dfs_flatten a (x :: ls) δ = dfs_flatten a ls (Ddfs_flatten_cons_stop_pi δ yes).
+  Proof.
+    destruct (Ddfs_flatten_inv δ) as [yes' δ | no δ]; cbn.
+    - destruct (in_dec x a) as [_ | no].
+      + reflexivity.
+      + case (no yes).
+    - case (no yes).
+  Qed.
+
+  Fact dfs_flatten_eqn4 {a x ls} (no : x ∉ a) (δ : Ddfs_flatten a (x :: ls)) :
+    dfs_flatten a (x :: ls) δ =
+    dfs_flatten (x :: a) (successors x ++ ls) (Ddfs_flatten_cons_next_pi δ no).
+   Proof.
+     destruct (Ddfs_flatten_inv δ) as [yes δ | no' δ]; cbn.
+     - case (no yes).
+     - destruct (in_dec x a) as [yes | _].
+      + case (no yes).
+      + reflexivity.
+   Qed.
+
+   (* Relating dfs_flatten with dfs_stack *)
+
+   Ltac unflatten := repeat (change (?l ++ flatten ?s) with (flatten (l :: s))).
+   
+   Lemma dfs_flatten_same {a s} (δ : Ddfs_stack a s) (δ' : Ddfs_flatten a (flatten s)) :
+     dfs_flatten a (flatten s) δ' = dfs_stack a s δ.
+   Proof.
+     refine (
+     (fix loop a s (δ : Ddfs_stack a s) {struct δ} : _ :=
+        match s with
+        | [] => λ δ δ', _
+        | [[]] => λ δ δ', _
+        | [] :: l :: s => λ δ δ', _
+        | (x :: l) :: s => λ δ δ',
+            match in_dec x a with
+            | left yes => _
+            | right no => _
+            end
+        end δ
+     ) a s δ δ'); cbn [flatten List.app].
+     - rewrite dfs_stack_eqn0, dfs_flatten_eqn1. reflexivity.
+     - rewrite dfs_stack_eqn1, dfs_flatten_eqn1. reflexivity.
+     - rewrite dfs_stack_eqn2. unflatten. apply loop.
+     - rewrite (dfs_stack_eqn3 yes), (dfs_flatten_eqn3 yes). unflatten. apply loop.
+     - rewrite (dfs_stack_eqn4 no), (dfs_flatten_eqn4 no). unflatten. apply loop.
+   Qed.
+  
+   Definition Ddfs_stack_flatten {a s} (δ : Ddfs_stack a s) : Ddfs_flatten a (flatten s).
+   Proof.
+     refine ( (fix loop a s (δ : Ddfs_stack a s) {struct δ}: _ := _) a s δ).
+     destruct δ as [a | a | a l s | a x l s yes δ  | a x l s no δ]; cbn; unflatten.
+     - constructor.
+     - constructor.
+     - apply loop, δ.
+     - apply (Ddfs_flatten_cons_stop yes), loop, δ.
+     - apply (Ddfs_flatten_cons_next no). unflatten. apply loop, δ.
+   Defined.
+
+   Corollary dfs_flatten_same_special {a s} (δ : Ddfs_stack a s) :
+     dfs_flatten a (flatten s) (Ddfs_stack_flatten δ) = dfs_stack a s δ.
+   Proof. apply dfs_flatten_same. Qed.
+
+   (* Hence a correctness proof of dfs_flatten *)
+
+   Lemma dfs_flatten_Gdfs a s (δ : Ddfs_stack a s) :
+     Gdfs_stack a s (dfs_flatten a (flatten s) (Ddfs_stack_flatten δ)).
+   Proof.
+     rewrite dfs_flatten_same_special. apply dfs_stack_Gdfs.
+   Qed.
 
 End dfs.
 
-Recursive Extraction dfs dfs_tr dfs1 dfs1_tr dfs_list_stack dfs_stack.
+Recursive Extraction dfs dfs_tr dfs1 dfs1_tr dfs_list_stack dfs_stack dfs_flatten.
+
