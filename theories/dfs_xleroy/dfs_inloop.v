@@ -212,7 +212,7 @@ Section dfs.
           | [] =>                            (* *) λ _ κ,
                   exist a                    (* *) (κ a (@iterel_nil _ _ Gdfs _))
           | y :: l =>                        (* *) λ δ κ,
-              let (b, γab) := dfs a y        (* *) (Ddfs_list_cons_pi1 δ)
+              let (b, γab) := dfs_tr a y     (* *) (Ddfs_list_cons_pi1 δ)
                                              (* *) in let δ := Ddfs_list_cons_pi2 δ b γab
                                              (* *) in let κ := λ o γbo, κ o (iterel_cons γab γbo)
               in dfs_list b l                (* *) δ κ
@@ -569,9 +569,9 @@ Section dfs.
    Proof.
      refine (
      (fix loop a l s (δ : Ddfs_stack a (l :: s)) {struct δ} : _ :=
-        match l return ∀ (δ : Ddfs_stack a (l :: s)), _ with
+        match l with
         | [] => λ δ,
-            match s return ∀ (δ : Ddfs_stack a ([] :: s)), _ with
+            match s with
             | [] => λ δ, _
             | l :: s => λ δ, _
             end δ
@@ -627,9 +627,9 @@ Section dfs.
    Proof.
      refine (
      (fix loop a l s (δ δ' : Ddfs_stack a (l :: s)) {struct δ} : _ :=
-        match l return ∀ (δ δ' : Ddfs_stack a (l :: s)), _ with
+        match l with
         | [] => λ δ δ',
-            match s return ∀ (δ δ' : Ddfs_stack a ([] :: s)), _ with
+            match s with
             | [] => λ δ δ', _
             | l :: s => λ δ δ', _
             end δ δ'
@@ -650,15 +650,15 @@ Section dfs.
    Fixpoint dfs_list_stack_same_script a l s (δ δ' : Ddfs_stack a (l :: s)) {struct δ} :
      dfs_stack a (l :: s) δ = dfs_list_stack a l s δ'.
    Proof.
-     destruct l as [ | x l Hl].
+     destruct l as [ | x l].
      - destruct s as [ | l s].
        + rewrite dfs_list_stack_eqn1, dfs_stack_eqn1. reflexivity.
-       + rewrite dfs_list_stack_eqn2, dfs_stack_eqn2. apply dfs_list_stack_same.
+       + rewrite dfs_list_stack_eqn2, dfs_stack_eqn2. apply dfs_list_stack_same_script.
      - destruct (in_dec x a) as [yes | no].
        + rewrite (dfs_list_stack_eqn3 _ yes), (dfs_stack_eqn3 _ yes).
-         apply dfs_list_stack_same.
+         apply dfs_list_stack_same_script.
        + rewrite (dfs_list_stack_eqn4 _ no), (dfs_stack_eqn4 _ no).
-         apply dfs_list_stack_same.
+         apply dfs_list_stack_same_script.
    Qed.
 
    (* Corollaire amusant : dfs_list_stack ne dépend pas de δ *)
@@ -732,10 +732,10 @@ Section dfs.
    Proof.
      refine (
      (fix loop a s (δ : Ddfs_stack a s) {struct δ} : _ :=
-        match s return ∀ (δ : Ddfs_stack a s), _ with
+        match s with
         | [] => λ δ, _
         | [[]] => λ δ, _
-        | [] :: s => λ δ, _
+        | [] :: l :: s => λ δ, _
         | (x :: l) :: s => λ δ,
             match in_dec x a with
             | left yes => _
@@ -751,7 +751,7 @@ Section dfs.
    Qed.
 
   (* 2.3 Flattening s in dfs_stack provides the algorithm considered in [2] *)
-
+   
   (* TODO: see title of 2.3, et vérifier, car j'ai relu [2] très vite... *)
 
 End dfs.
