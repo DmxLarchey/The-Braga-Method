@@ -503,7 +503,7 @@ Section dfs.
     dfs_list_stack a [] (l :: s) δ = dfs_list_stack a l s (Ddfs_stack_nil_push_pi δ).
   Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
 
-  Lemma dfs_list_stack_eqn3 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (yes : x ∈ a) :
+  Lemma dfs_list_stack_eqn3 {a x l s} (yes : x ∈ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_list_stack a (x :: l) s δ = dfs_list_stack a l s (Ddfs_stack_cons_stop_pi δ yes).
   Proof.
     destruct (Ddfs_stack_inv δ) as [yes' δ | no δ]; cbn.
@@ -513,7 +513,7 @@ Section dfs.
     - case (no yes).
   Qed.
 
-  Lemma dfs_list_stack_eqn4 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (no : x ∉ a) :
+  Lemma dfs_list_stack_eqn4 {a x l s} (no : x ∉ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_list_stack a (x :: l) s δ =
     dfs_list_stack (x :: a) (successors x) (l :: s) (Ddfs_stack_cons_next_pi δ no).
    Proof.
@@ -584,8 +584,8 @@ Section dfs.
      ) a l s δ).
      - rewrite dfs_list_stack_eqn1. apply Gdfs_list_stack_corr1.
      - rewrite dfs_list_stack_eqn2. apply Gdfs_list_stack_corr2, loop.
-     - rewrite (dfs_list_stack_eqn3 _ yes). apply (Gdfs_list_stack_corr3 yes), loop.
-     - rewrite (dfs_list_stack_eqn4 _ no). apply (Gdfs_list_stack_corr4 no), loop.
+     - rewrite (dfs_list_stack_eqn3 yes). apply (Gdfs_list_stack_corr3 yes), loop.
+     - rewrite (dfs_list_stack_eqn4 no). apply (Gdfs_list_stack_corr4 no), loop.
    Qed.
 
   (* ---------------------------------------------------------------------- *)
@@ -600,7 +600,7 @@ Section dfs.
     dfs_stack a ([] :: l :: s) δ = dfs_stack a (l :: s) (Ddfs_stack_nil_push_pi δ).
   Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
 
-  Lemma dfs_stack_eqn3 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (yes : x ∈ a) :
+  Lemma dfs_stack_eqn3 {a x l s} (yes : x ∈ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_stack a ((x :: l) :: s) δ = dfs_stack a (l :: s) (Ddfs_stack_cons_stop_pi δ yes).
   Proof.
     destruct (Ddfs_stack_inv δ) as [yes' δ | no δ]; cbn.
@@ -610,7 +610,7 @@ Section dfs.
     - case (no yes).
   Qed.
 
-  Lemma dfs_stack_eqn4 {a x l s} (δ : Ddfs_stack a ((x :: l) :: s)) (no : x ∉ a) :
+  Lemma dfs_stack_eqn4 {a x l s} (no : x ∉ a) (δ : Ddfs_stack a ((x :: l) :: s)) :
     dfs_stack a ((x :: l) :: s) δ =
     dfs_stack (x :: a) (successors x :: l :: s) (Ddfs_stack_cons_next_pi δ no).
    Proof.
@@ -642,8 +642,8 @@ Section dfs.
      ) a l s δ δ').
      - rewrite dfs_list_stack_eqn1, dfs_stack_eqn1. reflexivity.
      - rewrite dfs_list_stack_eqn2, dfs_stack_eqn2. apply loop.
-     - rewrite (dfs_list_stack_eqn3 _ yes), (dfs_stack_eqn3 _ yes). apply loop.
-     - rewrite (dfs_list_stack_eqn4 _ no), (dfs_stack_eqn4 _ no). apply loop.
+     - rewrite (dfs_list_stack_eqn3 yes), (dfs_stack_eqn3 yes). apply loop.
+     - rewrite (dfs_list_stack_eqn4 no), (dfs_stack_eqn4 no). apply loop.
    Qed.
 
    (* Same proof in script style (+ initial fixpoint) *)
@@ -655,9 +655,9 @@ Section dfs.
        + rewrite dfs_list_stack_eqn1, dfs_stack_eqn1. reflexivity.
        + rewrite dfs_list_stack_eqn2, dfs_stack_eqn2. apply dfs_list_stack_same_script.
      - destruct (in_dec x a) as [yes | no].
-       + rewrite (dfs_list_stack_eqn3 _ yes), (dfs_stack_eqn3 _ yes).
+       + rewrite (dfs_list_stack_eqn3 yes), (dfs_stack_eqn3 yes).
          apply dfs_list_stack_same_script.
-       + rewrite (dfs_list_stack_eqn4 _ no), (dfs_stack_eqn4 _ no).
+       + rewrite (dfs_list_stack_eqn4 no), (dfs_stack_eqn4 no).
          apply dfs_list_stack_same_script.
    Qed.
 
@@ -746,8 +746,8 @@ Section dfs.
      - rewrite dfs_stack_eqn0. apply iterel_nil.
      - rewrite dfs_stack_eqn1. apply Gdfs_stack_corr1.
      - rewrite dfs_stack_eqn2. apply Gdfs_stack_corr2, loop.
-     - rewrite (dfs_stack_eqn3 _ yes). apply (Gdfs_stack_corr3 yes), loop.
-     - rewrite (dfs_stack_eqn4 _ no).  apply (Gdfs_stack_corr4 no), loop.
+     - rewrite (dfs_stack_eqn3 yes). apply (Gdfs_stack_corr3 yes), loop.
+     - rewrite (dfs_stack_eqn4 no).  apply (Gdfs_stack_corr4 no), loop.
    Qed.
 
   (* 2.3 Flattening s in dfs_stack provides the algorithm considered in [2] *)
