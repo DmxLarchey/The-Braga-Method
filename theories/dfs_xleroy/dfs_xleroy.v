@@ -578,6 +578,61 @@ Section dfs_xleroy.
     + now apply dfs_xl_post_condition.
   Defined.
 
+  (** Let us implement a "self-nested" variant of dfs_xl algorithm:
+
+      let dfs_xl_self x =
+        let rec dfs v l =
+          match l with 
+          | []   -> v
+          | x::l ->
+            match in_dec x v with
+            | true  => dfs v l
+            | false => dfs (x::dfs v (succ x)) l
+        in dfs [] [x]
+
+  *) 
+
+  Inductive Gdfs_self : list X → list X → list X → Prop :=
+    | Gdfs_sf_stop v :          Gdfs_self v [] v
+    | Gdfs_sf_in {v x l o} :    x ∈ v
+                              → Gdfs_self v l o
+                              → Gdfs_self v (x::l) o
+    | Gdfs_sf_out {v x l w o} : x ∉ v
+                              → Gdfs_self v (succ x) w
+                              → Gdfs_self (x::w) l o
+                              → Gdfs_self v (x::l) o.
+
+  Fact Gdfs_self_inv v l o :
+         Gdfs_self v l o
+       → match l with
+         | []   => v = o
+         | x::l => x ∈ v ∧ Gdfs_self v l o
+                 ∨ x ∉ v ∧ ∃w, Gdfs_self v (succ x) w ∧ Gdfs_self (x::w) l o
+         end.
+  Proof. destruct 1; eauto. Qed.
+
+  Hint Constructors Gdfs_self : core.
+
+  Lemma Gdfs_Gdfs_self x a o : Gdfs x a o → Gdfs_self a [x] o.
+  Proof.
+    revert x a o; apply Gdfs_ind with (P := λ l a o, Gdfs_self a l o); eauto.
+    intros x a l b o _ [ (? & <-%Gdfs_self_inv) 
+                       | (? & ? & ? & <-%Gdfs_self_inv) ]%Gdfs_self_inv _ ?; eauto.
+  Qed.
+
+  Lemma Gdfs_self_Gfoldleft_dfs v l o : Gdfs_self v l o → Gfoldleft Gdfs l v o.
+  Proof. induction 1; eauto. Qed.
+
+ (* The dfs_xl_self algorithm and the dfs_xl algorithm have
+    equivalent input/output relations. So they have the same
+    domain and the same outputs. *)
+  Theorem Gdfs_self_xl x o : Gdfs_self [] [x] o ↔ Gdfs x [] o.
+  Proof.
+    split.
+    + now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_self_Gfoldleft_dfs%Gfoldleft_inv.
+    + apply Gdfs_Gdfs_self.
+  Qed.
+
 End dfs_xleroy.
 
 Check dfs_xl_weakest_pre_condition.
