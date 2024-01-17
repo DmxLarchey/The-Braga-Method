@@ -584,14 +584,14 @@ Section dfs_braga.
 
   (* dfs_book_self as a computational graph *)
   Inductive Gdfs_bs : list X → list X → list X → Prop :=
-    | Gdfs_bs_stop v :        Gdfs_bs v [] v
-    | Gdfs_bs_in {v x l o} :  x ∈ v
-                            → Gdfs_bs v l o
-                            → Gdfs_bs v (x::l) o
+    | Gdfs_bs_stop v :          Gdfs_bs v [] v
+    | Gdfs_bs_in {v x l o} :    x ∈ v
+                              → Gdfs_bs v l o
+                              → Gdfs_bs v (x::l) o
     | Gdfs_bs_out {v x l w o} : x ∉ v
-                            → Gdfs_bs (x::v) (succ x) w
-                            → Gdfs_bs w l o
-                            → Gdfs_bs v (x::l) o.
+                              → Gdfs_bs (x::v) (succ x) w
+                              → Gdfs_bs w l o
+                              → Gdfs_bs v (x::l) o.
 
   Fact Gdfs_bs_inv v l o :
          Gdfs_bs v l o
@@ -628,6 +628,90 @@ Section dfs_braga.
   Theorem Gdfs_book_book_self v l o : Gdfs_book v l o ↔ Gdfs_bs v l o.
   Proof. split; auto. Qed.
 
+  Lemma Gdfs_bs_fun {v l o₁ o₂} : Gdfs_bs v l o₁ → Gdfs_bs v l o₂ → o₁ = o₂.
+  Proof.
+    induction 1 as [ | | v x l w o H1 _ IH2 _ IH3 ] in o₂ |- *; intros G%Gdfs_bs_inv; auto;
+      destruct G as [ [] | (H3 & ? & H4 & H5) ]; tauto || eauto.
+    apply IH2 in H4; subst; auto.
+  Qed.
+
+  Inductive Ddfs_bs : list X → list X → Prop :=
+    | Ddfs_bs_stop v :      Ddfs_bs v []
+    | Ddfs_bs_in {v x l} :  x ∈ v
+                          → Ddfs_bs v l
+                          → Ddfs_bs v (x::l)
+    | Ddfs_bs_out {v x l} : x ∉ v
+                          → Ddfs_bs (x::v) (succ x)
+                          → (∀w, Gdfs_bs (x::v) (succ x) w → Ddfs_bs w l)
+                          → Ddfs_bs v (x::l).
+
+  Hint Constructors Ddfs_bs : core.
+
+  Fact Gdfs_bs_Ddfs_bs {v l} : (∃o, Gdfs_bs v l o) → Ddfs_bs v l.
+  Proof.
+    intros (o & H).
+    induction H as [ | | v x l w o H1 H2 IH2 ]; eauto.
+    constructor 3; auto.
+    intros ? H3.
+    now rewrite (Gdfs_bs_fun H3 H2).
+  Qed.
+
+  Let is_nnil l := match l with [] => False | _ => True end.
+
+  Let dhead {l} : is_nnil l → X :=
+    match l with
+    | []   => λ void, match void with end
+    | y::_ => λ _, y
+    end.
+  
+  Let dtail {l} : is_nnil l → list X :=
+    match l with
+    | []   => λ void, match void with end
+    | _::l => λ _, l
+    end.
+
+  Local Definition Ddfs_bs_pi1 {v x l} (d : Ddfs_bs v (x::l)) :
+      x ∈ v → Ddfs_bs v l :=
+    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∈ v → Ddfs_bs v (dtail hm) with
+    | Ddfs_bs_stop _    => λ C _, match C with end
+    | Ddfs_bs_in _ d    => λ _ _, d
+    | Ddfs_bs_out C _ _ => λ _ h, match C h with end
+    end I.
+
+  Local Definition Ddfs_bs_pi2 {v x l} (d : Ddfs_bs v (x::l)) :
+      x ∉ v → Ddfs_bs (x::v) (succ x) :=
+    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → Ddfs_bs (dhead hm::v) (succ (dhead hm)) with
+    | Ddfs_bs_stop _    => λ C _, match C with end
+    | Ddfs_bs_in h _    => λ _ C, match C h with end
+    | Ddfs_bs_out _ d _ => λ _ _, d
+    end I.
+
+  Local Definition Ddfs_bs_pi3 {v x l} (d : Ddfs_bs v (x::l)) :
+      x ∉ v → ∀{w}, Gdfs_bs (x::v) (succ x) w → Ddfs_bs w l :=
+    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → ∀w, Gdfs_bs (dhead hm::v) (succ (dhead hm)) w → Ddfs_bs w (dtail hm) with
+    | Ddfs_bs_stop _    => λ C _, match C with end
+    | Ddfs_bs_in h _    => λ _ C, match C h with end
+    | Ddfs_bs_out _ _ d => λ _ _, d
+    end I.
+
+  Fixpoint dfs_bs {v l} (d : Ddfs_bs v l) : {o | Gdfs_bs v l o}.
+  Proof.
+    refine (match l return Ddfs_bs _ l → _ with
+    | []   => λ d, exist _ v _
+    | x::l => λ d,
+      match in_dec x v with
+      | left hx  => let (o,ho) := dfs_bs v l (Ddfs_bs_pi1 d hx)
+                    in exist _ o _
+      | right hx => let (w,hw) := dfs_bs (x::v) (succ x) (Ddfs_bs_pi2 d hx) in
+                    let (o,ho) := dfs_bs w l (Ddfs_bs_pi3 d hx hw)
+                    in exist _ o _
+      end
+    end d); eauto.
+  Defined.
+
+  Definition dfs_braga_bs x : (∃o, Gdfs_bs [] [x] o) → {o | Gdfs_bs [] [x] o} :=
+    λ hx, dfs_bs (Gdfs_bs_Ddfs_bs hx).
+
 End dfs_braga.
 
 Check dfs_braga.
@@ -637,6 +721,11 @@ Recursive Extraction dfs_braga.
 
 Extraction Inline foldleft.
 Extraction dfs_braga.
+
+Check dfs_braga_bs.
+
+Extraction Inline dfs_bs.
+Extraction dfs_braga_bs.
 
 
 
