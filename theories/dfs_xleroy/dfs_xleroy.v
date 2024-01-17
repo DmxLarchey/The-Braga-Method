@@ -629,7 +629,7 @@ Section dfs_xleroy.
   Theorem Gdfs_self_xl x o : Gdfs_self [] [x] o ↔ Gdfs x [] o.
   Proof.
     split.
-    + now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_self_Gfoldleft_dfs%Gfoldleft_inv.
+    + now intros; apply Gfoldleft_sg_iff, Gdfs_self_Gfoldleft_dfs.
     + apply Gdfs_Gdfs_self.
   Qed.
 

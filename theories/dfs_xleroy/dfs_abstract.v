@@ -238,6 +238,9 @@ Section foldleft.
 
   Hint Constructors Gfoldleft Dfoldleft : core.
 
+  Fact Gfoldleft_app l m a b o : Gfoldleft l a b → Gfoldleft m b o → Gfoldleft (l++m) a o.
+  Proof. induction 1; simpl; eauto. Qed.
+
   Fact Gfoldleft_inv {m a o} :
        Gfoldleft m a o
      → match m with
@@ -254,6 +257,20 @@ Section foldleft.
     induction l as [ | ? ? IHl ] in a,o |- *; simpl; eauto.
     intros (? & ? & (? & [])%IHl)%Gfoldleft_inv; eauto.
   Qed.
+
+  Fact Gfoldleft_sg_iff x a o : Gfoldleft [x] a o ↔ F x a o.
+  Proof.
+    split; eauto.
+    now intros (? & ? & <-%Gfoldleft_inv)%Gfoldleft_inv.
+  Qed.
+
+  Hint Resolve Gfoldleft_app Gfoldleft_app_inv : core.
+
+  Fact Gfoldleft_app_iff {l m a o} : 
+       Gfoldleft (l++m) a o
+     ↔ ∃b, Gfoldleft l a b
+         ∧ Gfoldleft m b o.
+  Proof. split; auto; intros (? & []); eauto. Qed.
 
   Let is_nnil l := match l with [] => False | _ => True end.
 

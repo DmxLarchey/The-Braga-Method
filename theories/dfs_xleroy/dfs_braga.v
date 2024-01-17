@@ -566,9 +566,67 @@ Section dfs_braga.
   Theorem Gdfs_book_braga x o : Gdfs_book [] [x] o ↔ Gdfs x [] o.
   Proof.
     split.
-    + now intros (? & ? & ->%Gfoldleft_inv)%Gdfs_book_Gfoldleft_dfs%Gfoldleft_inv.
+    + now intros; apply Gfoldleft_sg_iff, Gdfs_book_Gfoldleft_dfs.
     + apply Gdfs_Gdfs_book.
   Qed.
+
+  (** A self nested variant of dfs w/o List.app/@ :
+
+      let dfs_book_self x =
+        let rec dfs v l =
+          match l with 
+          | []   -> v
+          | x::l ->
+            match in_dec x v
+            | true  -> dfs v l
+            | false -> dfs (dfs (x::v) (succ x)) l
+        in dfs [] [x] *)
+
+  (* dfs_book_self as a computational graph *)
+  Inductive Gdfs_bs : list X → list X → list X → Prop :=
+    | Gdfs_bs_stop v :        Gdfs_bs v [] v
+    | Gdfs_bs_in {v x l o} :  x ∈ v
+                            → Gdfs_bs v l o
+                            → Gdfs_bs v (x::l) o
+    | Gdfs_bs_out {v x l w o} : x ∉ v
+                            → Gdfs_bs (x::v) (succ x) w
+                            → Gdfs_bs w l o
+                            → Gdfs_bs v (x::l) o.
+
+  Fact Gdfs_bs_inv v l o :
+         Gdfs_bs v l o
+       → match l with
+         | []   => v = o
+         | x::l => x ∈ v ∧ Gdfs_bs v l o
+                 ∨ x ∉ v ∧ ∃w, Gdfs_bs (x::v) (succ x) w ∧ Gdfs_bs w l o
+         end.
+  Proof. destruct 1; eauto. Qed.
+
+  Hint Constructors Gdfs_bs : core.
+
+  Fact Gdfs_bs_app v w l m o : Gdfs_bs v l w → Gdfs_bs w m o → Gdfs_bs v (l++m) o.
+  Proof. induction 1 in m, o |- *; simpl; eauto. Qed.
+
+  Fact Gdfs_bs_app_inv v l m o : Gdfs_bs v (l++m) o → ∃w, Gdfs_bs v l w ∧ Gdfs_bs w m o.
+  Proof. 
+    induction l as [ | x l IHl ] in v,o |- *; simpl; eauto.
+    intros [ (? & (? & [])%IHl) | (? & ? & ? & (? & [])%IHl) ]%Gdfs_bs_inv; eauto.
+  Qed.
+
+  Lemma Gdfs_bs_book v l o : Gdfs_bs v l o → Gdfs_book v l o.
+  Proof. induction 1; eauto. Qed.
+
+  Hint Resolve Gdfs_bs_app : core.
+
+  Lemma Gdfs_book_bs v l o : Gdfs_book v l o → Gdfs_bs v l o.
+  Proof. induction 1 as [ | | ? ? ? ? ? _ (? & ? & ?)%Gdfs_bs_app_inv ]; eauto. Qed.
+
+  Hint Resolve Gdfs_bs_book Gdfs_book_bs : core.
+
+ (* The dfs_book algorithm and the dfs_book_self algorithm have
+    equivalent input/output relations. *)
+  Theorem Gdfs_book_book_self v l o : Gdfs_book v l o ↔ Gdfs_bs v l o.
+  Proof. split; auto. Qed.
 
 End dfs_braga.
 
