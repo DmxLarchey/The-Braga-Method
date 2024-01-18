@@ -23,7 +23,7 @@
     nesting foldleft by working on two lists directly.
     It is more comparable to dfs_braga below.
 
-    Assuming in_dec and succ, the algorithm we study here 
+    Assuming in_dec and succs, the algorithm we study here 
     in this file, the one proposed by X. Leroy in the above
     reference is
 
@@ -31,7 +31,7 @@
         let rec dfs x a =
           match in_dec x a with
           | true  -> a
-          | false -> x::foldleft dfs (succ x) a
+          | false -> x::foldleft dfs (succs x) a
         in dfs x []
  
     whereas in dfs_braga.v we study 
@@ -40,7 +40,7 @@
         let rec dfs x a =
           match in_dec x a with
           | true  -> a
-          | false -> foldleft dfs (succ x) (x::a)
+          | false -> foldleft dfs (succs x) (x::a)
         in dfs x []
 
     Notice the difference in the position in the programs
@@ -48,17 +48,17 @@
     This has a *major* impact on the weakest pre-condition,
     ie when does dfs_xl or dfs_braga actually terminate:
     - the call (dfs_xl x) terminates if and *only if*
-      "x" is in the well-founded part of the succ relation,
-      hence when there are finitely many points succ-reachable
+      "x" is in the well-founded part of the succs relation,
+      hence when there are finitely many points succs-reachable
       from "x" and also no cycle exists in that part of the
-      succ-graph;
+      succs-graph;
     - the call (dfs_braga x) terminates if and only if
-      there are finitely many points succ-reachable from
+      there are finitely many points succs-reachable from
       "x". The existence of cycles does not impact termination.
 
     Additionally, dfs_xl does output neither the left-right
     nor the right-left prefix traversal of the graph. Here left 
-    (resp. right) means the head (resp. tail) of the list "succ x". 
+    (resp. right) means the head (resp. tail) of the list "succs x". 
     See the file dfs_xleroy/dfs_tests.ml for counter-examples.
 
     On the other hand, dfs_braga seems to output the reverse 
@@ -96,14 +96,14 @@
     (* Below, we have 
 
        in_dec : 'a -> 'a list -> bool  
-       succ : 'a -> 'a list 
+       succs : 'a -> 'a list 
 
        where (in_dec x a) tests whether x belongs to a or not 
-       and (succ x) computes the (list of) successors of x *)
+       and (succs x) computes the (list of) successors of x *)
 
     (* (dfs x a) computes the list of nodes
        encountered in a depth first search traversal of
-       a graph (described by "succ") starting at "x", avoiding
+       a graph (described by "succs") starting at "x", avoiding
        repeating nodes or crossing "a" twice. 
 
        x : 'a
@@ -113,11 +113,11 @@
     let rec dfs x a =
       match in_dec x a with
       | true  -> a
-      | false -> x::foldleft dfs (succ x) a
+      | false -> x::foldleft dfs (succs x) a
 
     (* (dfs_xl x) computes the list of nodes
        encountered in a depth first search traversal of
-       a graph (ie succ) starting at "x" and avoiding
+       a graph (ie succs) starting at "x" and avoiding
        repetitions
 
        x : 'a
@@ -125,7 +125,7 @@
 
     let dfs_xl x = dfs x []
 
-    (* Well-foundness of the relation (λ u v, u ∈ succ v) 
+    (* Well-foundness of the relation (λ u v, u ∈ succs v) 
        at x is sufficient for termination of dfs_xl x 
        but also MANDATORY as established below. *)
 
@@ -144,7 +144,7 @@ Section dfs_xleroy.
   Implicit Types (l : list X) (x : X).
 
   Variables (in_dec : ∀ x l, {x ∈ l} + {x ∉ l})
-            (succ : X → list X).
+            (succs : X → list X).
 
   Local Fact in_wdec l x : x ∈ l ∨ x ∉ l.
   Proof. destruct (in_dec x l); auto. Qed.
@@ -171,7 +171,7 @@ Section dfs_xleroy.
     | Gdfs_stop {x a} :     x ∈ a
                           → Gdfs x a a
     | Gdfs_next {x a o} :   x ∉ a
-                          → Gfoldleft Gdfs (succ x) a o
+                          → Gfoldleft Gdfs (succs x) a o
                           → Gdfs x a (x::o).
 
   (* The inductive domain of dfs used as a structural 
@@ -181,7 +181,7 @@ Section dfs_xleroy.
     | Ddfs_stop {x a} :     x ∈ a
                           → Ddfs x a
     | Ddfs_next {x a} :     x ∉ a
-                          → Dfoldleft Gdfs Ddfs (succ x) a
+                          → Dfoldleft Gdfs Ddfs (succs x) a
                           → Ddfs x a.
 
   Set Elimination Schemes.
@@ -194,21 +194,21 @@ Section dfs_xleroy.
         → x ∉ a
         → match o with 
           | []   => False 
-          | y::o => y = x ∧ Gfoldleft Gdfs (succ x) a o
+          | y::o => y = x ∧ Gfoldleft Gdfs (succs x) a o
           end.
   Proof. now destruct 1. Qed.
 
   (* Second projection of the domain Ddfs when x ∉ a,
      inverting the second constructor
 
-             h : x ∉ a   dfl : Dfoldleft Gdfs Ddfs (succ x) a
+             h : x ∉ a   dfl : Dfoldleft Gdfs Ddfs (succs x) a
            ---------------------------------------------------------
                           d : Ddfs_next h dfl
 
      while providing precisely the strict sub-term dfl out
      of d : Ddfs_next h dfl . *)
   Local Definition Ddfs_pi {x a} (d : Ddfs x a) :
-      x ∉ a → Dfoldleft Gdfs Ddfs (succ x) a :=
+      x ∉ a → Dfoldleft Gdfs Ddfs (succs x) a :=
     match d with
     | Ddfs_stop yes   => λ no, match no yes with end
     | Ddfs_next _ dfl => λ _, dfl
@@ -235,7 +235,7 @@ Section dfs_xleroy.
   Proof.
     refine (match in_dec x a with
     | left h  =>    exist _ a _
-    | right h => let (o,ho) := foldleft Gdfs dfs_ext (succ x) a (Ddfs_pi d h)
+    | right h => let (o,ho) := foldleft Gdfs dfs_ext (succs x) a (Ddfs_pi d h)
                  in exist _ (x::o) _
     end); eauto.
   Defined.
@@ -259,7 +259,7 @@ Section dfs_xleroy.
             | y::m => λ d, let (b,hb) := dfs_int y a (Dfl_pi1 d)     in
                            let (o,ho) := dfs_list m b (Dfl_pi2 d hb) in
                            exist _ o _
-            end dl) (succ x) a (Ddfs_pi d h) 
+            end dl) (succs x) a (Ddfs_pi d h) 
          in exist _ (x::o) _
     end); eauto.
   Defined.
@@ -271,16 +271,16 @@ Section dfs_xleroy.
       a situation which is a bit unusual for nested algorithms. *) 
 
   (** Termination (sufficiency), ie the predicate Ddfs x a holds, 
-      is somewhat easy under well-foundedness of x in the succ relation. *)
+      is somewhat easy under well-foundedness of x in the succs relation. *)
 
-  Theorem dfs_termination_Acc x a : Acc (λ u v, u ∈ succ v) x → Ddfs x a.
+  Theorem dfs_termination_Acc x a : Acc (λ u v, u ∈ succs v) x → Ddfs x a.
   Proof.
     induction 1 as [ x _ IHx ] in a |- *.
     destruct (in_dec x a) as [ | H ].
     + now constructor 1.
     + constructor 2; trivial.
       clear H.
-      revert IHx; generalize (succ x) a; clear x a.
+      revert IHx; generalize (succs x) a; clear x a.
       intro l; induction l; econstructor; eauto.
   Qed.
 
@@ -288,18 +288,18 @@ Section dfs_xleroy.
       complicated and requires a proof of partial correctness.
 
       Below we show that the above (strong) termination condition
-      Acc (λ u v, u ∈ succ v) x is actually *necessary* for termination,
+      Acc (λ u v, u ∈ succs v) x is actually *necessary* for termination,
       but only in the case of dfs_xl x := dfs x [].
  
       For this, we show that when the computational graph of dfs
       outputs something from inputs "x" and "a", then it must be that
-      any infinite succ sequence from "x" eventually meets "a", expressed
+      any infinite succs sequence from "x" eventually meets "a", expressed
       as the bar inductive predicate (bar ⦃a⦄ x).
 
       This is one aspect of partial correctness, the other aspect
       being that the output of (dfs x a) is a list containing
       the "y" that are either in "a" or reachable from "x" using a 
-      (succ) path no crossing "a". *)
+      (succs) path no crossing "a". *)
 
   (** We start by factoring out a general mutual recursor for Gdfs
       that will be used to show many properties of Gdfs. *)
@@ -332,8 +332,8 @@ Section dfs_xleroy.
 
               (HQ1 : ∀ {x a o},
                          x ∉ a
-                       → Gfoldleft Gdfs (succ x) a o
-                       → P (succ x) a o
+                       → Gfoldleft Gdfs (succs x) a o
+                       → P (succs x) a o
                        → Q x a (x::o)).
 
     (* This requires a nesting with the generic Gfoldleft_ind above.
@@ -419,22 +419,22 @@ Section dfs_xleroy.
   Qed.
 
   (* (finitary branching) bar inductive classically meaning
-     that no infinite succ path can avoid P. *) 
+     that no infinite succs path can avoid P. *) 
   Inductive bar (P : X → Prop) x : Prop :=
     | bar_stop : P x → bar P x
-    | bar_step : (∀ y, y ∈ succ x → bar P y) → bar P x.
+    | bar_step : (∀ y, y ∈ succs x → bar P y) → bar P x.
 
-  Fact bar_empty x : bar (λ _, False) x ↔ Acc (λ u v, u ∈ succ v) x.
+  Fact bar_empty x : bar (λ _, False) x ↔ Acc (λ u v, u ∈ succs v) x.
   Proof.
     split.
     + induction 1; eauto; [ tauto | now constructor ].
     + induction 1; now constructor 2.
   Qed.
 
-  Fact bar_inv P x : bar P x → P x ∨ ∀ y, y ∈ succ x → bar P y.
+  Fact bar_inv P x : bar P x → P x ∨ ∀ y, y ∈ succs x → bar P y.
   Proof. destruct 1; auto. Qed.
 
-  Notation next := (λ v u, u ∈ succ v).
+  Notation next := (λ v u, u ∈ succs v).
 
   (** See dfs_abstract for crt_exclude R P x y which means there
       is a R-path from x to y avoiding P, except possibly at y *)
@@ -514,7 +514,7 @@ Section dfs_xleroy.
         clear H.
         revert IHx a Ha.
         rewrite <- Forall_forall.
-        generalize (succ x).
+        generalize (succs x).
         clear x Hx.
         induction 1 as [ | x l H Hl IHl ]; intros a Ha.
         - constructor 1.
@@ -537,7 +537,7 @@ Section dfs_xleroy.
     + intros H; apply Dfs_iff_Gdfs, dfs_termination_bar with (1 := H); auto.
   Qed.
 
-  Lemma dfs_xl_pre_condition x o : Gdfs x [] o → Acc (λ u v, u ∈ succ v) x.
+  Lemma dfs_xl_pre_condition x o : Gdfs x [] o → Acc (λ u v, u ∈ succs v) x.
   Proof. now intros ?%dfs_pre_condition%bar_empty. Qed.
 
   Lemma dfs_xl_post_condition x o : Gdfs x [] o → ⦃o⦄ ≡ clos_refl_trans next x.
@@ -550,7 +550,7 @@ Section dfs_xleroy.
   Hint Resolve dfs_xl_pre_condition : core.
 
   Theorem dfs_xl_weakest_pre_condition x :
-            (∃o, Gdfs x [] o) ↔ Acc (λ u v, u ∈ succ v) x.
+            (∃o, Gdfs x [] o) ↔ Acc (λ u v, u ∈ succs v) x.
   Proof.
     split.
     + intros []; eauto.
@@ -559,9 +559,9 @@ Section dfs_xleroy.
 
   (* This is the dfs_xl algorithm associated to Gdfs with the most
      general specification since the pre-condition is the weakest-possible. 
-     The post-condition does not include the absence of succ-cycles in
+     The post-condition does not include the absence of succs-cycles in
      the output but this is implied by the pre-condition already. *) 
-  Definition dfs_xl_ext x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
+  Definition dfs_xl_ext x (dx : Acc (λ u v, u ∈ succs v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
   Proof.
     (* We separate the code from the logic *)
     refine (let (m,hm) := dfs_ext x [] _ in exist _ m _).
@@ -570,7 +570,7 @@ Section dfs_xleroy.
   Defined.
 
   (* The same with internal nesting of foldleft *) 
-  Definition dfs_xl_int x (dx : Acc (λ u v, u ∈ succ v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
+  Definition dfs_xl_int x (dx : Acc (λ u v, u ∈ succs v) x) : {l | ⦃l⦄ ≡ clos_refl_trans next x}.
   Proof.
     (* We separate the code from the logic *)
     refine (let (m,hm) := dfs_int x [] _ in exist _ m _).
@@ -587,7 +587,7 @@ Section dfs_xleroy.
           | x::l ->
             match in_dec x v with
             | true  => dfs v l
-            | false => dfs (x::dfs v (succ x)) l
+            | false => dfs (x::dfs v (succs x)) l
         in dfs [] [x]
 
   *) 
@@ -598,7 +598,7 @@ Section dfs_xleroy.
                               → Gdfs_self v l o
                               → Gdfs_self v (x::l) o
     | Gdfs_sf_out {v x l w o} : x ∉ v
-                              → Gdfs_self v (succ x) w
+                              → Gdfs_self v (succs x) w
                               → Gdfs_self (x::w) l o
                               → Gdfs_self v (x::l) o.
 
@@ -607,7 +607,7 @@ Section dfs_xleroy.
        → match l with
          | []   => v = o
          | x::l => x ∈ v ∧ Gdfs_self v l o
-                 ∨ x ∉ v ∧ ∃w, Gdfs_self v (succ x) w ∧ Gdfs_self (x::w) l o
+                 ∨ x ∉ v ∧ ∃w, Gdfs_self v (succs x) w ∧ Gdfs_self (x::w) l o
          end.
   Proof. destruct 1; eauto. Qed.
 

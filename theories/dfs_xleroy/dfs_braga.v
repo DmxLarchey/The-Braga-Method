@@ -19,7 +19,7 @@
         let rec dfs x a =
           match in_dec x a with
           | true  -> a
-          | false -> foldleft dfs (succ x) (x::a)
+          | false -> foldleft dfs (succs x) (x::a)
          in dfs x []
 
     with external nesting of foldleft following 
@@ -37,7 +37,7 @@
           | x::l ->
             match in_dec x v
             | true  -> dfs v l
-            | false -> dfs (x::v) (succ x)@l
+            | false -> dfs (x::v) (succs x)@l
         in dfs [] [x]
 
     These two algoritms (dfs_braga & dfs_book) are different 
@@ -45,10 +45,10 @@
     below as theorem Gdfs_book_braga showing that their respective 
     computational graphs are equivalent. Hence, they also have the 
     same weakest pre-condition: the existence of a finite set 
-    containing "x" and stable under "succ". In particular, loops 
-    in the succ graph have no impact on termination.
+    containing "x" and stable under "succs". In particular, loops 
+    in the succs graph have no impact on termination.
 
-    Their (common) output is the list of points succ-reachable 
+    Their (common) output is the list of points succs-reachable 
     from x. Repetitions are avoided (this is not proved in here
     but the result is available as dfs_no_dups in the file
     theories/dfs/dfs_partial_corr.v).
@@ -69,14 +69,14 @@
     (* Below, we have 
 
        in_dec : 'a -> 'a list -> bool  
-       succ : 'a -> 'a list 
+       succs : 'a -> 'a list 
 
        where (in_dec x a) tests whether x belongs to a or not 
-       and (succ x) computes the (list of) successors of x *)
+       and (succs x) computes the (list of) successors of x *)
 
     (* (dfs x a) computes the list of nodes
        encountered in a depth first search traversal of
-       a graph (described by "succ") starting at "x", avoiding
+       a graph (described by "succs") starting at "x", avoiding
        repeating nodes or crossing "a" twice. 
 
        a : 'a list
@@ -86,11 +86,11 @@
     let rec dfs x a =
       match in_dec x a with
       | true  -> a
-      | false -> foldleft dfs (succ x) (x::a).
+      | false -> foldleft dfs (succs x) (x::a).
 
     (* (dfs_braga x) computes the list of nodes
        encountered in a depth first search traversal of
-       a graph (ie succ) starting at "x" and avoiding
+       a graph (ie succs) starting at "x" and avoiding
        repetitions
 
        x : 'a
@@ -99,17 +99,17 @@
     let dfs_braga x = dfs x []
 
     (* dfs/dfs_braga do not always terminate, for instance
-       when succ x = [1+x].
+       when succs x = [1+x].
 
-       Well-foundness of the relation (λ u v, u ∈ succ v)
+       Well-foundness of the relation (λ u v, u ∈ succs v)
        is sufficient for termination but NOT mandatory.
 
-       For instance, when succ x = [x], then dfs/dfs_braga
+       For instance, when succs x = [x], then dfs/dfs_braga
        both terminate. The weakest precondition is described
        below:
 
        Since dfs_braga x computes a list of nodes containing x 
-       and stable under succ, such an invariant must exist for 
+       and stable under succs, such an invariant must exist for 
        dfs_braga to terminate, and this is indeed a (the weakest)
        sufficient condition for termination.
        See the code below for justifications. *)
@@ -132,7 +132,7 @@ Section dfs_braga.
   Implicit Type l : list X.
 
   Variables (in_dec : ∀ x l, {x ∈ l} + {x ∉ l})
-            (succ : X → list X).
+            (succs : X → list X).
 
   Local Fact in_wdec l x : x ∈ l ∨ x ∉ l.
   Proof. destruct (in_dec x l); auto. Qed.
@@ -158,7 +158,7 @@ Section dfs_braga.
     | Gdfs_stop {x a} :     x ∈ a
                           → Gdfs x a a
     | Gdfs_next {x a o} :   x ∉ a
-                          → Gfoldleft Gdfs (succ x) (x::a)  o
+                          → Gfoldleft Gdfs (succs x) (x::a)  o
                           → Gdfs x a o.
 
   (* The inductive domain of dfs, used as a structural termination
@@ -167,7 +167,7 @@ Section dfs_braga.
     | Ddfs_stop {x a} :   x ∈ a
                         → Ddfs x a
     | Ddfs_next {x a} :   x ∉ a
-                        → Dfoldleft Gdfs Ddfs (succ x) (x::a)
+                        → Dfoldleft Gdfs Ddfs (succs x) (x::a)
                         → Ddfs x a.
 
   Set Elimination Schemes.
@@ -175,20 +175,20 @@ Section dfs_braga.
   Local Fact Gdfs_inv0 x a o : Gdfs x a o → x ∈ a → a = o.
   Proof. now destruct 1. Qed.
 
-  Local Fact Gdfs_inv1 x a o : Gdfs x a o → x ∉ a → Gfoldleft Gdfs (succ x) (x::a) o.
+  Local Fact Gdfs_inv1 x a o : Gdfs x a o → x ∉ a → Gfoldleft Gdfs (succs x) (x::a) o.
   Proof. now destruct 1. Qed.
 
   (* Second projection of the domain Ddfs when x ∉ a,
      inverting the second constructor
 
-             h : x ∉ a   dfl : Dfoldleft Gdfs Ddfs (x::a) (succ x)
+             h : x ∉ a   dfl : Dfoldleft Gdfs Ddfs (x::a) (succs x)
            ----------------------------------------------------------
                           d : Ddfs_next h dfl
 
      while providing precisely the strict sub-term dfl out
      of d : Ddfs_next h dfl . *)
   Local Definition Ddfs_pi {x a} (d : Ddfs x a) :
-      x ∉ a → Dfoldleft Gdfs Ddfs (succ x) (x::a) :=
+      x ∉ a → Dfoldleft Gdfs Ddfs (succs x) (x::a) :=
     match d with
     | Ddfs_stop h     => λ C, match C h with end
     | Ddfs_next _ dfl => λ _, dfl
@@ -205,34 +205,34 @@ Section dfs_braga.
     refine (match in_dec x a with
     | left h  => exist _ a _
     | right h =>
-              let (o,ho) := foldleft Gdfs dfs (succ x) (x::a) (Ddfs_pi d h)
+              let (o,ho) := foldleft Gdfs dfs (succs x) (x::a) (Ddfs_pi d h)
               in exist _ o _
     end); eauto.
   Defined.
 
   Section termination_easy.
 
-    (** Termination is somewhat easy under well-foundedness of succ.
+    (** Termination is somewhat easy under well-foundedness of succs.
 
-        If we assume that _ ∈ succ _ is a well-founded relation
+        If we assume that _ ∈ succs _ is a well-founded relation
         then we can show that dfs terminates, in that case
         w/o using partial correctness. We could even drop the
         membership test (in_dec x a) in the code of dfs and
         still get termination in this case, but the output
         could then contain duplicates. *)
 
-    Hypothesis wf_succ : well_founded (λ u v, u ∈ succ v).
+    Hypothesis wf_succs : well_founded (λ u v, u ∈ succs v).
 
     Theorem dfs_wf_termination x a : Ddfs x a.
     Proof.
       induction x as [ x IHx ]
-        using (well_founded_induction wf_succ)
+        using (well_founded_induction wf_succs)
         in a |- *.
       destruct (in_dec x a) as [ | H ].
       + now constructor 1.
       + constructor 2; trivial.
         clear H.
-        revert IHx; generalize (succ x) (x::a); clear x a.
+        revert IHx; generalize (succs x) (x::a); clear x a.
         intro l; induction l; econstructor; eauto.
     Qed.
 
@@ -276,8 +276,8 @@ Section dfs_braga.
 
               (HQ1 : ∀ {x a o},
                          x ∉ a
-                       → Gfoldleft Gdfs (succ x) (x::a) o
-                       → P (succ x) (x::a) o
+                       → Gfoldleft Gdfs (succs x) (x::a) o
+                       → P (succs x) (x::a) o
                        → Q x a o).
 
     (* This requires a nesting with the generic Gfoldleft_ind above.
@@ -359,7 +359,7 @@ Section dfs_braga.
     + now intros (? & ?%Gdfs_incl_Ddfs).
   Qed.
 
-  Notation next := (λ v u, u ∈ succ v).
+  Notation next := (λ v u, u ∈ succs v).
   Notation crt_exclude_union R P L := (λ y, ∃i, L i ∧ crt_exclude R P i y).
 
   (* This is the direct proof of partial correctness of dfs 
@@ -403,7 +403,7 @@ Section dfs_braga.
   (** We study a more general termination criteria, THE MOST
       GENERAL in fact, using partial correctness, which is typical
       of the case of nested recursive schemes. The proof below
-      is *much more involved* than the one assuming that succ is
+      is *much more involved* than the one assuming that succs is
       well-founded. It uses well-foundedness of strict reverse
       inclusion of lists (under a fixed upper-bound),
       induction principle quite not trivial in itself to
@@ -411,7 +411,7 @@ Section dfs_braga.
       equality (see utils/sincl_induction.v for details).
 
       Notice that in that weakest pre-condition case, the membership
-      test "in_dec x a" is mandatory otherwise loops inside the succ
+      test "in_dec x a" is mandatory otherwise loops inside the succs
       graph would make the dfs algorithm non-terminating.
 
       The proof proceeds first by well-founded induction on the
@@ -424,17 +424,17 @@ Section dfs_braga.
       This proof has a similar structure as the one of
       (foldleft free) dfs in theories/dfs/dfs_term.v *)
 
-  Theorem dfs_termination a i : ∀x, x ∈ i ∧ ⦃a⦄ ⊆ ⦃i⦄ ∧ dfs_invar succ ⦃a⦄ ⦃i⦄ → Ddfs x a.
+  Theorem dfs_termination a i : ∀x, x ∈ i ∧ ⦃a⦄ ⊆ ⦃i⦄ ∧ dfs_invar succs ⦃a⦄ ⦃i⦄ → Ddfs x a.
   Proof.
     induction a as [ a IHa ] using (well_founded_induction (wf_sincl_maj i)).
     intros x (G1 & G2 & G3).
     destruct (in_dec x a) as [ H | H ].
     + now constructor 1.
     + constructor 2; trivial.
-      assert (IH : ∀ y a', ⦃x::a⦄ ⊆ ⦃a'⦄ → y ∈ i → ⦃a'⦄ ⊆ ⦃i⦄ → dfs_invar succ ⦃a'⦄ ⦃i⦄ → Ddfs y a').
+      assert (IH : ∀ y a', ⦃x::a⦄ ⊆ ⦃a'⦄ → y ∈ i → ⦃a'⦄ ⊆ ⦃i⦄ → dfs_invar succs ⦃a'⦄ ⦃i⦄ → Ddfs y a').
       1: intros; apply IHa; repeat split; eauto. 
       clear IHa; rename IH into IHa.
-      assert (Hi : ⦃succ x⦄ ⊆ ⦃i⦄)
+      assert (Hi : ⦃succs x⦄ ⊆ ⦃i⦄)
         by (destruct (G3 _ G1); now auto).
       cut (⦃x::a⦄ ⊆ ⦃i⦄).
       2: { intros ? [ <- | ]; eauto. }
@@ -442,7 +442,7 @@ Section dfs_braga.
       clear H.
       revert Hi.
       generalize (x::a) at 2 3 4.
-      generalize (succ x).
+      generalize (succs x).
       intros l; induction l as [ | y l IHl ]; intros a' H1 H2 H3.
       * constructor 1.
       * constructor 2.
@@ -454,7 +454,7 @@ Section dfs_braga.
           apply IHl; eauto.
           ++ intros z ?%H2; apply Ho; auto.
           ++ intros z Hz%Ho; revert z Hz.
-             apply (smallest_crt_exclude _ succ _ _ (in_wdec _)).
+             apply (smallest_crt_exclude _ succs _ _ (in_wdec _)).
              repeat split; eauto.
              revert G3; apply dfs_invar_mono; eauto.
   Qed.
@@ -462,7 +462,7 @@ Section dfs_braga.
   (** Now we switch to dfs_braga x := dfs x [] *)
 
   (* The partial correctness of dfs_braga x := dfs x [].
-     When it terminates, it outputs a (smallest) succ-stable
+     When it terminates, it outputs a (smallest) succs-stable
      list of which x is a member. *)
   Corollary dfs_braga_partially_correct x o :
        Gdfs x [] o → ⦃o⦄ ≡ clos_refl_trans next x.
@@ -475,7 +475,7 @@ Section dfs_braga.
   (* Hence, as a sufficient and necessary condition for dfs_braga to
      terminate, an invariant must exist. *)
   Corollary dfs_braga_weakest_pre_condition x :
-      (∃o, Gdfs x [] o) ↔ ∃i, x ∈ i ∧ dfs_braga_invar succ ⦃i⦄.
+      (∃o, Gdfs x [] o) ↔ ∃i, x ∈ i ∧ dfs_braga_invar succs ⦃i⦄.
   Proof.
     split.
     + intros (o & Ho).
@@ -496,10 +496,10 @@ Section dfs_braga.
 
      The post-condition on the output value is that it
      is a list spanning exactly the reflexive and
-     transitive closure of (λ v u, u ∈ succ v) starting
+     transitive closure of (λ v u, u ∈ succs v) starting
      from x. 
   *)
-  Definition dfs_braga x (dx : ∃i, x ∈ i ∧ ∀ x y, x ∈ i → y ∈ succ x → y ∈ i) :
+  Definition dfs_braga x (dx : ∃i, x ∈ i ∧ ∀ x y, x ∈ i → y ∈ succs x → y ∈ i) :
            {l | ⦃l⦄ ≡ clos_refl_trans next x}.
   Proof.
     (* We separate the code from the logic *)
@@ -517,7 +517,7 @@ Section dfs_braga.
           | x::l ->
             match in_dec x v
             | true  -> dfs v l
-            | false -> dfs (x::v) (succ x)@l
+            | false -> dfs (x::v) (succs x)@l
         in dfs [] [x] *)
 
   (* dfs_book as a computational graph *)
@@ -527,7 +527,7 @@ Section dfs_braga.
                             → Gdfs_book v l o
                             → Gdfs_book v (x::l) o
     | Gdfs_bk_out {v x l o} : x ∉ v
-                            → Gdfs_book (x::v) (succ x++l) o
+                            → Gdfs_book (x::v) (succs x++l) o
                             → Gdfs_book v (x::l) o.
 
   Fact Gdfs_book_inv v l o :
@@ -535,7 +535,7 @@ Section dfs_braga.
        → match l with
          | []   => v = o
          | x::l => x ∈ v ∧ Gdfs_book v l o
-                 ∨ x ∉ v ∧ Gdfs_book (x::v) (succ x++l) o
+                 ∨ x ∉ v ∧ Gdfs_book (x::v) (succs x++l) o
          end.
   Proof. destruct 1; auto. Qed.
 
@@ -579,7 +579,7 @@ Section dfs_braga.
           | x::l ->
             match in_dec x v
             | true  -> dfs v l
-            | false -> dfs (dfs (x::v) (succ x)) l
+            | false -> dfs (dfs (x::v) (succs x)) l
         in dfs [] [x] *)
 
   (* dfs_book_self as a computational graph *)
@@ -589,7 +589,7 @@ Section dfs_braga.
                               → Gdfs_bs v l o
                               → Gdfs_bs v (x::l) o
     | Gdfs_bs_out {v x l w o} : x ∉ v
-                              → Gdfs_bs (x::v) (succ x) w
+                              → Gdfs_bs (x::v) (succs x) w
                               → Gdfs_bs w l o
                               → Gdfs_bs v (x::l) o.
 
@@ -598,7 +598,7 @@ Section dfs_braga.
        → match l with
          | []   => v = o
          | x::l => x ∈ v ∧ Gdfs_bs v l o
-                 ∨ x ∉ v ∧ ∃w, Gdfs_bs (x::v) (succ x) w ∧ Gdfs_bs w l o
+                 ∨ x ∉ v ∧ ∃w, Gdfs_bs (x::v) (succs x) w ∧ Gdfs_bs w l o
          end.
   Proof. destruct 1; eauto. Qed.
 
@@ -641,8 +641,8 @@ Section dfs_braga.
                           → Ddfs_bs v l
                           → Ddfs_bs v (x::l)
     | Ddfs_bs_out {v x l} : x ∉ v
-                          → Ddfs_bs (x::v) (succ x)
-                          → (∀w, Gdfs_bs (x::v) (succ x) w → Ddfs_bs w l)
+                          → Ddfs_bs (x::v) (succs x)
+                          → (∀w, Gdfs_bs (x::v) (succs x) w → Ddfs_bs w l)
                           → Ddfs_bs v (x::l).
 
   Hint Constructors Ddfs_bs : core.
@@ -679,16 +679,16 @@ Section dfs_braga.
     end I.
 
   Local Definition Ddfs_bs_pi2 {v x l} (d : Ddfs_bs v (x::l)) :
-      x ∉ v → Ddfs_bs (x::v) (succ x) :=
-    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → Ddfs_bs (dhead hm::v) (succ (dhead hm)) with
+      x ∉ v → Ddfs_bs (x::v) (succs x) :=
+    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → Ddfs_bs (dhead hm::v) (succs (dhead hm)) with
     | Ddfs_bs_stop _    => λ C _, match C with end
     | Ddfs_bs_in h _    => λ _ C, match C h with end
     | Ddfs_bs_out _ d _ => λ _ _, d
     end I.
 
   Local Definition Ddfs_bs_pi3 {v x l} (d : Ddfs_bs v (x::l)) :
-      x ∉ v → ∀{w}, Gdfs_bs (x::v) (succ x) w → Ddfs_bs w l :=
-    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → ∀w, Gdfs_bs (dhead hm::v) (succ (dhead hm)) w → Ddfs_bs w (dtail hm) with
+      x ∉ v → ∀{w}, Gdfs_bs (x::v) (succs x) w → Ddfs_bs w l :=
+    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → ∀w, Gdfs_bs (dhead hm::v) (succs (dhead hm)) w → Ddfs_bs w (dtail hm) with
     | Ddfs_bs_stop _    => λ C _, match C with end
     | Ddfs_bs_in h _    => λ _ C, match C h with end
     | Ddfs_bs_out _ _ d => λ _ _, d
@@ -702,7 +702,7 @@ Section dfs_braga.
       match in_dec x v with
       | left hx  => let (o,ho) := dfs_bs v l (Ddfs_bs_pi1 d hx)
                     in exist _ o _
-      | right hx => let (w,hw) := dfs_bs (x::v) (succ x) (Ddfs_bs_pi2 d hx) in
+      | right hx => let (w,hw) := dfs_bs (x::v) (succs x) (Ddfs_bs_pi2 d hx) in
                     let (o,ho) := dfs_bs w l (Ddfs_bs_pi3 d hx hw)
                     in exist _ o _
       end
