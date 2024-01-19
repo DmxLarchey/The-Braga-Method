@@ -15,12 +15,12 @@
 
     and implements the following DFS algorithm
 
-      let dfs_braga x =
+      let dfs_cycle x =
         let rec dfs x a =
           match in_dec x a with
           | true  -> a
           | false -> foldleft dfs (succs x) (x::a)
-         in dfs x []
+        in dfs x []
 
     with external nesting of foldleft following 
     the "Braga method" steps. Internal nesting of foldleft
@@ -40,9 +40,9 @@
             | false -> dfs (x::v) (succs x)@l
         in dfs [] [x]
 
-    These two algoritms (dfs_braga & dfs_book) are different 
+    These two algoritms (dfs_cycle & dfs_book) are different 
     but compute the SAME outputs. This equivalence is established
-    below as theorem Gdfs_book_braga showing that their respective 
+    below as theorem Gdfs_book_cycle showing that their respective 
     computational graphs are equivalent. Hence, they also have the 
     same weakest pre-condition: the existence of a finite set 
     containing "x" and stable under "succs". In particular, loops 
@@ -88,29 +88,29 @@
       | true  -> a
       | false -> foldleft dfs (succs x) (x::a).
 
-    (* (dfs_braga x) computes the list of nodes
+    (* (dfs_cycle x) computes the list of nodes
        encountered in a depth first search traversal of
        a graph (ie succs) starting at "x" and avoiding
        repetitions
 
        x : 'a
-       dfs_braga x : 'a list *)
+       dfs_cycle x : 'a list *)
 
-    let dfs_braga x = dfs x []
+    let dfs_cycle x = dfs x []
 
-    (* dfs/dfs_braga do not always terminate, for instance
+    (* dfs/dfs_cycle do not always terminate, for instance
        when succs x = [1+x].
 
        Well-foundness of the relation (λ u v, u ∈ succs v)
        is sufficient for termination but NOT mandatory.
 
-       For instance, when succs x = [x], then dfs/dfs_braga
+       For instance, when succs x = [x], then dfs/dfs_cycle
        both terminate. The weakest precondition is described
        below:
 
-       Since dfs_braga x computes a list of nodes containing x 
+       Since dfs_cycle x computes a list of nodes containing x 
        and stable under succs, such an invariant must exist for 
-       dfs_braga to terminate, and this is indeed a (the weakest)
+       dfs_cycle to terminate, and this is indeed a (the weakest)
        sufficient condition for termination.
        See the code below for justifications. *)
 
@@ -125,7 +125,7 @@ Import ListNotations.
    relation when restricted by a fixed upper-bound. *)
 Require Import induction dfs_abstract.
 
-Section dfs_braga.
+Section dfs_cycle.
 
   Variable (X : Type).
 
@@ -459,12 +459,12 @@ Section dfs_braga.
              revert G3; apply dfs_invar_mono; eauto.
   Qed.
 
-  (** Now we switch to dfs_braga x := dfs x [] *)
+  (** Now we switch to dfs_cycle x := dfs x [] *)
 
-  (* The partial correctness of dfs_braga x := dfs x [].
+  (* The partial correctness of dfs_cycle x := dfs x [].
      When it terminates, it outputs a (smallest) succs-stable
      list of which x is a member. *)
-  Corollary dfs_braga_partially_correct x o :
+  Corollary dfs_cycle_partially_correct x o :
        Gdfs x [] o → ⦃o⦄ ≡ clos_refl_trans next x.
   Proof.
     intros H y.
@@ -472,9 +472,9 @@ Section dfs_braga.
     simpl; tauto.
   Qed.
 
-  (* Hence, as a sufficient and necessary condition for dfs_braga to
+  (* Hence, as a sufficient and necessary condition for dfs_cycle to
      terminate, an invariant must exist. *)
-  Corollary dfs_braga_weakest_pre_condition x :
+  Corollary dfs_cycle_weakest_pre_condition x :
       (∃o, Gdfs x [] o) ↔ ∃i, x ∈ i ∧ dfs_braga_invar succs ⦃i⦄.
   Proof.
     split.
@@ -488,24 +488,24 @@ Section dfs_braga.
       repeat split; now auto.
   Qed.
 
-  (* This is the total correctness statement of dfs_braga with 
-     a high-level specification. Internally dfs_braga calls
+  (* This is the total correctness statement of dfs_cycle with 
+     a high-level specification. Internally dfs_cycle calls
      dfs (nested with foldleft). Notice that the domain is the 
-     largest possible for dfs_braga because of 
-     dfs_braga_weakest_pre_condition.
+     largest possible for dfs_cycle because of 
+     dfs_cycle_weakest_pre_condition.
 
      The post-condition on the output value is that it
      is a list spanning exactly the reflexive and
      transitive closure of (λ v u, u ∈ succs v) starting
      from x. 
   *)
-  Definition dfs_braga x (dx : ∃i, x ∈ i ∧ ∀ x y, x ∈ i → y ∈ succs x → y ∈ i) :
+  Definition dfs_cycle x (dx : ∃i, x ∈ i ∧ ∀ x y, x ∈ i → y ∈ succs x → y ∈ i) :
            {l | ⦃l⦄ ≡ clos_refl_trans next x}.
   Proof.
     (* We separate the code from the logic *)
     refine (let (m,hm) := dfs x [] _ in exist _ m _).
-    + now apply Dfs_iff_Gdfs, dfs_braga_weakest_pre_condition.
-    + now apply dfs_braga_partially_correct.
+    + now apply Dfs_iff_Gdfs, dfs_cycle_weakest_pre_condition.
+    + now apply dfs_cycle_partially_correct.
   Defined.
 
    (** Reminder:
@@ -560,10 +560,10 @@ Section dfs_braga.
     rewrite <- app_nil_end in H2; eauto.
   Qed.
 
- (* The dfs_book algorithm and the dfs_braga algorithm have
+ (* The dfs_book algorithm and the dfs_cycle algorithm have
     equivalent input/output relations. So they have the same
     domain and the same outputs. *)
-  Theorem Gdfs_book_braga x o : Gdfs_book [] [x] o ↔ Gdfs x [] o.
+  Theorem Gdfs_book_cycle x o : Gdfs_book [] [x] o ↔ Gdfs x [] o.
   Proof.
     split.
     + now intros; apply Gfoldleft_sg_iff, Gdfs_book_Gfoldleft_dfs.
@@ -572,7 +572,7 @@ Section dfs_braga.
 
   (** A self nested variant of dfs w/o List.app/@ :
 
-      let dfs_book_self x =
+      let dfs_cycle_self x =
         let rec dfs v l =
           match l with 
           | []   -> v
@@ -582,78 +582,78 @@ Section dfs_braga.
             | false -> dfs (dfs (x::v) (succs x)) l
         in dfs [] [x] *)
 
-  (* dfs_book_self as a computational graph *)
-  Inductive Gdfs_bs : list X → list X → list X → Prop :=
-    | Gdfs_bs_stop v :          Gdfs_bs v [] v
-    | Gdfs_bs_in {v x l o} :    x ∈ v
-                              → Gdfs_bs v l o
-                              → Gdfs_bs v (x::l) o
-    | Gdfs_bs_out {v x l w o} : x ∉ v
-                              → Gdfs_bs (x::v) (succs x) w
-                              → Gdfs_bs w l o
-                              → Gdfs_bs v (x::l) o.
+  (* dfs_cycle_self as a computational graph *)
+  Inductive Gdfs_cs : list X → list X → list X → Prop :=
+    | Gdfs_cs_stop v :          Gdfs_cs v [] v
+    | Gdfs_cs_in {v x l o} :    x ∈ v
+                              → Gdfs_cs v l o
+                              → Gdfs_cs v (x::l) o
+    | Gdfs_cs_out {v x l w o} : x ∉ v
+                              → Gdfs_cs (x::v) (succs x) w
+                              → Gdfs_cs w l o
+                              → Gdfs_cs v (x::l) o.
 
-  Fact Gdfs_bs_inv v l o :
-         Gdfs_bs v l o
+  Fact Gdfs_cs_inv v l o :
+         Gdfs_cs v l o
        → match l with
          | []   => v = o
-         | x::l => x ∈ v ∧ Gdfs_bs v l o
-                 ∨ x ∉ v ∧ ∃w, Gdfs_bs (x::v) (succs x) w ∧ Gdfs_bs w l o
+         | x::l => x ∈ v ∧ Gdfs_cs v l o
+                 ∨ x ∉ v ∧ ∃w, Gdfs_cs (x::v) (succs x) w ∧ Gdfs_cs w l o
          end.
   Proof. destruct 1; eauto. Qed.
 
-  Hint Constructors Gdfs_bs : core.
+  Hint Constructors Gdfs_cs : core.
 
-  Fact Gdfs_bs_app v w l m o : Gdfs_bs v l w → Gdfs_bs w m o → Gdfs_bs v (l++m) o.
+  Fact Gdfs_cs_app v w l m o : Gdfs_cs v l w → Gdfs_cs w m o → Gdfs_cs v (l++m) o.
   Proof. induction 1 in m, o |- *; simpl; eauto. Qed.
 
-  Fact Gdfs_bs_app_inv v l m o : Gdfs_bs v (l++m) o → ∃w, Gdfs_bs v l w ∧ Gdfs_bs w m o.
+  Fact Gdfs_cs_app_inv v l m o : Gdfs_cs v (l++m) o → ∃w, Gdfs_cs v l w ∧ Gdfs_cs w m o.
   Proof. 
     induction l as [ | x l IHl ] in v,o |- *; simpl; eauto.
-    intros [ (? & (? & [])%IHl) | (? & ? & ? & (? & [])%IHl) ]%Gdfs_bs_inv; eauto.
+    intros [ (? & (? & [])%IHl) | (? & ? & ? & (? & [])%IHl) ]%Gdfs_cs_inv; eauto.
   Qed.
 
-  Lemma Gdfs_bs_book v l o : Gdfs_bs v l o → Gdfs_book v l o.
+  Lemma Gdfs_cs_book v l o : Gdfs_cs v l o → Gdfs_book v l o.
   Proof. induction 1; eauto. Qed.
 
-  Hint Resolve Gdfs_bs_app : core.
+  Hint Resolve Gdfs_cs_app : core.
 
-  Lemma Gdfs_book_bs v l o : Gdfs_book v l o → Gdfs_bs v l o.
-  Proof. induction 1 as [ | | ? ? ? ? ? _ (? & ? & ?)%Gdfs_bs_app_inv ]; eauto. Qed.
+  Lemma Gdfs_book_cs v l o : Gdfs_book v l o → Gdfs_cs v l o.
+  Proof. induction 1 as [ | | ? ? ? ? ? _ (? & ? & ?)%Gdfs_cs_app_inv ]; eauto. Qed.
 
-  Hint Resolve Gdfs_bs_book Gdfs_book_bs : core.
+  Hint Resolve Gdfs_cs_book Gdfs_book_cs : core.
 
- (* The dfs_book algorithm and the dfs_book_self algorithm have
+ (* The dfs_book algorithm and the dfs_cycle_self algorithm have
     equivalent input/output relations. *)
-  Theorem Gdfs_book_book_self v l o : Gdfs_book v l o ↔ Gdfs_bs v l o.
+  Theorem Gdfs_book_cycle_self v l o : Gdfs_book v l o ↔ Gdfs_cs v l o.
   Proof. split; auto. Qed.
 
-  Lemma Gdfs_bs_fun {v l o₁ o₂} : Gdfs_bs v l o₁ → Gdfs_bs v l o₂ → o₁ = o₂.
+  Lemma Gdfs_cs_fun {v l o₁ o₂} : Gdfs_cs v l o₁ → Gdfs_cs v l o₂ → o₁ = o₂.
   Proof.
-    induction 1 as [ | | v x l w o H1 _ IH2 _ IH3 ] in o₂ |- *; intros G%Gdfs_bs_inv; auto;
+    induction 1 as [ | | v x l w o H1 _ IH2 _ IH3 ] in o₂ |- *; intros G%Gdfs_cs_inv; auto;
       destruct G as [ [] | (H3 & ? & H4 & H5) ]; tauto || eauto.
     apply IH2 in H4; subst; auto.
   Qed.
 
-  Inductive Ddfs_bs : list X → list X → Prop :=
-    | Ddfs_bs_stop v :      Ddfs_bs v []
-    | Ddfs_bs_in {v x l} :  x ∈ v
-                          → Ddfs_bs v l
-                          → Ddfs_bs v (x::l)
-    | Ddfs_bs_out {v x l} : x ∉ v
-                          → Ddfs_bs (x::v) (succs x)
-                          → (∀w, Gdfs_bs (x::v) (succs x) w → Ddfs_bs w l)
-                          → Ddfs_bs v (x::l).
+  Inductive Ddfs_cs : list X → list X → Prop :=
+    | Ddfs_cs_stop v :      Ddfs_cs v []
+    | Ddfs_cs_in {v x l} :  x ∈ v
+                          → Ddfs_cs v l
+                          → Ddfs_cs v (x::l)
+    | Ddfs_cs_out {v x l} : x ∉ v
+                          → Ddfs_cs (x::v) (succs x)
+                          → (∀w, Gdfs_cs (x::v) (succs x) w → Ddfs_cs w l)
+                          → Ddfs_cs v (x::l).
 
-  Hint Constructors Ddfs_bs : core.
+  Hint Constructors Ddfs_cs : core.
 
-  Fact Gdfs_bs_Ddfs_bs {v l} : (∃o, Gdfs_bs v l o) → Ddfs_bs v l.
+  Fact Gdfs_cs_Ddfs_cs {v l} : (∃o, Gdfs_cs v l o) → Ddfs_cs v l.
   Proof.
     intros (o & H).
     induction H as [ | | v x l w o H1 H2 IH2 ]; eauto.
     constructor 3; auto.
     intros ? H3.
-    now rewrite (Gdfs_bs_fun H3 H2).
+    now rewrite (Gdfs_cs_fun H3 H2).
   Qed.
 
   Let is_nnil l := match l with [] => False | _ => True end.
@@ -670,62 +670,65 @@ Section dfs_braga.
     | _::l => λ _, l
     end.
 
-  Local Definition Ddfs_bs_pi1 {v x l} (d : Ddfs_bs v (x::l)) :
-      x ∈ v → Ddfs_bs v l :=
-    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∈ v → Ddfs_bs v (dtail hm) with
-    | Ddfs_bs_stop _    => λ C _, match C with end
-    | Ddfs_bs_in _ d    => λ _ _, d
-    | Ddfs_bs_out C _ _ => λ _ h, match C h with end
+  Local Definition Ddfs_cs_pi1 {v x l} (d : Ddfs_cs v (x::l)) :
+      x ∈ v → Ddfs_cs v l :=
+    match d in Ddfs_cs v m return ∀ hm : is_nnil m, dhead hm ∈ v → Ddfs_cs v (dtail hm) with
+    | Ddfs_cs_stop _    => λ C _, match C with end
+    | Ddfs_cs_in _ d    => λ _ _, d
+    | Ddfs_cs_out C _ _ => λ _ h, match C h with end
     end I.
 
-  Local Definition Ddfs_bs_pi2 {v x l} (d : Ddfs_bs v (x::l)) :
-      x ∉ v → Ddfs_bs (x::v) (succs x) :=
-    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → Ddfs_bs (dhead hm::v) (succs (dhead hm)) with
-    | Ddfs_bs_stop _    => λ C _, match C with end
-    | Ddfs_bs_in h _    => λ _ C, match C h with end
-    | Ddfs_bs_out _ d _ => λ _ _, d
+  Local Definition Ddfs_cs_pi2 {v x l} (d : Ddfs_cs v (x::l)) :
+      x ∉ v → Ddfs_cs (x::v) (succs x) :=
+    match d in Ddfs_cs v m return ∀ hm : is_nnil m, dhead hm ∉ v → Ddfs_cs (dhead hm::v) (succs (dhead hm)) with
+    | Ddfs_cs_stop _    => λ C _, match C with end
+    | Ddfs_cs_in h _    => λ _ C, match C h with end
+    | Ddfs_cs_out _ d _ => λ _ _, d
     end I.
 
-  Local Definition Ddfs_bs_pi3 {v x l} (d : Ddfs_bs v (x::l)) :
-      x ∉ v → ∀{w}, Gdfs_bs (x::v) (succs x) w → Ddfs_bs w l :=
-    match d in Ddfs_bs v m return ∀ hm : is_nnil m, dhead hm ∉ v → ∀w, Gdfs_bs (dhead hm::v) (succs (dhead hm)) w → Ddfs_bs w (dtail hm) with
-    | Ddfs_bs_stop _    => λ C _, match C with end
-    | Ddfs_bs_in h _    => λ _ C, match C h with end
-    | Ddfs_bs_out _ _ d => λ _ _, d
+  Local Definition Ddfs_cs_pi3 {v x l} (d : Ddfs_cs v (x::l)) :
+      x ∉ v → ∀{w}, Gdfs_cs (x::v) (succs x) w → Ddfs_cs w l :=
+    match d in Ddfs_cs v m return ∀ hm : is_nnil m, dhead hm ∉ v → ∀w, Gdfs_cs (dhead hm::v) (succs (dhead hm)) w → Ddfs_cs w (dtail hm) with
+    | Ddfs_cs_stop _    => λ C _, match C with end
+    | Ddfs_cs_in h _    => λ _ C, match C h with end
+    | Ddfs_cs_out _ _ d => λ _ _, d
     end I.
 
-  Fixpoint dfs_bs {v l} (d : Ddfs_bs v l) : {o | Gdfs_bs v l o}.
-  Proof.
-    refine (match l return Ddfs_bs _ l → _ with
-    | []   => λ d, exist _ v _
-    | x::l => λ d,
-      match in_dec x v with
-      | left hx  => let (o,ho) := dfs_bs v l (Ddfs_bs_pi1 d hx)
-                    in exist _ o _
-      | right hx => let (w,hw) := dfs_bs (x::v) (succs x) (Ddfs_bs_pi2 d hx) in
-                    let (o,ho) := dfs_bs w l (Ddfs_bs_pi3 d hx hw)
-                    in exist _ o _
-      end
-    end d); eauto.
-  Defined.
+  Section dfs_cycle_self.
 
-  Definition dfs_braga_bs x : (∃o, Gdfs_bs [] [x] o) → {o | Gdfs_bs [] [x] o} :=
-    λ hx, dfs_bs (Gdfs_bs_Ddfs_bs hx).
+    Let Fixpoint dfs {v l} (d : Ddfs_cs v l) : {o | Gdfs_cs v l o}.
+    Proof.
+      refine (match l return Ddfs_cs _ l → _ with
+      | []   => λ d, exist _ v _
+      | x::l => λ d,
+        match in_dec x v with
+        | left hx  => let (o,ho) := dfs v l (Ddfs_cs_pi1 d hx)
+                      in exist _ o _
+        | right hx => let (w,hw) := dfs (x::v) (succs x) (Ddfs_cs_pi2 d hx) in
+                      let (o,ho) := dfs w l (Ddfs_cs_pi3 d hx hw)
+                      in exist _ o _
+        end
+      end d); eauto.
+    Defined.
 
-End dfs_braga.
+    Definition dfs_cycle_self x : (∃o, Gdfs_cs [] [x] o) → {o | Gdfs_cs [] [x] o} :=
+      λ hx, dfs (Gdfs_cs_Ddfs_cs hx).
 
-Check dfs_braga.
+  End dfs_cycle_self.
+
+End dfs_cycle.
+
+Check dfs_cycle.
 
 Extraction Inline dfs.
-Recursive Extraction dfs_braga.
+Recursive Extraction dfs_cycle.
 
 Extraction Inline foldleft.
-Extraction dfs_braga.
+Extraction dfs_cycle.
 
-Check dfs_braga_bs.
+Check dfs_cycle_self.
 
-Extraction Inline dfs_bs.
-Extraction dfs_braga_bs.
+Extraction dfs_cycle_self.
 
 
 
