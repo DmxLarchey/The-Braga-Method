@@ -251,17 +251,20 @@ Section dfs_xleroy.
     refine (match in_dec x a with
     | left h  => 
             exist _ a _
-    | right h => 
-         let (o,ho) :=
-          (fix dfs_list l a dl {struct dl} : sig (Gfoldleft Gdfs l a) :=
+    | right h =>
+         let fix dfs_list l a dl {struct dl} : sig (Gfoldleft Gdfs l a) :=
             match l return Dfoldleft _ _ l _ → _ with
             | []   => λ _, exist _ a _
             | y::m => λ d, let (b,hb) := dfs_int y a (Dfl_pi1 d)     in
                            let (o,ho) := dfs_list m b (Dfl_pi2 d hb) in
                            exist _ o _
-            end dl) (succ x) a (Ddfs_pi d h) 
-         in exist _ (x::o) _
-    end); eauto.
+            end dl in
+         exist _ (x :: proj1_sig (dfs_list (succ x) a (Ddfs_pi d h))) _ 
+    end).
+    Unshelve.
+    all: eauto.
+    constructor; trivial.
+    apply (proj2_sig _).
   Defined.
 
   (** Now we study the high-level semantics, ie both termination
@@ -581,52 +584,52 @@ Section dfs_xleroy.
   (** Let us implement a "self-nested" variant of dfs_xl algorithm:
 
       let dfs_xl_self x =
-        let rec dfs v l =
+        let rec dfs l a =
           match l with 
-          | []   -> v
+          | []   -> a
           | x::l ->
-            match in_dec x v with
-            | true  => dfs v l
-            | false => dfs (x::dfs v (succ x)) l
-        in dfs [] [x]
+            match in_dec x a with
+            | true  => dfs l a
+            | false => dfs l (x::dfs (succ x) a)
+        in dfs [x] []
 
   *) 
 
   Inductive Gdfs_self : list X → list X → list X → Prop :=
-    | Gdfs_sf_stop v :          Gdfs_self v [] v
-    | Gdfs_sf_in {v x l o} :    x ∈ v
-                              → Gdfs_self v l o
-                              → Gdfs_self v (x::l) o
-    | Gdfs_sf_out {v x l w o} : x ∉ v
-                              → Gdfs_self v (succ x) w
-                              → Gdfs_self (x::w) l o
-                              → Gdfs_self v (x::l) o.
+    | Gdfs_sf_stop a :          Gdfs_self [] a a
+    | Gdfs_sf_in {x l a o} :    x ∈ a
+                              → Gdfs_self l a o
+                              → Gdfs_self (x::l) a o
+    | Gdfs_sf_out {x l a w o} : x ∉ a
+                              → Gdfs_self (succ x) a w
+                              → Gdfs_self l (x::w) o
+                              → Gdfs_self (x::l) a o.
 
-  Fact Gdfs_self_inv v l o :
-         Gdfs_self v l o
+  Fact Gdfs_self_inv l a o :
+         Gdfs_self l a o
        → match l with
-         | []   => v = o
-         | x::l => x ∈ v ∧ Gdfs_self v l o
-                 ∨ x ∉ v ∧ ∃w, Gdfs_self v (succ x) w ∧ Gdfs_self (x::w) l o
+         | []   => a = o
+         | x::l => x ∈ a ∧ Gdfs_self l a o
+                 ∨ x ∉ a ∧ ∃w, Gdfs_self (succ x) a w ∧ Gdfs_self l (x::w) o
          end.
   Proof. destruct 1; eauto. Qed.
 
   Hint Constructors Gdfs_self : core.
 
-  Lemma Gdfs_Gdfs_self x a o : Gdfs x a o → Gdfs_self a [x] o.
+  Lemma Gdfs_Gdfs_self x a o : Gdfs x a o → Gdfs_self [x] a o.
   Proof.
-    revert x a o; apply Gdfs_ind with (P := λ l a o, Gdfs_self a l o); eauto.
+    revert x a o; apply Gdfs_ind with (P := λ l a o, Gdfs_self l a o); eauto.
     intros x a l b o _ [ (? & <-%Gdfs_self_inv) 
                        | (? & ? & ? & <-%Gdfs_self_inv) ]%Gdfs_self_inv _ ?; eauto.
   Qed.
 
-  Lemma Gdfs_self_Gfoldleft_dfs v l o : Gdfs_self v l o → Gfoldleft Gdfs l v o.
+  Lemma Gdfs_self_Gfoldleft_dfs l a o : Gdfs_self l a o → Gfoldleft Gdfs l a o.
   Proof. induction 1; eauto. Qed.
 
  (* The dfs_xl_self algorithm and the dfs_xl algorithm have
     equivalent input/output relations. So they have the same
     domain and the same outputs. *)
-  Theorem Gdfs_self_xl x o : Gdfs_self [] [x] o ↔ Gdfs x [] o.
+  Theorem Gdfs_self_xl x o : Gdfs_self [x] [] o ↔ Gdfs x [] o.
   Proof.
     split.
     + now intros; apply Gfoldleft_sg_iff, Gdfs_self_Gfoldleft_dfs.
