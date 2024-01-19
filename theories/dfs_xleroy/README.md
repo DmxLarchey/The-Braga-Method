@@ -11,14 +11,14 @@ It was thus natural for us to (and we felt compelled to):
 - compare the semantics of `dfs_xl` and `dfs_book`:
   + ie. their respective domains of termination;
   + and the respective specifications of their output;
-- instantiate the Braga method on `dfs_cycle`  as well (the modified variant of `dfs_xl`) and study its relationship with `dfs_book`; the latter turns out to be retrieved step by step from `dfs_cycle` using simple transformations which can also be justified using tools developed for the Braga method.
+- instantiate the Braga method on `dfs_cycle`  as well (the slightly modified variant of `dfs_xl`) and study its relationship with `dfs_book`; the latter turns out to be retrieved step by step from `dfs_cycle` using simple transformations, but the semantic equivalence can also be justified using tools developed for the Braga method.
  
 Notice that general DFS algorithms are inherently partial algorithms:
 - when the type of vertices is infinite, there can be a cycle-free infinite path in the graph;
   + typically, if the _successors_ of `x` is the list `[1+x]` over natural number nodes, then no call to DFS can terminate;
   +  in this case, the domain of any DFS algorithm should be empty;
 - when the type of vertices is finite, the `dfs_book` algorithm of the Braga chapter, `dfs_cycle` and their variations always terminate;
-- in contrast, the `dfs_xl` algorithm studied by X. Leroy  and its variations further require DAG (acyclic graphs) otherwise they may loop forever on some inputs.
+- in contrast, the `dfs_xl` algorithm studied by X. Leroy  and its variations further require DAGs otherwise they may loop forever on some inputs.
 
 We establish all these properties in Coq as the by product of _certification by extraction_ of correct by construction programs, which is the overall framework of the Braga method.
 
@@ -61,9 +61,9 @@ and we qualify this form as an _inlined nesting_ of `dfs` with `dfs_list` (see b
 _(** There, the accumulator in the last recursive call is unchanged, which prevents the algorithm to discover a cycle in the previously visited nodes. *)_
 _DLW->JF: Je ne suis pas convaincu par cet argument. L'appel de `(dfs y a)` dans `dfs_list` modifie l'accumulateur._
 
-We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this _inlining_, we get the following variant:
+We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
 ```
-(* DFS variant by X. Leroy nesting with foldleft *)
+(* DFS variant by X. Leroy nested with foldleft *)
 let dfs_xl_fold x =
   let rec dfs x a =
     if x ∈ a then a else x::foldleft dfs (succs x) a
@@ -73,7 +73,7 @@ which we call _external nesting_ of `dfs` with `foldleft`.
 
 One could wonder why X. Leroy did not favor this external nesting (more compact, modular) over the inlined one. We speculate that there was a technical difficulty that prevented him from doing so, a difficulty that we already encountered ourselves (with eg. unbounded minimisation of partial recursive function) and which is the following:
 - `foldleft` is a higher-order function while `dfs_list` is just first-order;
-- while it is easy to write down `foldleft` in Coq (it is actually part of the Standard library), that total function cannot be instantiated with `dfs` because `dfs` is inherently a partial function;
+- while it is easy to write down `foldleft` in Coq (it is actually part of the Standard Library), this total function cannot be applied to DFS because DFS is inherently a partial function;
 - Ocaml does not distinguish partial functions from total function, but in Coq, partial functions are represented as total functions restricted by propositional pre-conditions;
 - hence we need to define Coq version of `foldleft` which is not only partial, but of which _the input parameter `f` itself is a partial function_. Hence, in Coq we need  `foldleft` as a partial polymorphic higher order function;
 - X. Leroy circumvents this issue by inlining the nesting of `foldleft dfs` as `dfs_list` in the code of `dfs_xl_inld` itself;
@@ -108,7 +108,7 @@ let dfs_cycle_inld x =
 
 In the Braga book chapter however, we study the following variant of DFS
 ```
-(* DFS variant as described in the Braga book chapter
+(* DFS variant as described in the Braga book chapter *)
 let dfs_book x =
   let rec dfs a = function
   | []   -> a
@@ -120,7 +120,7 @@ that uses list append/`@` as an external tool (of linear complexity). Notice tha
 _JFM->DLW : arrivé ici je me rends compte que sauf erreur de ma part on parle de `dfs_cycle`, sous la forme avec foldleft. Il me paraît plus judicieux d'introduire soit cette variante `_fold`, soit  celle "nested" inspirée de XL dès le début `_inld`, comme ce que j'ai ajouté. Pour l'instant je laisse ce qui suit, mais peut-être que la suite plus bas pourra être allégée. Mes transfos partent de `dfs_cycle_inld` mais comme on dérive plus facilement ce dernier de `dfs_cycle_fold` (par dépliage de foldleft) que l'inverse, on peut prendre `dfs_cycle_fold`  comme pt de départ. Et du coup je remonter le code de `dfs_braga_cycle` plus haut._
 _DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`._
 
-It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof indeed and exhibit their relationship.
+It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
 
 ## Comparisons of `dfs_xl` and `dfs_cycle`
 
@@ -158,28 +158,27 @@ let dfs_cycle_self x =
 In the second step, the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
 ```
 let dfs_cycle_stack x =
-  let rec dfs_stack a  = function
-    | [] -> (function
-        | [] -> a
-        | l :: s -> dfs_stack a l s)
-    | x :: l -> fun s ->
-      if x ∈ a then dfs_stack a l s 
-      else dfs_stack (x :: a) (succs x) (l :: s) 
+  let rec dfs_stack a = function
+  | []   -> (function
+    | []   -> a
+    | l::s -> dfs_stack a l s)
+  | x::l -> fun s ->
+    if x ∈ a then dfs_stack a l s
+    else dfs_stack (x::a) (succs x) (l::s) 
   in dfs_stack [] [x] []
 ```
-Next step: `l` and `s` are grouped into a single list of lists `ls` which represents `l :: s`:
+Next step: `l` and `s` are grouped into a single list of lists `ls` which represents `l::s`:
 ```
 let dfs_cycle_grp x =
-  let rec dfs_stack a ls =
-    match ls with
-    | [] -> a
-    | [] :: ls -> dfs_stack a ls
-    | (x :: l) :: ls ->
-      if x ∈ a then dfs_stack a (l :: ls)
-      else dfs_stack (x :: a) (succs x :: l :: ls) 
+  let rec dfs_stack a = function
+  | []         -> a
+  | []::ls     -> dfs_stack a ls
+  | (x::l)::ls ->
+    if x ∈ a then dfs_stack a (l::ls)
+    else dfs_stack (x::a) (succs x::l::ls) 
   in dfs_stack [] [[x]]
 ```
-Finally `dfs_book` is obtained by flattening `ls`, so that `(x :: l) :: ls`is represented by `x :: lls` and `succs x :: l :: ls` is represented by `succs x @ lls` and `lls` is renamed as just `l`.
+Finally `dfs_book` is obtained by flattening `ls`, so that `(x::l)::ls`is represented by `x::lls` and `succs x::l::ls` is represented by `succs x @ lls` and `lls` is renamed as just `l`.
 
 
 
