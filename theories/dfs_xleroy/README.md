@@ -141,11 +141,7 @@ This change has a significant impact on the semantics:
 - but mainly the weakest precondition for termination (wrt. cycles in the graph).
 
 ## Further Variations
-_JFM->DLW : il faut revoir la fin en fonction des modifs précédentes , pour inclure les variations que je t'ai indiquées (0/ à 5/). Je dois relire ce qui suit et te laisse d'abord voir ce qui précéde._
-
-_JFM->DLW : finalement j'ai intégré ma partie, j'espère que c'est compatible avec ce que tu voulais._
-
-To complete our exploration, we also study the following variants of `dfs_xl` with _self-nesting_ of its internal loop `dfs`:
+To complete our exploration, we also study the following variants of `dfs_xl` and `dfs_cycle`, with _self-nesting_ of their internal loop `dfs_list`:
 ```ocaml
 let dfs_xl_self x =
   let rec dfs_list l a = match l with 
@@ -153,8 +149,6 @@ let dfs_xl_self x =
   | x::l -> dfs_list l (if x ∈ a then a else x::dfs_list (succs x) a)
   in dfs_list [x] []
 ```
-Interestingly, the self nested variant `dfs_cycle_self` is the first step towards a variant of  `dfs_book` called `dfs_book_eff` (it is somewhat more efficient since its avoids computating the concatenation of lists) and then `dfs_book` itself. _DLW->JFM: préciser le sens ici...
-JFM->DLW: le sens de ? En tout cas j'ai renommé `dfs_cycle_grp` qui n'était pas très heureux_
 ```ocaml
 let dfs_cycle_self x =
   let rec dfs_list a = function
@@ -162,7 +156,15 @@ let dfs_cycle_self x =
   | x::l -> dfs_list (if x ∈ a then a else dfs_list (x::a) (succs x)) l
   in dfs_list [x] []
 ```
-In the second step, the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
+
+## From `dfs_cycle_fold` to `dfs_book`
+_DLW->JFM: préciser le sens ici...
+JFM->DLW: le sens de ? En tout cas j'ai renommé `dfs_cycle_grp` qui n'était pas très heureux et reformulé l'nesembkle pour repartir de `dfs_cycle_fold`_
+
+Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using  a few number of semantic preserving elementary transformations.
+It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing-inlining `foldleft` and then `dfs_cycle_self` by replacing `dfs x` by `dfs_list [x]`.
+
+The third step is a little bit more technical: the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
 ```ocaml
 let dfs_cycle_stack x =
   let rec dfs_list_stack a = function
@@ -174,7 +176,7 @@ let dfs_cycle_stack x =
     else dfs_list_stack (x::a) (succs x) (l::s) 
   in dfs_list_stack [] [x] []
 ```
-Next step: `l` and `s` are grouped into a single list of lists `ls` which represents `l::s`:
+Fourth step: `l` and `s` are grouped into a single list of lists `ls` which represents `l::s`:
 ```ocaml
 let dfs_book_eff x =
   let rec dfs_stack a = function
@@ -185,8 +187,8 @@ let dfs_book_eff x =
     else dfs_stack (x::a) (succs x::l::ls) 
   in dfs_stack [] [[x]]
 ```
-Finally `dfs_book` is obtained by flattening `ls`, so that `(x::l)::ls`is represented by `x::lls` and `succs x::l::ls` is represented by `succs x @ lls` and `lls` is renamed as just `l`.
-Next step: `l` and `s` are grouped into a single list of lists `ls` which represents `l::s`:
+The latter program can be actually seen as a variant of `dfs_book` which somewhat more efficient since its avoids calculations of list concatenations (hence its name).
+Indeed, we finally obtain `dfs_book` by flattening `ls`, so that `(x :: l) :: ls`is represented by `x :: lls`, with `lls := l @ ls`, `succs x :: l :: ls` is represented by `succs x @ lls` and `lls`is renamed as just `l`.
 ```ocaml
 let dfs_book x =
   let rec dfs_flatten a = function
