@@ -58,9 +58,7 @@ let dfs_xl_inld x =
 ```
 and we qualify this form as an _inlined nesting_ of `dfs` with `dfs_list` (see below). 
 
-_(** There, the accumulator in the last recursive call is unchanged, which prevents the algorithm to discover a cycle in the previously visited nodes. *)_
-_DLW->JF: Je ne suis pas convaincu par cet argument. L'appel de `(dfs y a)` dans `dfs_list` modifie l'accumulateur
-JF->DLW: oui mais trop tard, c'est un fait (et je ne dis pas que c'est immédiat à voir)._
+_DLW->JFM: la remarque sur les cycles et la position de `x::` existait déjà dans le paragraphe suivant et je l'ai complétée._
 
 We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
 ```ocaml
@@ -82,7 +80,9 @@ One could wonder why X. Leroy did not favor this external nesting (more compact,
 
 ### The nested algorithm `dfs_cycle`
 
-Another observation that could be made regarding `dfs_xl` is the position where `x` is prepended to the already visited nodes using `x::_`. In `dfs_xl` this occurs after the successors of `x` are visited by `foldleft dfs (succs x) a`, hence we speculate that when `dfs` visits a node contained in a cycle, the algorithm will loop forever. We will indeed prove that `dfs_xl` is for DAGs only. 
+In the code of `dfs_xl_fold`, we observe that in the internal `dfs` loop, the current node `x` is prepended using `x::_` to the result, but _too late_: precisely, this is done _after_ the successors of `x` are themselves visited, which prevents the algorithm to detect a possible repetition of `x` and thus avoid cycling forever. 
+
+The same remark of course applies to the code of `dfs_xl_inld` where `dfs_list` is just the inlining of `foldleft dfs`. We will indeed prove that `dfs_xl`, ie both algorithms, are suitable for DAGs only. 
  
 A slight change provides a version of DFS which will avoid this behavior and which we call `dfs_cycle`. The easiest way to observe the change is on the externally nested variant:
 ```ocaml
@@ -158,11 +158,10 @@ let dfs_cycle_self x =
 ```
 
 ## From `dfs_cycle_fold` to `dfs_book`
-_DLW->JFM: préciser le sens ici...
-JFM->DLW: le sens de ? En tout cas j'ai renommé `dfs_cycle_grp` qui n'était pas très heureux et reformulé l'ensemble pour repartir de `dfs_cycle_fold`_
 
-Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using  a few number of semantic preserving elementary transformations.
-It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing-inlining `foldleft` and then `dfs_cycle_self` by replacing `dfs x` by `dfs_list [x]`.
+Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft` and then `dfs_cycle_self` by replacing `dfs x` by `dfs_list [x]`.
+
+_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
 
 The third step is a little bit more technical: the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
 ```ocaml
@@ -192,7 +191,7 @@ Indeed, we finally obtain `dfs_book` by flattening `ls`, so that `(x :: l) :: ls
 ```ocaml
 let dfs_book x =
   let rec dfs_flatten a = function
-  | []         -> a
+  | []     -> a
   | x::lls ->
     if x ∈ a then dfs_flatten a lls
     else dfs_flatten (x::a) (succs x @ lls) 
