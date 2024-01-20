@@ -92,18 +92,7 @@ let dfs_cycle_fold x =
     if x ∈ a then a else foldleft dfs (succs x) (x::a)
   in dfs x []
 ```
-but the inlined nested variant works just as well:
-```ocaml
-(* Variant of dfs_cycle with inlined nesting *)
-let dfs_cycle_inld x =
-  let rec dfs x a =
-    if x ∈ a then a else
-      let rec dfs_list l a = match l with
-      | []   -> a
-      | y::l -> dfs_list l (dfs y a)
-      in dfl_list (succs x) (x::a)
-  in dfs x []
-```
+but this works just as well on the inlined nested variant (see below).
 
 ### The recursive terminal algorithm `dfs_book`
 
@@ -125,6 +114,8 @@ et trivialement dérivable seult dans cette direction; mais la différence est l
 It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
 
 ## Comparisons of `dfs_xl` and `dfs_cycle`
+
+_DLW->JFM: peut-être faut il merger ce paragraphe avec "The nested algo `dfs_cycle` ?_
 
 On the contrary, `dfs_xl` and `dfs_cycle` compute different outputs but also do not have the same domains of termination. We establish this formally. 
 
@@ -149,19 +140,41 @@ let dfs_xl_self x =
   | x::l -> dfs_list l (if x ∈ a then a else x::dfs_list (succs x) a)
   in dfs_list [x] []
 ```
+
+## From `dfs_cycle_fold` to `dfs_book`
+
+_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
+
+Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft` 
+```ocaml
+(* Variant of dfs_cycle with inlined nesting *)
+let dfs_cycle_inld x =
+  let rec dfs x a =
+    if x ∈ a then a else
+      let rec dfs_list l a = match l with
+      | []   -> a
+      | y::l -> dfs_list l (dfs y a)
+      in dfl_list (succs x) (x::a)
+  in dfs x []
+```
+and then `dfs_cycle_self'` by replacing `dfs x []` by `dfs_list [x] []` and remove the internal `dfs` loop by simply expanding it once:
+```ocaml
+let dfs_cycle_self' x =
+  let rec dfs_list l a = match l with
+  | []   -> a
+  | x::l -> dfs_list l (if x ∈ a then a else dfs_list (succs x) (x::a)) l
+  in dfs_list [x] []
+```
+We then swap the arguments of `dfs_list` to accomadate for the order of arguments as used in `dfs_book`: 
 ```ocaml
 let dfs_cycle_self x =
   let rec dfs_list a = function
   | []   -> a
   | x::l -> dfs_list (if x ∈ a then a else dfs_list (x::a) (succs x)) l
-  in dfs_list [x] []
+  in dfs_list [] [x]
 ```
 
-## From `dfs_cycle_fold` to `dfs_book`
-
-Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft` and then `dfs_cycle_self` by replacing `dfs x` by `dfs_list [x]`.
-
-_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
+_DLW->JFM: peut-être revoir la numérotation des étapes. Aussi est-ce qu'on a intérêt à swap l'ordre des arguments où alors on change `dfs_book` pour éviter le changement au milieu ?_
 
 The third step is a little bit more technical: the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
 ```ocaml
@@ -197,6 +210,8 @@ let dfs_book x =
     else dfs_flatten (x::a) (succs x @ lls) 
   in dfs_flatten [] [x]
 ```
+
+_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ?_
 
 
 
