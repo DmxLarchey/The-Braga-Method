@@ -59,7 +59,8 @@ let dfs_xl_inld x =
 and we qualify this form as an _inlined nesting_ of `dfs` with `dfs_list` (see below). 
 
 _(** There, the accumulator in the last recursive call is unchanged, which prevents the algorithm to discover a cycle in the previously visited nodes. *)_
-_DLW->JF: Je ne suis pas convaincu par cet argument. L'appel de `(dfs y a)` dans `dfs_list` modifie l'accumulateur._
+_DLW->JF: Je ne suis pas convaincu par cet argument. L'appel de `(dfs y a)` dans `dfs_list` modifie l'accumulateur
+JF->DLW: oui mais trop tard, c'est un fait (et je ne dis pas que c'est immédiat à voir)._
 
 We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
 ```ocaml
@@ -112,12 +113,11 @@ In the Braga book chapter however, we study the following variant of DFS
 let dfs_book x =
   let rec dfs a = function
   | []   -> a
-  | x::l -> if x ∈ a then dfs a l else dfs (x::a) (succs x@l)
+  | x::l -> if x ∈ a then dfs a l else dfs (x::a) (succs x @ l)
   in dfs [] [x]
 ```
 that uses list append/`@` as an external tool (of linear complexity). Notice that the internal loop `dfs` in `dfs_book` is _not a nested algorithm_ and it is moreover a recursive terminal algorithm. Also, the accumulator `a` which collects already visited nodes in the internal `dfs` appears first in `dfs_book` whereas it appears last for `dfs_xl` and `dfs_cycle`.
 
-_JFM->DLW : arrivé ici je me rends compte que sauf erreur de ma part on parle de `dfs_cycle`, sous la forme avec foldleft. Il me paraît plus judicieux d'introduire soit cette variante `_fold`, soit  celle "nested" inspirée de XL dès le début `_inld`, comme ce que j'ai ajouté. Pour l'instant je laisse ce qui suit, mais peut-être que la suite plus bas pourra être allégée. Mes transfos partent de `dfs_cycle_inld` mais comme on dérive plus facilement ce dernier de `dfs_cycle_fold` (par dépliage de foldleft) que l'inverse, on peut prendre `dfs_cycle_fold`  comme pt de départ. Et du coup je remonter le code de `dfs_braga_cycle` plus haut._
 _DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`.
 JFL->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact
 et trivialement dérivable seult dans cette direction; mais la différence est la même._
