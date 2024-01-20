@@ -184,10 +184,10 @@ let dfs_book_eff x =
   | []::ls     -> dfs_stack a ls
   | (x::l)::ls ->
     if x ∈ a then dfs_stack a (l::ls)
-    else dfs_stack (x::a) (succs x::l::ls) 
+    else dfs_stack (x::a) (succs x :: l :: ls) 
   in dfs_stack [] [[x]]
 ```
-The latter program can be actually seen as a variant of `dfs_book` which somewhat more efficient since its avoids calculations of list concatenations, hence its name.
+The latter program can be actually seen as a variant of `dfs_book` which is somewhat more efficient since its avoids calculations of list concatenations, hence its name.
 Indeed, we finally obtain `dfs_book` by flattening `ls`, so that `(x :: l) :: ls`is represented by `x :: lls`, with `lls := l @ ls`, `succs x :: l :: ls` is represented by `succs x @ lls` and `lls`is renamed as just `l`.
 ```ocaml
 let dfs_book x =
@@ -195,7 +195,7 @@ let dfs_book x =
   | []         -> a
   | x::lls ->
     if x ∈ a then dfs_flatten a lls
-    else dfs_flatten (x::a) (succs x::lls) 
+    else dfs_flatten (x::a) (succs x @ lls) 
   in dfs_flatten [] [x]
 ```
 
