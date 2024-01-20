@@ -212,7 +212,7 @@ let dfs_book x =
 ```
 
 _DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ?
-Est-ce que ma chaine suivante marche pex?_
+Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais..._
 
 ```ocaml
 let dfs_xl_inld x =
