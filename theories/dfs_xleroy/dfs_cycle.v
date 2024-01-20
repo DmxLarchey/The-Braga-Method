@@ -196,20 +196,6 @@ Section dfs_cycle.
 
   Hint Constructors Dfoldleft Gfoldleft Gdfs : core.
 
-  (* We define dfs (with an accumulator of already visited nodes)
-     by structural induction on the (inductive) domain argument,
-     nested with an externam call to foldleft. *)
-  Fixpoint dfs x a (d : Ddfs x a) {struct d} : {o | Gdfs x a o}.
-  Proof.
-    (* We separate the code from the logic *)
-    refine (match in_dec x a with
-    | left h  => exist _ a _
-    | right h =>
-              let (o,ho) := foldleft Gdfs dfs (succs x) (x::a) (Ddfs_pi d h)
-              in exist _ o _
-    end); eauto.
-  Defined.
-
   Section termination_easy.
 
     (** Termination is somewhat easy under well-foundedness of succs.
@@ -348,16 +334,12 @@ Section dfs_cycle.
 
   (* Hence the domain Ddfs, characterized inductivelly
      for the purpose of defining dfs by structural
-     induction on it, is indeed (equivalent to) the 
+     induction on it, is indeed weaker than the 
      projection of the computational graph Gdfs, ie
      Ddfs indeed characterizes termination of dfs
      according to its description as Gdfs. *)
-  Theorem Dfs_iff_Gdfs x a : Ddfs x a ↔ ∃o, Gdfs x a o.
-  Proof.
-    split.
-    + intros (o & ?)%dfs; now exists o.
-    + now intros (? & ?%Gdfs_incl_Ddfs).
-  Qed.
+  Theorem Gdfs_proj_Ddfs {x a} : (∃o, Gdfs x a o) → Ddfs x a.
+  Proof. now intros (? & ?%Gdfs_incl_Ddfs). Qed.
 
   Notation next := (λ v u, u ∈ succs v).
   Notation crt_exclude_union R P L := (λ y, ∃i, L i ∧ crt_exclude R P i y).
@@ -472,10 +454,47 @@ Section dfs_cycle.
     simpl; tauto.
   Qed.
 
-  (* Hence, as a sufficient and necessary condition for dfs_cycle to
+  Section dfs_cycle.
+
+    (* We define dfs (with an accumulator of already visited nodes)
+       by structural induction on the (inductive) domain argument,
+       nested with an externam call to foldleft. *)
+    Let Fixpoint dfs {x a} (d : Ddfs x a) {struct d} : {o | Gdfs x a o}.
+    Proof.
+      (* We separate the code from the logic *)
+      refine (match in_dec x a with
+      | left h  => exist _ a _
+      | right h =>
+                let (o,ho) := foldleft Gdfs dfs (succs x) (x::a) (Ddfs_pi d h)
+                in exist _ o _
+      end); eauto.
+    Defined.
+
+    Local Fact Ddfs_Gdfs_proj x a : Ddfs x a → ∃o, Gdfs x a o.
+    Proof. intros []%dfs; eauto. Qed.
+
+    Let dfs_cycle_pwc x : (∃o, Gdfs x [] o) → {o | Gdfs x [] o} :=
+      λ hx, dfs (Gdfs_proj_Ddfs hx).
+
+    Definition dfs_cycle x dx := proj1_sig (dfs_cycle_pwc x dx).
+
+    Theorem dfs_cycle_spec x dx : Gdfs x [] (dfs_cycle x dx).
+    Proof. apply (proj2_sig _). Qed.
+
+  End dfs_cycle.
+
+  Hint Resolve Ddfs_Gdfs_proj Gdfs_proj_Ddfs : core.
+
+  Lemma Ddfs_iff_Gdfs x a : Ddfs x a ↔ ∃o, Gdfs x a o.
+  Proof. split; auto. Qed.
+
+  (** These are total correctness statement for dfs_cycle with 
+      a high-level specification. *)
+
+  (* A sufficient and necessary condition for dfs_cycle to
      terminate, an invariant must exist. *)
-  Corollary dfs_cycle_weakest_pre_condition x :
-      (∃o, Gdfs x [] o) ↔ ∃i, x ∈ i ∧ dfs_braga_invar succs ⦃i⦄.
+  Theorem dfs_cycle_weakest_pre_condition x :
+      (∃o, Gdfs x [] o) ↔ ∃i, x ∈ i ∧ ∀ u v, u ∈ i → v ∈ succs u → v ∈ i.
   Proof.
     split.
     + intros (o & Ho).
@@ -484,31 +503,19 @@ Section dfs_cycle.
       apply smallest_braga_invar_equiv in Ho.
       exists o; apply Ho.
     + intros (i & ? & ?%dfs_braga_invar_iff).
-      apply Dfs_iff_Gdfs, dfs_termination with i.
+      apply Ddfs_iff_Gdfs, dfs_termination with i.
       repeat split; now auto.
   Qed.
 
-  (* This is the total correctness statement of dfs_cycle with 
-     a high-level specification. Internally dfs_cycle calls
-     dfs (nested with foldleft). Notice that the domain is the 
-     largest possible for dfs_cycle because of 
-     dfs_cycle_weakest_pre_condition.
+  (* dfs_cycle outputs a list spanning the reflexive and transitive
+     closure from x. Notice that this does not completely characterise
+     the output: one could further show that there are no repetitions
+     and that the order is the reverse of a prefix left-right traversal
+     of the graph. *)
+  Theorem dfs_cycle_post_condition x dx : ⦃dfs_cycle x dx⦄ ≡ clos_refl_trans next x.
+  Proof. apply dfs_cycle_partially_correct, dfs_cycle_spec. Qed.
 
-     The post-condition on the output value is that it
-     is a list spanning exactly the reflexive and
-     transitive closure of (λ v u, u ∈ succs v) starting
-     from x. 
-  *)
-  Definition dfs_cycle x (dx : ∃i, x ∈ i ∧ ∀ x y, x ∈ i → y ∈ succs x → y ∈ i) :
-           {l | ⦃l⦄ ≡ clos_refl_trans next x}.
-  Proof.
-    (* We separate the code from the logic *)
-    refine (let (m,hm) := dfs x [] _ in exist _ m _).
-    + now apply Dfs_iff_Gdfs, dfs_cycle_weakest_pre_condition.
-    + now apply dfs_cycle_partially_correct.
-  Defined.
-
-   (** Reminder:
+ (** Reminder:
 
       let dfs_book x =
         let rec dfs v l =
@@ -718,9 +725,7 @@ Section dfs_cycle.
 
 End dfs_cycle.
 
-Check dfs_cycle.
-
-Extraction Inline dfs.
+Check dfs_cycle_spec.
 Recursive Extraction dfs_cycle.
 
 Extraction Inline foldleft.
