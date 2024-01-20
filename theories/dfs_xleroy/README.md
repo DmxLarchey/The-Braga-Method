@@ -62,7 +62,7 @@ _(** There, the accumulator in the last recursive call is unchanged, which preve
 _DLW->JF: Je ne suis pas convaincu par cet argument. L'appel de `(dfs y a)` dans `dfs_list` modifie l'accumulateur._
 
 We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
-```
+```ocaml
 (* DFS variant by X. Leroy nested with foldleft *)
 let dfs_xl_fold x =
   let rec dfs x a =
