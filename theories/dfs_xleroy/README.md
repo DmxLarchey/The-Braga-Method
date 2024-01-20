@@ -73,7 +73,7 @@ which we call _external nesting_ of `dfs` with `foldleft`.
 
 One could wonder why X. Leroy did not favor this external nesting (more compact, modular) over the inlined one. We speculate that there was a technical difficulty that prevented him from doing so, a difficulty that we already encountered ourselves (with eg. unbounded minimisation of partial recursive function) and which is the following:
 - `foldleft` is a higher-order function while `dfs_list` is just first-order;
-- while it is easy to write down `foldleft` in Coq (it is actually part of the Standard Library), this total function cannot be applied to DFS because DFS is inherently a partial function;
+- while it is easy to write down `fold_left` in Coq (it is actually part of the Standard Library), this total function cannot be applied to DFS because DFS is inherently a partial function;
 - Ocaml does not distinguish partial functions from total function, but in Coq, partial functions are represented as total functions restricted by propositional pre-conditions;
 - hence we need to define Coq version of `foldleft` which is not only partial, but of which _the input parameter `f` itself is a partial function_. Hence, in Coq we need  `foldleft` as a partial polymorphic higher order function;
 - X. Leroy circumvents this issue by inlining the nesting of `foldleft dfs` as `dfs_list` in the code of `dfs_xl_inld` itself;

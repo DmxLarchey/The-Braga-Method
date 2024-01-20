@@ -583,13 +583,12 @@ Section dfs_cycle.
   (** A self nested variant of dfs w/o List.app/@ :
 
       let dfs_cycle_self x =
-        let rec dfs v l =
-          match l with 
-          | []   -> v
-          | x::l ->
-            match in_dec x v
-            | true  -> dfs v l
-            | false -> dfs (dfs (x::v) (succs x)) l
+        let rec dfs v = function 
+        | []   -> v
+        | x::l ->
+          match in_dec x v
+          | true  -> dfs v l
+          | false -> dfs (dfs (x::v) (succs x)) l
         in dfs [] [x] *)
 
   (* dfs_cycle_self as a computational graph *)
@@ -721,10 +720,34 @@ Section dfs_cycle.
       end d); eauto.
     Defined.
 
-    Definition dfs_cycle_self x : (∃o, Gdfs_cs [] [x] o) → {o | Gdfs_cs [] [x] o} :=
+    Let dfs_cycle_self_pwc x : (∃o, Gdfs_cs [] [x] o) → {o | Gdfs_cs [] [x] o} :=
       λ hx, dfs (Gdfs_cs_Ddfs_cs hx).
 
+    Definition dfs_cycle_self x dx := proj1_sig (dfs_cycle_self_pwc x dx).
+
+    Theorem dfs_cycle_self_spec x dx : Gdfs_cs [] [x] (dfs_cycle_self x dx).
+    Proof. apply (proj2_sig _). Qed.
+
   End dfs_cycle_self.
+
+  Theorem dfs_cycle_self_equiv x o : Gdfs_cs [] [x] o ↔ Gdfs x [] o.
+  Proof. now rewrite <- Gdfs_book_cycle, <- Gdfs_book_cycle_self. Qed.
+
+  (* The respective pre-condition (termination) for dfs_cycle
+     and dfs_cycle_self are equivalent *)
+  Theorem dfs_cycle_self_equiv_pre x : 
+             (∃o, Gdfs_cs [] [x] o)
+           ↔ (∃o, Gdfs x [] o).
+  Proof.
+    split; intros (o & H); exists o; revert H; apply dfs_cycle_self_equiv.
+  Qed.
+
+  (* The output of dfs_cycle and dfs_cycle_self are identical *)
+  Theorem dfs_cycle_self_equiv_post x d₁ d₂ : dfs_cycle x d₁ = dfs_cycle_self x d₂.
+  Proof.
+    apply Gdfs_cs_fun with (2 := dfs_cycle_self_spec _ _).
+    apply dfs_cycle_self_equiv, dfs_cycle_spec.
+  Qed.
 
 End dfs_cycle.
 
@@ -734,8 +757,7 @@ Recursive Extraction dfs_cycle.
 Extraction Inline foldleft.
 Extraction dfs_cycle.
 
-Check dfs_cycle_self.
-
+Check dfs_cycle_self_spec.
 Extraction dfs_cycle_self.
 
 
