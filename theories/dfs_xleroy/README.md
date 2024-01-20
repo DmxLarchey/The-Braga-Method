@@ -188,7 +188,7 @@ let dfs_book_eff x =
   in dfs_stack [] [[x]]
 ```
 The latter program can be actually seen as a variant of `dfs_book` which is somewhat more efficient since its avoids calculations of list concatenations, hence its name.
-Indeed, we finally obtain `dfs_book` by flattening `ls`, so that `(x :: l) :: ls`is represented by `x :: lls`, with `lls := l @ ls`, `succs x :: l :: ls` is represented by `succs x @ lls` and `lls`is renamed as just `l`.
+Indeed, we finally obtain `dfs_book` by flattening `ls`, so that `(x :: l) :: ls`is represented by `x :: lls`, with `lls := l @ ls`, `succs x :: l :: ls` is represented by `succs x @ lls` and `lls`can be renamed as just `l`.
 ```ocaml
 let dfs_book x =
   let rec dfs_flatten a = function
