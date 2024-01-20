@@ -454,6 +454,9 @@ Section dfs_cycle.
     simpl; tauto.
   Qed.
 
+  (** We can finish with the to be extracted correct by construction
+      Coq function dfs_cycle. *)
+
   Section dfs_cycle.
 
     (* We define dfs (with an accumulator of already visited nodes)
