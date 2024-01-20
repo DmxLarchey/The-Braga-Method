@@ -580,6 +580,79 @@ Section dfs_cycle.
     + apply Gdfs_Gdfs_book.
   Qed.
 
+  Inductive Ddfs_book : list X → list X → Prop :=
+    | Ddfs_bk_stop v :        Ddfs_book v []
+    | Ddfs_bk_in {v x l} :    x ∈ v
+                            → Ddfs_book v l
+                            → Ddfs_book v (x::l)
+    | Ddfs_bk_out {v x l} :   x ∉ v
+                            → Ddfs_book (x::v) (succs x++l)
+                            → Ddfs_book v (x::l).
+
+  Hint Constructors Ddfs_book : core.
+
+  Fact Gdfs_book_proj_Ddfs_book {v l} : (∃o, Gdfs_book v l o) → Ddfs_book v l.
+  Proof. intros (o & Ho); induction Ho; eauto. Qed.
+
+  Let is_nnil l := match l with [] => False | _ => True end.
+
+  Let dhead {l} : is_nnil l → X :=
+    match l with
+    | []   => λ void, match void with end
+    | y::_ => λ _, y
+    end.
+  
+  Let dtail {l} : is_nnil l → list X :=
+    match l with
+    | []   => λ void, match void with end
+    | _::l => λ _, l
+    end.
+
+  Local Definition Ddfs_book_pi1 {v x l} (d : Ddfs_book v (x::l)) :
+      x ∈ v → Ddfs_book v l :=
+    match d in Ddfs_book v m return ∀ hm : is_nnil m, dhead hm ∈ v → Ddfs_book v (dtail hm) with
+    | Ddfs_bk_stop _  => λ C _, match C with end
+    | Ddfs_bk_in _ d  => λ _ _, d
+    | Ddfs_bk_out C _ => λ _ h, match C h with end
+    end I.
+
+  Local Definition Ddfs_book_pi2 {v x l} (d : Ddfs_book v (x::l)) :
+      x ∉ v → Ddfs_book (x::v) (succs x ++ l) :=
+    match d in Ddfs_book v m return ∀ hm : is_nnil m, dhead hm ∉ v → Ddfs_book (dhead hm::v) (succs (dhead hm) ++ dtail hm) with
+    | Ddfs_bk_stop _  => λ C _, match C with end
+    | Ddfs_bk_in h _  => λ _ C, match C h with end
+    | Ddfs_bk_out _ d => λ _ h, d
+    end I.
+
+  Section dfs_book.
+
+    Let Fixpoint dfs {v l} (d : Ddfs_book v l) : {o | Gdfs_book v l o}.
+    Proof.
+      refine (match l return Ddfs_book _ l → _ with
+      | []   => λ _, exist _ v _
+      | x::l => λ d,
+        match in_dec x v with
+        | left hx  => let (o,ho) := dfs v l (Ddfs_book_pi1 d hx) 
+                      in exist _ o _
+        | right hx => let (o,ho) := dfs (x::v) (succs x ++ l) (Ddfs_book_pi2 d hx)
+                      in exist _ o _
+        end
+      end d); eauto.
+    Defined.
+
+    Local Fact Ddfs_book_Gdfs_book_proj v l : Ddfs_book v l → ∃o, Gdfs_book v l o.
+    Proof. intros []%dfs; eauto. Qed.
+
+    Let dfs_book_pwc x : (∃o, Gdfs_book [] [x] o) → {o | Gdfs_book [] [x] o} :=
+      λ hx, dfs (Gdfs_book_proj_Ddfs_book hx).
+
+    Definition dfs_book x dx := proj1_sig (dfs_book_pwc x dx).
+
+    Fact dfs_book_spec x dx : Gdfs_book [] [x] (dfs_book x dx).
+    Proof. apply (proj2_sig _). Qed.
+
+  End dfs_book.
+
   (** A self nested variant of dfs w/o List.app/@ :
 
       let dfs_cycle_self x =
@@ -665,20 +738,6 @@ Section dfs_cycle.
     now rewrite (Gdfs_cs_fun H3 H2).
   Qed.
 
-  Let is_nnil l := match l with [] => False | _ => True end.
-
-  Let dhead {l} : is_nnil l → X :=
-    match l with
-    | []   => λ void, match void with end
-    | y::_ => λ _, y
-    end.
-  
-  Let dtail {l} : is_nnil l → list X :=
-    match l with
-    | []   => λ void, match void with end
-    | _::l => λ _, l
-    end.
-
   Local Definition Ddfs_cs_pi1 {v x l} (d : Ddfs_cs v (x::l)) :
       x ∈ v → Ddfs_cs v l :=
     match d in Ddfs_cs v m return ∀ hm : is_nnil m, dhead hm ∈ v → Ddfs_cs v (dtail hm) with
@@ -760,6 +819,8 @@ Extraction dfs_cycle.
 Check dfs_cycle_self_spec.
 Extraction dfs_cycle_self.
 
+Check dfs_book_spec.
+Extraction dfs_book.
 
 
 
