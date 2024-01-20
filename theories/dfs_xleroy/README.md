@@ -211,7 +211,56 @@ let dfs_book x =
   in dfs_flatten [] [x]
 ```
 
-_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ?_
+_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ?
+Est-ce que ma chaine suivante marche pex?_
 
+```ocaml
+let dfs_xl_inld x =
+  let rec dfs x a =
+    if x ∈ a then a else
+      let rec dfs_list l a = match l with
+      | []   -> a
+      | y::l -> dfs_list l (dfs y a)
+      in x::dfl_list (succs x) a
+  in dfs x []
 
+let dfs_xl_self' x =
+  let rec dfs_list l a = match l with 
+  | []   -> a
+  | x::l -> dfs_list l (if x ∈ a then a else x::dfs_list (succs x) a)
+  in dfs_list [x] []
+
+let dfs_xl_self x =
+  let rec dfs_list a = function 
+  | []   -> a
+  | x::l -> dfs_list (if x ∈ a then a else x::dfs_list a (succs x)) l
+  in dfs_list [] [x]
+
+let dfs_xl_stack x =
+  let rec dfs_list_stack a = function
+  | []   -> (function
+    | []   -> a
+    | l::s -> dfs_list_stack a l s)
+  | x::l -> fun s ->
+    if x ∈ a then dfs_list_stack a l s
+    else x::dfs_list_stack a (succs x) (l::s) 
+  in dfs_list_stack [] [x] []
+
+let dfs_xl_eff x =
+  let rec dfs_stack a = function
+  | []         -> a
+  | []::ls     -> dfs_stack a ls
+  | (x::l)::ls ->
+    if x ∈ a then dfs_stack a (l::ls)
+    else x::dfs_stack a (succs x::l::ls) 
+  in dfs_stack [] [[x]]
+
+let dfs_xl_flatten x =
+  let rec dfs_flatten a = function
+  | []     -> a
+  | x::lls ->
+    if x ∈ a then dfs_flatten a lls
+    else x::dfs_flatten a (succs x @ lls) 
+  in dfs_flatten [] [x]
+```
 
