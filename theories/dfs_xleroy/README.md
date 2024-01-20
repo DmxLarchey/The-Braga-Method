@@ -159,7 +159,7 @@ let dfs_cycle_self x =
 
 ## From `dfs_cycle_fold` to `dfs_book`
 _DLW->JFM: préciser le sens ici...
-JFM->DLW: le sens de ? En tout cas j'ai renommé `dfs_cycle_grp` qui n'était pas très heureux et reformulé l'nesembkle pour repartir de `dfs_cycle_fold`_
+JFM->DLW: le sens de ? En tout cas j'ai renommé `dfs_cycle_grp` qui n'était pas très heureux et reformulé l'ensemble pour repartir de `dfs_cycle_fold`_
 
 Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using  a few number of semantic preserving elementary transformations.
 It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing-inlining `foldleft` and then `dfs_cycle_self` by replacing `dfs x` by `dfs_list [x]`.
@@ -187,7 +187,7 @@ let dfs_book_eff x =
     else dfs_stack (x::a) (succs x::l::ls) 
   in dfs_stack [] [[x]]
 ```
-The latter program can be actually seen as a variant of `dfs_book` which somewhat more efficient since its avoids calculations of list concatenations (hence its name).
+The latter program can be actually seen as a variant of `dfs_book` which somewhat more efficient since its avoids calculations of list concatenations, hence its name.
 Indeed, we finally obtain `dfs_book` by flattening `ls`, so that `(x :: l) :: ls`is represented by `x :: lls`, with `lls := l @ ls`, `succs x :: l :: ls` is represented by `succs x @ lls` and `lls`is renamed as just `l`.
 ```ocaml
 let dfs_book x =
