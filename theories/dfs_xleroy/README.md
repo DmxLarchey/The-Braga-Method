@@ -70,7 +70,18 @@ let dfs_xl_fold x =
 ```
 which we call _external nesting_ of `dfs` with `foldleft`.
 
-One could wonder why X. Leroy did not favor this external nesting (more compact, modular) over the inlined one. We speculate that there was a technical difficulty that prevented him from doing so, a difficulty that we already encountered ourselves (with eg. unbounded minimisation of partial recursive function) and which is the following:
+One could wonder why X. Leroy did not favor this external nesting (more compact, modular) over the inlined one. 
+
+_JFM->DLW: je serais bcp + prudent là-dessus. 
+
+Il y a toute une communauté de programmeurs, à laquelle X s'adresse aussi, qui préfèrent récursivité+filtrage explicite aux combinateurs dont surtout fold, qui est plus obscur que map par ex. : primo il y a foldleft et foldright, qui est Qui ? Deuzio il faut en plus se rappeler l'ordre de paramètres (aucun ordre n'est naturel, on le voit bien). Tertio la récursivité et le filtrage séparément sont plus flexibles et se comprennent bien séparément. Quatro l'abstraction c'est bien une fois qu'on est parfaitement habitué, mais on finit par perdre le fil, cf les constructions catégoriques. Et tout ça pour avoir au final qqchse qui n'est pas plus puissant est est plutôt moins expressif, par ex. qiand on veut récurrer sur une composante de profondeur plus que 1. C'est pour ça que Coq, parti des combinateurs à la système-T, a évolué vers Fixpoint+garde. En pratique la plupart reviewer industriels de base (que X semble avoir en tête dans son discours) préfèreront un code dans le style qu'il utilise pour CoqPL24 qu'avec foldleft.
+
+Pour nous c'est un peu différent : 1/ pouvoir traiter fold(left) a un intérêt général indépendant, là on a un bon terrain d'expérience et on est très contents de voir Braga fonctionner dessus ; 2/ ce qui est naturel est de dériver le pgm en style fixpoint à partir du pgm avec foldleft, pas l'inverse. Mais on ne doit pas imposer nos biais.
+
+Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un pied d'égalité, en indiquant qu'on traite indifféremment l'une et l'autre et que chacun(e) pourra adopter le style qu'il ou elle préfère, et que de plus nous savons gérer leur équivalence. cela attirera plus de public.
+._
+
+We speculate that there was a technical difficulty that prevented him from doing so, a difficulty that we already encountered ourselves (with eg. unbounded minimisation of partial recursive function) and which is the following:
 - `foldleft` is a higher-order function while `dfs_list` is just first-order;
 - while it is easy to write down `fold_left` in Coq (it is actually part of the Standard Library), this total function cannot be applied to DFS because DFS is inherently a partial function;
 - Ocaml does not distinguish partial functions from total function, but in Coq, partial functions are represented as total functions restricted by propositional pre-conditions;
@@ -143,7 +154,9 @@ let dfs_xl_self x =
 
 ## From `dfs_cycle_fold` to `dfs_book`
 
-_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
+_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives
+
+JFM->DLW: en y repensant ce matin, je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"_
 
 Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft` 
 ```ocaml
@@ -212,7 +225,9 @@ let dfs_book x =
 ```
 
 _DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ?
-Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais..._
+Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais...
+
+JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
 
 ```ocaml
 let dfs_xl_inld x =
