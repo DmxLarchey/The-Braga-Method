@@ -72,13 +72,13 @@ which we call _external nesting_ of `dfs` with `foldleft`.
 
 One could wonder why X. Leroy did not favor this external nesting (more compact, modular) over the inlined one. 
 
-_JFM->DLW: je serais bcp + prudent là-dessus. 
+_JFM->DLW: je serais bcp + prudent là-dessus._ 
 
-Il y a toute une communauté de programmeurs, à laquelle X s'adresse aussi, qui préfèrent récursivité+filtrage explicite aux combinateurs dont surtout fold, qui est plus obscur que map par ex. : primo il y a foldleft et foldright, qui est Qui ? Deuzio il faut en plus se rappeler l'ordre de paramètres (aucun ordre n'est naturel, on le voit bien). Tertio la récursivité et le filtrage séparément sont plus flexibles et se comprennent bien séparément. Quatro l'abstraction c'est bien une fois qu'on est parfaitement habitué, mais on finit par perdre le fil, cf les constructions catégoriques. Et tout ça pour avoir au final qqchse qui n'est pas plus puissant est est plutôt moins expressif, par ex. qiand on veut récurrer sur une composante de profondeur plus que 1. C'est pour ça que Coq, parti des combinateurs à la système-T, a évolué vers Fixpoint+garde. En pratique la plupart reviewer industriels de base (que X semble avoir en tête dans son discours) préfèreront un code dans le style qu'il utilise pour CoqPL24 qu'avec foldleft.
+_Il y a toute une communauté de programmeurs, à laquelle X s'adresse aussi, qui préfèrent récursivité+filtrage explicite aux combinateurs dont surtout fold, qui est plus obscur que map par ex. : primo il y a foldleft et foldright, qui est Qui ? Deuzio il faut en plus se rappeler l'ordre de paramètres (aucun ordre n'est naturel, on le voit bien). Tertio la récursivité et le filtrage séparément sont plus flexibles et se comprennent bien séparément. Quatro l'abstraction c'est bien une fois qu'on est parfaitement habitué, mais on finit par perdre le fil, cf les constructions catégoriques. Et tout ça pour avoir au final qqchse qui n'est pas plus puissant est est plutôt moins expressif, par ex. qiand on veut récurrer sur une composante de profondeur plus que 1. C'est pour ça que Coq, parti des combinateurs à la système-T, a évolué vers Fixpoint+garde. En pratique la plupart reviewer industriels de base (que X semble avoir en tête dans son discours) préfèreront un code dans le style qu'il utilise pour CoqPL24 qu'avec foldleft._
 
-Pour nous c'est un peu différent : 1/ pouvoir traiter fold(left) a un intérêt général indépendant, là on a un bon terrain d'expérience et on est très contents de voir Braga fonctionner dessus ; 2/ ce qui est naturel est de dériver le pgm en style fixpoint à partir du pgm avec foldleft, pas l'inverse. Mais on ne doit pas imposer nos biais.
+_Pour nous c'est un peu différent : 1/ pouvoir traiter fold(left) a un intérêt général indépendant, là on a un bon terrain d'expérience et on est très contents de voir Braga fonctionner dessus ; 2/ ce qui est naturel est de dériver le pgm en style fixpoint à partir du pgm avec foldleft, pas l'inverse. Mais on ne doit pas imposer nos biais._
 
-Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un pied d'égalité, en indiquant qu'on traite indifféremment l'une et l'autre et que chacun(e) pourra adopter le style qu'il ou elle préfère, et que de plus nous savons gérer leur équivalence. cela attirera plus de public.
+_Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un pied d'égalité, en indiquant qu'on traite indifféremment l'une et l'autre et que chacun(e) pourra adopter le style qu'il ou elle préfère, et que de plus nous savons gérer leur équivalence. cela attirera plus de public.
 ._
 
 We speculate that there was a technical difficulty that prevented him from doing so, a difficulty that we already encountered ourselves (with eg. unbounded minimisation of partial recursive function) and which is the following:
@@ -118,8 +118,8 @@ let dfs_book x =
 ```
 that uses list append/`@` as an external tool (of linear complexity). Notice that the internal loop `dfs` in `dfs_book` is _not a nested algorithm_ and it is moreover a recursive terminal algorithm. Also, the accumulator `a` which collects already visited nodes in the internal `dfs` appears first in `dfs_book` whereas it appears last for `dfs_xl` and `dfs_cycle`.
 
-_DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`.
-JFL->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact
+_DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`._
+_JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact
 et trivialement dérivable seult dans cette direction; mais la différence est la même._
 
 It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
@@ -154,9 +154,9 @@ let dfs_xl_self x =
 
 ## From `dfs_cycle_fold` to `dfs_book`
 
-_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives
+_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
 
-JFM->DLW: en y repensant ce matin, je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"_
+_JFM->DLW: en y repensant ce matin, je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"_
 
 Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft` 
 ```ocaml
