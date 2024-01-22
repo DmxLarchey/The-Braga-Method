@@ -74,8 +74,7 @@ From our point of view, that presentation with external nesting, more modular an
 As to why X. Leroy did not favor this external nesting over the inlined one, we can only speculate:
 - this could be related to the target audience which prefers _concrete_ recursion combined with explicit pattern matching 
   over the use of _abstract_ external combinators like `fold` or even `map`;
-- but also, we spot a technical difficulty that could have prevented him from doing so, a difficulty that we already 
-  encountered ourselves (with eg. unbounded minimisation or iterations of partial recursive functions) and which is the following:
+- but also, we spot a technical difficulty that could have prevented him from considering the external nesting _at the Coq level_, a difficulty that we already encountered ourselves (with eg. unbounded minimisation or iterations of partial recursive functions) and which is the following:
   - `foldleft` is a _higher-order_ function while `dfs_list` is just _first-order_;
   - while it is easy to write down `fold_left` in Coq (it is actually part of the `List` module in the standard library), this function cannot be applied to DFS because DFS is inherently a partial function, and `fold_left` assumes a total function as input parameter;
   - Ocaml does not distinguish partial functions from total function, but in Coq, partial functions are represented as total functions restricted by propositional pre-conditions;
