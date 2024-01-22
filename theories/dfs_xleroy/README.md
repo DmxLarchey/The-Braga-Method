@@ -58,7 +58,7 @@ let dfs_xl_inld x =
 ```
 and we qualify this form as an _inlined nesting_ of `dfs` with `dfs_list` (see below). 
 
-_DLW->JFM: la remarque sur les cycles et la position de `x::` existait déjà dans le paragraphe suivant et je l'ai complétée._
+[comment]_DLW->JFM: la remarque sur les cycles et la position de `x::` existait déjà dans le paragraphe suivant et je l'ai complétée._
 
 We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
 ```ocaml
@@ -79,9 +79,9 @@ As to why X. Leroy did not favor this external nesting over the inlined one, we 
   - `foldleft` is a _higher-order_ function while `dfs_list` is just _first-order_;
   - while it is easy to write down `fold_left` in Coq (it is actually part of the `List` module in the standard library), this function cannot be applied to DFS because DFS is inherently a partial function, and `fold_left` assumes a total function as input parameter;
   - Ocaml does not distinguish partial functions from total function, but in Coq, partial functions are represented as total functions restricted by propositional pre-conditions;
-  - hence we need to define Coq version of `foldleft` which is not only partial, but of which _the input parameter `f` itself is a partial function_. Hence, in Coq we need  `foldleft` as a partial polymorphic higher order function;
+  - hence we need to define a Coq version of `foldleft` which is not only partial, but of which _the input parameter `f` itself is a partial function_. Hence, in Coq we need  `foldleft` as a partial polymorphic higher order function;
 - willingly or not, X. Leroy circumvents this issue by inlining the nesting of `foldleft dfs` as `dfs_list` in the code of `dfs_xl_inld` itself:
-  - in that case `dfs_list` is still partial, but first-order, and does not need to deal with a partial function as first argument.
+  in that case `dfs_list` is still partial, but first-order only as it does not have to deal with a partial function as first argument.
 
 As a consequence, at the price of some slight redundancies, we deal with both external nesting and inlined nesting in a symmetric way
 in this presentation. 
