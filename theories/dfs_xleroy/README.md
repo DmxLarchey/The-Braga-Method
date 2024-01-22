@@ -113,7 +113,7 @@ let dfs_cycle_fold x =
 ```
 but this works just as well on the inlined nested variant:
 ```ocaml
-(* Variant of dfs_cycle with inlined nesting *)
+(* Variant of dfs_cycle_fold with inlined nesting *)
 let dfs_cycle_inld x =
   let rec dfs x a =
     if x ∈ a then a else
@@ -144,7 +144,7 @@ let dfs_book x =
 ```
 that uses list append (denoted infix as `@`) as an external tool (of linear complexity). Notice that the internal loop `dfs` in `dfs_book` is _not a nested algorithm_ and it is moreover a recursive terminal algorithm. Also, the accumulator `a` which collects already visited nodes in the internal `dfs` appears first in `dfs_book` whereas it appears last for `dfs_xl` and `dfs_cycle`.
 
-[comment] <> (_DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`. JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact et trivialement dérivable seult dans cette direction; mais la différence est la même._)
+[comment]: <> (DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`. JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact et trivialement dérivable seult dans cette direction; mais la différence est la même.)
 
 It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
 
@@ -160,9 +160,8 @@ let dfs_xl_self x =
 
 ## From `dfs_cycle_fold` to `dfs_book`
 
-_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
-
-_JFM->DLW: en y repensant ce matin, je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"_
+[comment]: <> (_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
+_JFM->DLW: en y repensant ce matin, je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"_)
 
 Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft` 
 ```ocaml
@@ -230,10 +229,11 @@ let dfs_book x =
   in dfs_flatten [] [x]
 ```
 
-_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ?
-Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais...
+_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais..._
 
-JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
+_JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
+
+_DLW->JFM: oui ça me rappelle des notions de dérécursivation mais ça serait bien d'expliquer pourquoi ça marche avec un nested comme `dfs_cycle_self` et pas avec `dfs_xl_self` parce qu'il n'est pas terminal ?_
 
 ```ocaml
 let dfs_xl_inld x =
