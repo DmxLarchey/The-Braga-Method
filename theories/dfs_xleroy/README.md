@@ -60,7 +60,7 @@ and we qualify this form as an _inlined nesting_ of `dfs` with `dfs_list` (see b
 
 [comment]: <> (DLW->JFM: la remarque sur les cycles et la position de `x::` existait déjà dans le paragraphe suivant et je l'ai complétée.)
 
-We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
+We recognize the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
 ```ocaml
 (* DFS variant by X. Leroy nested with foldleft *)
 let dfs_xl_fold x =
@@ -96,13 +96,14 @@ _Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un 
 
 _DLW->JFM: j'ai modéré les affirmations en tenant compte de ce que tu as écrit. Je suis d'accord avec tes arguments. Dis-moi si ça te convient. Ok pour traiter `xxx_fold` et `xxx_inld` de manière symmétrique._
 
-### The nested algorithm `dfs_cycle`
+### The nested algorithm `dfs_cycle` compared to `dfs_xl`
 
 In the code of `dfs_xl_fold`, we observe that in the internal `dfs` loop, the current node `x` is prepended using `x::_` to the result, but _too late_: precisely, this is done _after_ the successors of `x` are themselves visited, which prevents the algorithm to detect a possible repetition of `x` and thus avoid cycling forever. 
 
 The same remark of course applies to the code of `dfs_xl_inld` where `dfs_list` is just the inlining of `foldleft dfs`. We will indeed prove that `dfs_xl`, ie both algorithms, are suitable for DAGs only. 
  
-A slight change provides a version of DFS which will avoid this behavior and which we call `dfs_cycle`. The easiest way to observe the change is on the externally nested variant:
+A slight change provides a version of DFS which will avoid this behavior and which we call `dfs_cycle`. The easiest way to observe the change is on the externally nested variant, where we prepending of `x::_` occurs before starting traverse its successors: ie `x::(foldleft dfs (succs x) a)` is replaced with
+`foldleft dfs (succs x) (x::a)`. This gives us to following code:
 ```ocaml
 (* DFS variant of dfs_xl_fold which accommodates with cycles *)
 let dfs_cycle_fold x =
@@ -110,7 +111,26 @@ let dfs_cycle_fold x =
     if x ∈ a then a else foldleft dfs (succs x) (x::a)
   in dfs x []
 ```
-but this works just as well on the inlined nested variant (see below).
+but this works just as well on the inlined nested variant:
+```ocaml
+(* Variant of dfs_cycle with inlined nesting *)
+let dfs_cycle_inld x =
+  let rec dfs x a =
+    if x ∈ a then a else
+      let rec dfs_list l a = match l with
+      | []   -> a
+      | y::l -> dfs_list l (dfs y a)
+      in dfl_list (succs x) (x::a)
+  in dfs x []
+```
+
+This slight update from `dfs_xl` to `dfs_cycle`  has a significant impact on the semantics:
+but also do not have the same domains of termination:
+- the output list is different, in particular, on its order,
+- but also the precondition for termination is now larger, ie. `dfs_cycle` accepts
+  cycles in the graph, hence its name.
+
+We establish this formally. 
 
 ### The recursive terminal algorithm `dfs_book`
 
@@ -130,24 +150,6 @@ _JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus co
 et trivialement dérivable seult dans cette direction; mais la différence est la même._
 
 It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
-
-## Comparisons of `dfs_xl` and `dfs_cycle`
-
-_DLW->JFM: peut-être faut il merger ce paragraphe avec "The nested algo `dfs_cycle` ?_
-
-On the contrary, `dfs_xl` and `dfs_cycle` compute different outputs but also do not have the same domains of termination. We establish this formally. 
-
-If we compare the respective codes of the most compact variants `dfs_xl_fold` and `dfs_cycle_fold`, we notice that the difference is only in the position of `x::_`, ie when the current node of the graph is prepended to the accumulator or output:
-- in `dfs_xl_fold    : ... x::(foldleft dfs (succs x) a) ...`;
-- in `dfs_cycle_fold : ... foldleft dfs (succs x) (x::a) ...`.
-
-Of course, the same mutation operates on the variants expressed with nested recursion:
-- in `dfs_xl_inld    : ... x::(dfs_list (succs x) a) ...`;
-- in `dfs_cycle_inld : ... dfs_list (succs x) (x::a) ...`.
-
-This change has a significant impact on the semantics:
-- on the order of the output list of course,
-- but mainly the weakest precondition for termination (wrt. cycles in the graph).
 
 ## Further Variations
 To complete our exploration, we also study the following variants of `dfs_xl` and `dfs_cycle`, with _self-nesting_ of their internal loop `dfs_list`:
