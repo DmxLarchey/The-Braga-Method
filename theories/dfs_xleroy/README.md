@@ -70,7 +70,21 @@ let dfs_xl_fold x =
 ```
 which we call _external nesting_ of `dfs` with `foldleft`.
 
-One could wonder why X. Leroy did not favor this external nesting (more compact, modular) over the inlined one. 
+From our point of view, that presentation with external nesting, more modular and more compact, would be the favored one.
+As to why X. Leroy did not favor this external nesting over the inlined one, we can only speculate:
+- this could be related to the target audience which prefers _concrete_ recursion combined with explicit pattern matching 
+  over the use of _abstract_ external combinators like `fold` or even `map`;
+- but also, we spot a technical difficulty that could have prevented him from doing so, a difficulty that we already 
+  encountered ourselves (with eg. unbounded minimisation of partial recursive function) and which is the following:
+  - `foldleft` is a higher-order function while `dfs_list` is just first-order;
+  - while it is easy to write down `fold_left` in Coq (it is actually part of the Standard Library), this total function cannot be applied to DFS because DFS is inherently a partial function;
+  - Ocaml does not distinguish partial functions from total function, but in Coq, partial functions are represented as total functions restricted by propositional pre-conditions;
+  - hence we need to define Coq version of `foldleft` which is not only partial, but of which _the input parameter `f` itself is a partial function_. Hence, in Coq we need  `foldleft` as a partial polymorphic higher order function;
+  - X. Leroy circumvents this issue by inlining the nesting of `foldleft dfs` as `dfs_list` in the code of `dfs_xl_inld` itself;
+  - in that case `dfs_list` is still partial, but first-order, and does not need to deal with a partial function as first argument.
+
+As a consequence, at the price of some slight redundancies, we deal with both external nesting and inlined nesting in a symmetric way
+in this presentation. 
 
 _JFM->DLW: je serais bcp + prudent là-dessus._ 
 
@@ -78,16 +92,9 @@ _Il y a toute une communauté de programmeurs, à laquelle X s'adresse aussi, qu
 
 _Pour nous c'est un peu différent : 1/ pouvoir traiter fold(left) a un intérêt général indépendant, là on a un bon terrain d'expérience et on est très contents de voir Braga fonctionner dessus ; 2/ ce qui est naturel est de dériver le pgm en style fixpoint à partir du pgm avec foldleft, pas l'inverse. Mais on ne doit pas imposer nos biais._
 
-_Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un pied d'égalité, en indiquant qu'on traite indifféremment l'une et l'autre et que chacun(e) pourra adopter le style qu'il ou elle préfère, et que de plus nous savons gérer leur équivalence. cela attirera plus de public.
-._
+_Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un pied d'égalité, en indiquant qu'on traite indifféremment l'une et l'autre et que chacun(e) pourra adopter le style qu'il ou elle préfère, et que de plus nous savons gérer leur équivalence. cela attirera plus de public._
 
-We speculate that there was a technical difficulty that prevented him from doing so, a difficulty that we already encountered ourselves (with eg. unbounded minimisation of partial recursive function) and which is the following:
-- `foldleft` is a higher-order function while `dfs_list` is just first-order;
-- while it is easy to write down `fold_left` in Coq (it is actually part of the Standard Library), this total function cannot be applied to DFS because DFS is inherently a partial function;
-- Ocaml does not distinguish partial functions from total function, but in Coq, partial functions are represented as total functions restricted by propositional pre-conditions;
-- hence we need to define Coq version of `foldleft` which is not only partial, but of which _the input parameter `f` itself is a partial function_. Hence, in Coq we need  `foldleft` as a partial polymorphic higher order function;
-- X. Leroy circumvents this issue by inlining the nesting of `foldleft dfs` as `dfs_list` in the code of `dfs_xl_inld` itself;
-- in that case `dfs_list` is still partial, but first-order, and does not need to deal with a partial function as first argument.
+_DLW->JFM: j'ai modéré les affirmations en tenant compte de ce que tu as écrit. Je suis d'accord avec tes arguments. Dis-moi si ça te convient. Ok pour traiter `xxx_fold` et `xxx_inld` de manière symmétrique.
 
 ### The nested algorithm `dfs_cycle`
 
