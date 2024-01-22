@@ -56,9 +56,9 @@ let dfs_xl_inld x =
       in x::dfl_list (succs x) a
   in dfs x []
 ```
-and we qualify this form as an _inlined nesting_ of `dfs` with `dfs_list` (see below). 
+and we qualify this form as an _inlined nesting_ of `dfs` with `dfs_list` (see below).
 
-[comment]_DLW->JFM: la remarque sur les cycles et la position de `x::` existait déjà dans le paragraphe suivant et je l'ai complétée._
+[comment]: <> (DLW->JFM: la remarque sur les cycles et la position de `x::` existait déjà dans le paragraphe suivant et je l'ai complétée.)
 
 We recognise the internally defined `dfs_list` is the particular instance of `foldleft` where `dfs_list = foldleft dfs`. Factoring out this inlining, we get the following variant:
 ```ocaml
