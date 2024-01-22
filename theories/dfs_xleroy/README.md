@@ -125,16 +125,15 @@ let dfs_cycle_inld x =
 ```
 
 This slight update from `dfs_xl` to `dfs_cycle`  has a significant impact on the semantics:
-but also do not have the same domains of termination:
 - the output list is different, in particular, on its order,
-- but also the precondition for termination is now larger, ie. `dfs_cycle` accepts
-  cycles in the graph, hence its name.
+- but also, critically, the precondition for termination is now more permissive, 
+  ie. `dfs_cycle` accepts graphs that do contain cycles, hence its name.
 
-We establish this formally. 
+We establish these formally. 
 
 ### The recursive terminal algorithm `dfs_book`
 
-In the Braga book chapter however, we study the following variant of DFS
+In the Braga book chapter however, we studied the following variant of DFS
 ```ocaml
 (* DFS variant as described in the Braga book chapter *)
 let dfs_book x =
@@ -143,11 +142,9 @@ let dfs_book x =
   | x::l -> if x ∈ a then dfs a l else dfs (x::a) (succs x @ l)
   in dfs [] [x]
 ```
-that uses list append/`@` as an external tool (of linear complexity). Notice that the internal loop `dfs` in `dfs_book` is _not a nested algorithm_ and it is moreover a recursive terminal algorithm. Also, the accumulator `a` which collects already visited nodes in the internal `dfs` appears first in `dfs_book` whereas it appears last for `dfs_xl` and `dfs_cycle`.
+that uses list append (denoted infix as `@`) as an external tool (of linear complexity). Notice that the internal loop `dfs` in `dfs_book` is _not a nested algorithm_ and it is moreover a recursive terminal algorithm. Also, the accumulator `a` which collects already visited nodes in the internal `dfs` appears first in `dfs_book` whereas it appears last for `dfs_xl` and `dfs_cycle`.
 
-_DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`._
-_JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact
-et trivialement dérivable seult dans cette direction; mais la différence est la même._
+[comment] <> (_DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`. JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact et trivialement dérivable seult dans cette direction; mais la différence est la même._)
 
 It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
 
