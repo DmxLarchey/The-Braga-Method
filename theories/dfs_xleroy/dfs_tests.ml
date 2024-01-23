@@ -158,6 +158,14 @@ let dfs_cyc_br succs =
                 else let succs_paths = map_n (fun n s -> (s,p@[n])) (succs y) in
                      dfs (y::a) (p::ab) (succs_paths @ l)
   in fun x -> dfs [] [] [(x,[])];;
+  
+let dfs_cyc_paths succs =
+  let rec dfs a ab = function
+  | []          -> ab
+  | (x,p,y)::l -> if in_dec y a then dfs a ab l
+                  else let succs_paths = map_n (fun n z -> (x,p@[n],z)) (succs y) in
+                       dfs (y::a) ((x,p,y)::ab) (succs_paths @ l)
+  in fun x -> dfs [] [] [(x,[],x)];;
                    
 let rev_map f =
   let rec loop a = function

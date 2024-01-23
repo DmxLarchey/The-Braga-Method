@@ -36,6 +36,7 @@ dfs_xleroy/dfs_abstract.v
 dfs_xleroy/dfs_xleroy.v
 dfs_xleroy/dfs_inloop.v
 dfs_xleroy/dfs_cycle.v
+dfs_xleroy/dfs_cycle_br.v
 dfs_xleroy/dfs_braga_reversed.v
 dfs_xleroy/dfs_braga_unfactored.v
 
