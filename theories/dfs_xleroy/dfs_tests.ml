@@ -103,3 +103,100 @@ test_rev 4;;
    reversal of the output list. This remains to be
    established with a proof. *)
 
+let rec rev_acc a l =
+  match l with
+  | []   -> a
+  | x::m -> rev_acc (x::a) m;;
+
+let rev l = rev_acc [] l;;
+
+let foldleft f =
+  let rec loop l a = match l with
+  | []   -> a
+  | x::m -> loop m (f x a)
+  in loop;;
+
+let foldnum f =
+ let rec loop n l a = match l with
+ | []   -> a
+ | x::m -> loop (1+n) m (f (n,x) a)
+ in loop 0;;
+
+foldnum (fun (n,_) a -> n::a) [0;0;0;0;0;0] [];;
+
+let dfs_cycle succs x =
+  let rec dfs x a =
+    if in_dec x a then a
+    else foldleft dfs (succs x) (x::a)
+  in dfs x [];;
+
+let dfs_cycle_br succs x =
+  let rec dfs b (n,x) (a,ab) =
+    if in_dec x a then (a,ab)
+    else foldnum (dfs (n::b)) (succs x) (x::a,(n::b)::ab)
+  in dfs [] (0,x) ([],[]);;
+
+let rec dfs_cyc succs =
+  let rec dfs a = function
+  | []   -> a
+  | y::l -> if in_dec y a then dfs a l
+            else dfs (y::a) (succs y @ l)
+  in fun x -> dfs [] [x];;
+
+(* l is a list of (nodes,path) *)
+
+let map_n f = 
+  let rec loop n = function 
+  | []   -> []
+  | x::l -> (f n x)::loop (n+1) l
+  in loop 0;;
+
+let dfs_cyc_br succs =
+  let rec dfs a ab = function
+  | []       -> ab
+  | (y,p)::l -> if in_dec y a then dfs a ab l
+                else let succs_paths = map_n (fun n s -> (s,p@[n])) (succs y) in
+                     dfs (y::a) (p::ab) (succs_paths @ l)
+  in fun x -> dfs [] [] [(x,[])];;
+                   
+let rev_map f =
+  let rec loop a = function
+  | []   -> a
+  | x::l -> loop (f x::a) l
+  in loop [];;
+
+let head = function
+| []   -> assert false
+| x::_ -> x;;
+
+let tail = function
+| []    -> []
+| _ ::l -> l;;
+
+let rec nth n l =
+  if n = 0 then head l 
+  else nth (n-1) (tail l);;
+
+let find succs =
+  let rec loop x = function
+  | []   -> x
+  | n::l -> loop (nth n (succs x)) l
+  in loop;;
+
+let test s =
+  let succs x = if x > 2 then [x-3;x-2;x-1] else [] in 
+  let (a,ab) = dfs_cycle_br succs s in  
+  let br = dfs_cyc_br succs s in
+  let dfs   = rev a in
+  let paths = rev_map (fun l -> tail (rev l)) ab in
+  let nodes = rev (rev_map (find succs s) paths)
+  in (dfs,paths,nodes, rev br);;
+
+(* It looks like dfs_cycle_br computes:
+   - the nodes in prefix left/right order
+   - the ordered list of smallest paths corresponding 
+     to thoses nodes, for lexicographic ordering *)
+ 
+test 5;;
+
+
