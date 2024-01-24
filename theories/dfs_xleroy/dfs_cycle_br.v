@@ -25,7 +25,7 @@ Section map_n.
 
   Variables (X Y : Type) (f : nat → X → Y).
 
-  Let Fixpoint loop n l {struct l} :=
+  Local Fixpoint loop n l {struct l} :=
     match l with
     | []   => []
     | x::l => f n x :: loop (S n) l
@@ -60,7 +60,21 @@ Section map_n.
 
 End map_n.
 
+Arguments loop {X Y}.
 Arguments map_n {X Y}.
+
+Local Fact map_loop X Y Z (f : nat → X → Y) (g : Y → Z) n l :
+   map g (loop f n l) = loop (fun n x => g (f n x)) n l.
+Proof. induction l in n |- *; simpl; f_equal; auto. Qed.
+
+Local Fact loop_id X n l : loop (fun _ (x : X) => x) n l = l.
+Proof. induction l in n |- *; simpl; f_equal; auto. Qed.
+
+Fact map_map_n X Y Z (f : nat → X → Y) (g : Y → Z) l : map g (map_n f l) = map_n (fun n x => g (f n x)) l.
+Proof. apply map_loop. Qed.
+
+Fact map_n_id X l : map_n (fun _ (x : X) => x) l = l.
+Proof. apply loop_id. Qed.
 
 Section dfs_cycle_br.
 
@@ -86,44 +100,99 @@ Section dfs_cycle_br.
     | is_path_nil  x : is_path x [] x
     | is_path_cons x n y l z : is_nth (succs x) y n → is_path y l z → is_path x (n::l) z.
 
-  (*
+  Hint Constructors is_path : core.
 
-let dfs_cyc_paths succs =
-  let rec dfs a ab = function
-  | []          -> ab
-  | (x,p,y)::l -> if in_dec y a then dfs a ab l
-                  else let succs_paths = map_n (fun n z -> (x,p@[n],z)) (succs y) in
-                       dfs (y::a) (p::ab) (succs_paths @ l)
-  in fun x -> dfs [] [] [(x,[],x)];;
+  Fact is_path_app x l y m z : is_path x l y → is_path y m z → is_path x (l++m) z.
+  Proof. induction 1; simpl; eauto. Qed.
+
+  (**
+
+  let p3 (_,_,x) = x;;
+
+  let dfs_cyc_paths succs =
+    let rec dfs a  = function
+    | []         -> a
+    | (x,p,y)::l -> if in_dec y (map p3 a) then dfs a l
+                    else let sp = map_n (fun n z -> (x,p@[n],z)) (succs y) 
+                         in dfs ((x,p,y)::a) (sp @ l)
+    in fun x -> dfs [] [] [(x,[],x)];;
 
   *)
 
-  Inductive Gdfs_paths : list X → list (X*list nat*X) → list (X*list nat*X) → list (X*list nat*X) → Prop :=
-    | Gdfs_paths_stop v a :          Gdfs_paths v a [] a
-    | Gdfs_paths_in {v a x p y l o} :  x ∈ v
-                                    → Gdfs_paths v a l o
-                                    → Gdfs_paths v a ((x,p,y)::l) o
-    | Gdfs_paths_out {v a x p y l o} : x ∉ v
-                                   → (let sp := map_n (fun n s => (x,p++[n],s)) (succs x)
-                                      in Gdfs_paths (x::v) ((x,p,y)::a) (sp++l) o)
-                                   → Gdfs_paths v a ((x,p,y)::l) o.
+  Let p3 (c : X*list nat*X) := let '(_,_,y) := c in y.
+
+  Inductive Gdfs_paths : list (X*list nat*X) → list (X*list nat*X) → list (X*list nat*X) → Prop :=
+    | Gdfs_paths_stop a :            Gdfs_paths a [] a
+    | Gdfs_paths_in {a x p y l o} :  y ∈ map p3 a
+                                   → Gdfs_paths a l o
+                                   → Gdfs_paths a ((x,p,y)::l) o
+    | Gdfs_paths_out {a x p y l o} : y ∉ map p3 a
+                                    → (let sp := map_n (fun n s => (x,p++[n],s)) (succs y)
+                                      in Gdfs_paths ((x,p,y)::a) (sp++l) o)
+                                    → Gdfs_paths a ((x,p,y)::l) o.
+
+  Hint Constructors Gdfs_paths : core.
 
   Let ip : X*list nat*X -> Prop := fun '(x,p,y) => is_path x p y.
 
-  Fact Gdfs_paths_prop v a l o : Gdfs_paths v a l o 
+  Fact Gdfs_paths_prop a l o : Gdfs_paths a l o 
                                → Forall ip a 
                                → Forall ip l
                                → Forall ip o.
   Proof.
-    induction 1 as [ | v a x p y l o H1 H2 IH2 | v a x p y l o H1 H2 IH2 ]; eauto;
+    induction 1 as [ | a x p y l o H1 H2 IH2 | a x p y l o H1 H2 IH2 ]; eauto;
       intros H3 [H4 H5]%Forall_cons_iff; auto.
     apply IH2; auto.
     apply Forall_app; split; auto.
     clear H1 H2 IH2 H3 H5.
     apply Forall_forall.
     intros c (n & x' & -> & ?)%in_map_n.
-    red.
-    (* is_path_app !! *)
-  Admitted.
+    apply is_path_app with (1 := H4); eauto.
+  Qed.
+
+  Hint Constructors Gdfs_book : core.
+
+  (* We related the image of dfs_paths to that of dfs_book *)
+  Fact Gdfs_paths_Gdfs_book a l o : Gdfs_paths a l o → Gdfs_book _ succs (map p3 a) (map p3 l) (map p3 o).
+  Proof.
+    induction 1 as [ | a x p y l o H1 H2 IH2 | a x p y l o H1 H2 IH2 ]; simpl in *; eauto.
+    constructor 3; auto.
+    rewrite map_app, map_map_n in IH2; simpl in IH2.
+    now rewrite map_n_id in IH2.
+  Qed.
+
+  Fact Gdfs_book_Gdfs_paths v l o :
+           Gdfs_book _ succs v l o
+        → forall a m, map p3 a = v -> map p3 m = l -> exists p, map p3 p = o /\ Gdfs_paths a m p.
+  Proof.
+    induction 1 as [ v | v x l o H1 H2 IH2 | v x l o H1 H2 IH2 ]; intros a m E1 E2.
+    + apply map_eq_nil in E2; subst; eauto.
+    + apply map_eq_cons in E2 as (((x',p),y) & m' & ? & ? & ?); subst.
+      destruct (IH2 _ _ eq_refl eq_refl) as (o' & []); subst.
+      exists o'; split; eauto.
+    + apply map_eq_cons in E2 as (((x',p),y) & m' & ? & ? & ?); subst.
+      destruct (IH2 ((x',p,y)::a) (map_n (fun n s => (x',p++[n],s)) (succs y)++m'))
+        as (o' & <- & ?); auto.
+      * rewrite map_app, map_map_n; f_equal; apply map_n_id.
+      * exists o'; split; eauto.
+  Qed.
+
+  Theorem Gdfs_paths_iff_Gdfs_book a l o : Gdfs_book _ succs (map p3 a) (map p3 l) o <-> exists p, map p3 p = o /\ Gdfs_paths a l p.
+  Proof.
+    split.
+    + intro; now apply Gdfs_book_Gdfs_paths with (2 := eq_refl) (3 := eq_refl).
+    + intros (p & <- & ?); now apply Gdfs_paths_Gdfs_book.
+  Qed.
+
+  (* Termination equivalence between dfs_paths and dfs_book *)
+  Corollary Ddfs_book_Ddfs_paths x : ex (Gdfs_book _ succs [] [x]) <-> ex (Gdfs_paths [] [(x,[],x)]).
+  Proof.
+    split.
+    + intros (o & Ho).
+      apply Gdfs_book_Gdfs_paths with (a := []) (m := [(x,[],x)]) in Ho
+        as (p & []); auto; eauto.
+    + intros (o & ?%Gdfs_paths_Gdfs_book); now exists (map p3 o).
+  Qed.
+
 
 End dfs_cycle_br.
