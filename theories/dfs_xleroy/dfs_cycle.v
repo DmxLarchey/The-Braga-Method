@@ -551,6 +551,12 @@ Section dfs_cycle.
 
   Hint Constructors Gdfs_book : core.
 
+  Fact Gdfs_book_fun v l o₁ o₂ : Gdfs_book v l o₁ → Gdfs_book v l o₂ → o₁ = o₂.
+  Proof.
+    induction 1 in o₂ |- *; intros G%Gdfs_book_inv; eauto;
+      destruct G as [ [] | [] ]; eauto; tauto.
+  Qed.
+
   Fact Gdfs_book_app v w l m o : Gdfs_book v l w → Gdfs_book w m o → Gdfs_book v (l++m) o.
   Proof.
     induction 1 in m, o |- *; simpl; eauto.
