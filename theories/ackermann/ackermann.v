@@ -59,7 +59,7 @@ Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Gack (S m) n v → Da
 Fixpoint ack_pwc m n (d : Dack m n) : sig (Gack m n).
 Proof.
   refine(match m, n return Dack m n → sig (Gack m n) with
-  |   0 , _   => λ _, exist _ (1+n) _
+  |   0 ,   _ => λ _, exist _ (1+n) _
   | S m ,   0 => λ d, let (o,ho) := ack_pwc m 1 (Dack_pi1 d)     in
                       exist _ o _
   | S m , S n => λ d, let (v,hv) := ack_pwc (S m) n (Dack_pi2 d) in
@@ -100,7 +100,7 @@ Proof.
   destruct G as (? & <-%IH1 & ?); eauto.
 Qed.
 
-(* Fixpoint equations come from Gack constructors 
+(* Fixpoint equations come from Gack constructors
    and Gack_[spec_fun] *)
 
 #[local] Hint Resolve ack_spec Gack_fun : core.
@@ -132,11 +132,11 @@ Inductive ack_sub_calls : nat*nat → nat*nat → Prop :=
 
 Arguments Acc_inv {_ _ _} _ {_}.
 
-(* We use Acc_inv that recover the sub-term for a proof of d : Acc ... *) 
+(* We use Acc_inv that recover the sub-term for a proof of d : Acc ... *)
 Fixpoint ack_pwc_Acc m n (d : Acc ack_sub_calls (m,n)) : sig (Gack m n).
 Proof.
   refine(match m, n return Acc ack_sub_calls (m,n) → sig (Gack m n) with
-  |   0 , _   => λ _, exist _ (1+n) _
+  |   0 ,   _ => λ _, exist _ (1+n) _
   | S m ,   0 => λ d, let (o,ho) := ack_pwc_Acc m 1 (Acc_inv d _)     in
                       exist _ o _
   | S m , S n => λ d, let (v,hv) := ack_pwc_Acc (S m) n (Acc_inv d _) in
@@ -145,16 +145,16 @@ Proof.
   end d); eauto.
 Defined.
 
-Lemma ack_sub_calls_inv p q : 
+Lemma ack_sub_calls_inv p q :
        ack_sub_calls p q 
      → match q with
        | (  0 ,   n) => False
        | (S m ,   0) => (m,1) = p
-       | (S m , S n) => (S m, n) = p
+       | (S m , S n) => (S m,n) = p
                       ∨ ∃v, Gack (S m) n v
                           ∧ (m,v) = p
        end.
-Proof. destruct 1; eauto. Qed. 
+Proof. destruct 1; eauto. Qed.
 
 Lemma ack_termination_Acc m n : Acc ack_sub_calls (m,n).
 Proof.
@@ -164,7 +164,8 @@ Proof.
   intros ? [ | (? & _ & ?)]%ack_sub_calls_inv; subst; auto.
 Qed.
 
-(* Then we can finish as in the case of Dack *)
+(** Then we can finish as in the case of Dack with the def of ack
+    and the fixpoint equations, and extraction *)
 
 
 
