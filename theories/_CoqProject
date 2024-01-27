@@ -64,6 +64,10 @@ unif/unif_fix.v
 unif/unif_partial_corr.v
 unif/unif_term.v
 
+# Ackermann function, pure Braga with termination
+
+ackermann/ackermann.v
+
 # Utilities
 
 utils/measure_induction.v
