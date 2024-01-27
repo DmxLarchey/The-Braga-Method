@@ -63,7 +63,7 @@ Proof.
   | S m ,   0 => λ d, let (o,ho) := ack_pwc m 1 (Dack_pi1 d) in 
                       exist _ o _
   | S m , S n => λ d, let (v,hv) := ack_pwc (S m) n (Dack_pi2 d) in
-                          let (o,ho) := ack_pwc m v (Dack_pi3 d hv)  in
+                      let (o,ho) := ack_pwc m v (Dack_pi3 d hv)  in
                       exist _ o _
   end d); eauto.
 Defined.
