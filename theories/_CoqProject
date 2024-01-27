@@ -55,6 +55,10 @@ unif/unif_fix.v
 unif/unif_partial_corr.v
 unif/unif_term.v
 
+# The Ackermann function, with termination in just 2 lines
+
+ackermann/ackermann.v
+
 # Utilities
 
 utils/measure_induction.v
