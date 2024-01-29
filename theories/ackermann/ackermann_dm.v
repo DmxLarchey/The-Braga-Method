@@ -9,30 +9,37 @@
 (*         CeCILL v2.1 FREE SOFTWARE LICENSE AGREEMENT        *)
 (**************************************************************)
 
-(* This is the variant following the approach of D. Moniaux.
+(* This is the variant following the approach of D. Monniaux.
 
-   In this variant of the domain predicate, the output value
-   of the nested call is recovered using an existential
-   quantifier ∃v, favoured over a universal quantifier ∀v.
+   In this variant of the domain predicate, the output value of the
+   nested call is recovered using an existential quantifier ∃v,
+   favoured over a universal quantifier ∀v.
 
-   This change has some (limited) consequences, mainly
+   This change has some (limited, in terms of development effort)
+   consequences, mainly
  
-   - we now need functionality of Gack to perform rewrite
-     (this is a match on a proof of identity). This occurs
-     in the third projection of the domain predicate;
+   - we now need functionality of Gack to perform rewrite (this is a
+     match on a proof of identity). This occurs in the third
+     projection of the domain predicate;
 
-   - and also, that the domain is included in the projection
-     of the graph: Dack m n → ex (Gack m n), while proving
-     termination. This can of course be proved using ack_pwc
-     itself.
+   - and also, that the domain is included in the projection of the
+     graph: Dack m n → ex (Gack m n), while proving termination. This
+     can of course be proved using ack_pwc itself.
 
-   DLW: I recall using a similar ∃-characterisation for
-   another example (possibly f91? or maybe unification?) 
-   in the early days of the discovery of the Braga method,
-   but later decided it was more cumbersome to work with 
-   that the ∀-characterisation.
-   Not sure it works so well when the function is indeed
-   partial and not total like Ackermann.
+   DLW: I recall using a similar ∃-characterisation for another
+   example (possibly f91? or maybe unification?)  in the early days of
+   the discovery of the Braga method, but later decided it was more
+   cumbersome to work with that the ∀-characterisation.  Not sure it
+   works so well when the function is indeed partial and not total
+   like Ackermann.
+
+   JFM: agreed, we first considered the ∃ approach.
+   Looking again at it, the corresponding termination certificate has
+   a very different contents: it explicitly contains a chain of all
+   intermediate witnesses (the outputs of nested calls), while the
+   version favoured in Braga with a nested ∀ contains none of them, it
+   just waits for such outputs instead, and can then be seen as a lazy
+   version of the ∃ certificate.
 *)
 
 Require Import Utf8 Extraction.
@@ -83,7 +90,7 @@ Qed.
                      → Dack m v
                      → Dack (S m) (S n)
 
-   which is the version favoured by DM.
+   which icorresponds to the version initially proposed by DM.
 
   Notice that all the variants can be worked out,
   not just the last one.
@@ -151,7 +158,7 @@ Proof.
   destruct ack_pwc with (1 := IHn); eauto.
 Qed.
 
-(* Unchanged bellow *)
+(* Unchanged below *)
 
 Definition ack m n := proj1_sig (ack_pwc m n (ack_termination m n)).
 
