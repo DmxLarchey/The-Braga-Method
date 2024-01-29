@@ -12,7 +12,7 @@
 Require Import Utf8 Extraction.
 
 Inductive Gack : nat → nat → nat → Prop :=
-  | Gack_0_n n       : Gack 0 n (1+n)
+  | Gack_0_n n       : Gack 0 n (S n)
   | Gack_S_0 m o     : Gack m 1 o
                      → Gack (S m) 0 o
   | Gack_S_S m n v o : Gack (S m) n v
@@ -59,16 +59,19 @@ Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Gack (S m) n v → Da
 Fixpoint ack_pwc m n (d : Dack m n) : sig (Gack m n).
 Proof.
   refine (match m return Dack m _ → sig (Gack m _) with
-  | 0 => λ _, exist _ (1+n) _
-  | 
-  refine(match m, n return Dack m n → sig (Gack m n) with
-  |   0 ,   _ => λ _, exist _ (1+n) _
-  | S m ,   0 => λ d, let (o,ho) := ack_pwc m 1 (Dack_pi1 d)     in
-                      exist _ o _
-  | S m , S n => λ d, let (v,hv) := ack_pwc (S m) n (Dack_pi2 d) in
-                      let (o,ho) := ack_pwc m v (Dack_pi3 d hv)  in
-                      exist _ o _
+  | 0   => λ _, exist _ (S n) _
+  | S m => λ d, let (v,hv) :=
+                  match n return Dack _ n → { v | match n with 0 => v = 1 | S n => Gack (S m) n v end } with 
+                  | 0   => λ _, exist _ 1 eq_refl
+                  | S n => λ d, ack_pwc (S m) n (Dack_pi2 d)
+                  end d in
+                let (o,ho) := ack_pwc m v _ in
+                exist _ o _
   end d); eauto.
+  + destruct n; subst.
+    * apply (Dack_pi1 d).
+    * now apply (Dack_pi3 d).
+  + destruct n; subst; eauto.
 Defined.
 
 (* Termination of ack. Lexicographic product is by nested induction *)
@@ -120,56 +123,3 @@ Proof. eauto. Qed.
 (* Extraction is right on spot *)
 Extraction Inline ack_pwc.
 Extraction ack.
-
-(* This alternate avoids tailored small inversions and
-   replaces them with the generic Acc_inv, so we get
-   a shorter proof.*)
-
-(* We define the sub-call/call relation inductivelly *)
-Inductive ack_sub_calls : nat*nat → nat*nat → Prop :=
-  | ack_sc_1 m     : ack_sub_calls (m,1) (S m,0)
-  | ack_sc_2 m n   : ack_sub_calls (S m,n) (S m, S n)
-  | ack_sc_3 m n v : Gack (S m) n v → ack_sub_calls (m,v) (S m,S n).
-
-#[local] Hint Constructors ack_sub_calls : core.
-
-Arguments Acc_inv {_ _ _} _ {_}.
-
-(* We use Acc_inv that recover the sub-term for a proof of d : Acc ... *)
-Fixpoint ack_pwc_Acc m n (d : Acc ack_sub_calls (m,n)) : sig (Gack m n).
-Proof.
-  refine (match m return 
-  refine(match m, n return Acc ack_sub_calls (m,n) → sig (Gack m n) with
-  |   0 ,   _ => λ _, exist _ (1+n) _
-  | S m ,   0 => λ d, let (o,ho) := ack_pwc_Acc m 1 (Acc_inv d _)     in
-                      exist _ o _
-  | S m , S n => λ d, let (v,hv) := ack_pwc_Acc (S m) n (Acc_inv d _) in
-                      let (o,ho) := ack_pwc_Acc m v (Acc_inv d _)     in
-                      exist _ o _
-  end d); eauto.
-Defined.
-
-Lemma ack_sub_calls_inv p q :
-       ack_sub_calls p q 
-     → match q with
-       | (  0 ,   n) => False
-       | (S m ,   0) => (m,1) = p
-       | (S m , S n) => (S m,n) = p
-                      ∨ ∃v, Gack (S m) n v
-                          ∧ (m,v) = p
-       end.
-Proof. destruct 1; eauto. Qed.
-
-Lemma ack_termination_Acc m n : Acc ack_sub_calls (m,n).
-Proof.
-  induction m in n |- *; [ | induction n ];
-    constructor. 
-  1,2: intros ? []%ack_sub_calls_inv; auto.
-  intros ? [ | (? & _ & ?)]%ack_sub_calls_inv; subst; auto.
-Qed.
-
-(** Then we can finish as in the case of Dack with the def of ack
-    and the fixpoint equations, and extraction *)
-
-
-
