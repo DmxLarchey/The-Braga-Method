@@ -27,9 +27,9 @@
      can of course be proved using ack_pwc itself.
 
    DLW: I recall using a similar ∃-characterisation for another
-   example (possibly f91? or maybe unification?)  in the early days of
+   example (possibly f91? or maybe unification?) in the early days of
    the discovery of the Braga method, but later decided it was more
-   cumbersome to work with that the ∀-characterisation.  Not sure it
+   cumbersome to work with that the ∀-characterisation. Not sure it
    works so well when the function is indeed partial and not total
    like Ackermann.
 
@@ -81,7 +81,7 @@ Qed.
     Dack_S_S {m n} : Dack (S m) n
                    → ∀v, (Gack (S m) n v ∧ Dack m v)
                         → Dack (S m) (S n)
-  
+
    or equivalently, permuting ∀v with → ahead
    and stripping away ∧ using Curry-Howard
 
@@ -90,11 +90,11 @@ Qed.
                      → Dack m v
                      → Dack (S m) (S n)
 
-   which icorresponds to the version initially proposed by DM.
+   which corresponds to the version initially 
+   proposed by DM.
 
-  Notice that all the variants can be worked out,
-  not just the last one.
-*)
+   Notice that all the variants can be worked out,
+   not just the last one. *)
 
 (* We modify the domain Dack here, as explained above *)
 Inductive Dack : nat → nat → Prop :=
