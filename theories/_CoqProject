@@ -58,6 +58,7 @@ unif/unif_term.v
 # The Ackermann function, with termination in just 2 lines
 
 ackermann/ackermann.v
+ackermann/ackermann_dm.v
 
 # Utilities
 
