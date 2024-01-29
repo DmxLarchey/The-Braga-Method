@@ -61,17 +61,18 @@ Proof.
   refine (match m return Dack m _ → sig (Gack m _) with
   | 0   => λ _, exist _ (S n) _
   | S m => λ d, let (v,hv) :=
-                  match n return Dack _ n → { v | match n with 0 => v = 1 | S n => Gack (S m) n v end } with 
+                  match n return Dack _ n → sig (match n with 0 => eq 1 | S n => Gack (S m) n end) with
                   | 0   => λ _, exist _ 1 eq_refl
                   | S n => λ d, ack_pwc (S m) n (Dack_pi2 d)
                   end d in
-                let (o,ho) := ack_pwc m v _ in
+                let (o,ho) := ack_pwc m v
+                    (match n return Dack _ n → match n with 0 => eq 1 | S _ => _ end v → _ with
+                     | 0   => λ d hv, match hv with eq_refl => Dack_pi1 d end
+                     | S n => λ d hv, Dack_pi3 d hv
+                     end d hv) in
                 exist _ o _
   end d); eauto.
-  + destruct n; subst.
-    * apply (Dack_pi1 d).
-    * now apply (Dack_pi3 d).
-  + destruct n; subst; eauto.
+  destruct n; subst; eauto.
 Defined.
 
 (* Termination of ack. Lexicographic product is by nested induction *)
