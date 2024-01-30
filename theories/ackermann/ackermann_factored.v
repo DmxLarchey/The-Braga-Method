@@ -29,7 +29,7 @@ Inductive Dack : nat → nat → Prop :=
 
 #[local] Hint Constructors Gack Dack : core.
 
-(* Small inversions for domain projections *)
+(** Small inversions for domain projections *)
 
 Definition is_S_0 m n := match m, n with | S _, 0   => True | _, _ => False end.
 Definition is_S_S m n := match m, n with | S _, S _ => True | _, _ => False end.
@@ -94,7 +94,7 @@ Proof. apply (proj2_sig _). Qed.
 Fact Gack_inv m n o :
         Gack m n o
       → match m, n with
-        |   0 ,   _ => o = 1+n
+        |   0 ,   _ => S n = o
         | S m ,   0 => Gack m 1 o
         | S m , S n => ∃v, Gack (S m) n v ∧ Gack m v o
         end.
@@ -104,7 +104,7 @@ Proof. destruct 1; eauto. Qed.
 Lemma Gack_fun m n o₁ o₂ : Gack m n o₁ → Gack m n o₂ → o₁ = o₂.
 Proof.
   induction 1 as [ | | ? ? ? ? _ IH1 _ ? ] in o₂ |- *; intros G%Gack_inv; auto.
-  destruct G as (? & <-%IH1 & ?); eauto.
+  destruct G as (? & []%IH1 & ?); eauto.
 Qed.
 
 (* Fixpoint equations come from Gack constructors
@@ -112,7 +112,7 @@ Qed.
 
 #[local] Hint Resolve ack_spec Gack_fun : core.
 
-Fact ack_fix_0n n : ack 0 n = 1+n.
+Fact ack_fix_0n n : ack 0 n = S n.
 Proof. eauto. Qed.
 
 Fact ack_fix_S0 m : ack (S m) 0 = ack m 1.

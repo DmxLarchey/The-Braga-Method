@@ -12,7 +12,7 @@
 Require Import Utf8 Extraction.
 
 Inductive Gack : nat → nat → nat → Prop :=
-  | Gack_0_n n       : Gack 0 n (1+n)
+  | Gack_0_n n       : Gack 0 n (S n)
   | Gack_S_0 m o     : Gack m 1 o
                      → Gack (S m) 0 o
   | Gack_S_S m n v o : Gack (S m) n v
@@ -29,7 +29,7 @@ Inductive Dack : nat → nat → Prop :=
 
 #[local] Hint Constructors Gack Dack : core.
 
-(* Small inversions for domain projections *)
+(** Small inversions for domain projections *)
 
 Definition is_S_0 m n := match m, n with | S _, 0   => True | _, _ => False end.
 Definition is_S_S m n := match m, n with | S _, S _ => True | _, _ => False end.
@@ -58,11 +58,8 @@ Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Gack (S m) n v → Da
 (* The fully specified Ackermann function *)
 Fixpoint ack_pwc m n (d : Dack m n) : sig (Gack m n).
 Proof.
-  refine (match m return Dack m _ → sig (Gack m _) with
-  | 0 => λ _, exist _ (1+n) _
-  | 
   refine(match m, n return Dack m n → sig (Gack m n) with
-  |   0 ,   _ => λ _, exist _ (1+n) _
+  |   0 ,   _ => λ _, exist _ (S n) _
   | S m ,   0 => λ d, let (o,ho) := ack_pwc m 1 (Dack_pi1 d)     in
                       exist _ o _
   | S m , S n => λ d, let (v,hv) := ack_pwc (S m) n (Dack_pi2 d) in
@@ -90,7 +87,7 @@ Proof. apply (proj2_sig _). Qed.
 Fact Gack_inv m n o :
         Gack m n o
       → match m, n with
-        |   0 ,   _ => o = 1+n
+        |   0 ,   _ => S n = o
         | S m ,   0 => Gack m 1 o
         | S m , S n => ∃v, Gack (S m) n v ∧ Gack m v o
         end.
@@ -100,7 +97,7 @@ Proof. destruct 1; eauto. Qed.
 Lemma Gack_fun m n o₁ o₂ : Gack m n o₁ → Gack m n o₂ → o₁ = o₂.
 Proof.
   induction 1 as [ | | ? ? ? ? _ IH1 _ ? ] in o₂ |- *; intros G%Gack_inv; auto.
-  destruct G as (? & <-%IH1 & ?); eauto.
+  destruct G as (? & []%IH1 & ?); eauto.
 Qed.
 
 (* Fixpoint equations come from Gack constructors
@@ -108,7 +105,7 @@ Qed.
 
 #[local] Hint Resolve ack_spec Gack_fun : core.
 
-Fact ack_fix_0n n : ack 0 n = 1+n.
+Fact ack_fix_0n n : ack 0 n = S n.
 Proof. eauto. Qed.
 
 Fact ack_fix_S0 m : ack (S m) 0 = ack m 1.
@@ -138,9 +135,8 @@ Arguments Acc_inv {_ _ _} _ {_}.
 (* We use Acc_inv that recover the sub-term for a proof of d : Acc ... *)
 Fixpoint ack_pwc_Acc m n (d : Acc ack_sub_calls (m,n)) : sig (Gack m n).
 Proof.
-  refine (match m return 
   refine(match m, n return Acc ack_sub_calls (m,n) → sig (Gack m n) with
-  |   0 ,   _ => λ _, exist _ (1+n) _
+  |   0 ,   _ => λ _, exist _ (S n) _
   | S m ,   0 => λ d, let (o,ho) := ack_pwc_Acc m 1 (Acc_inv d _)     in
                       exist _ o _
   | S m , S n => λ d, let (v,hv) := ack_pwc_Acc (S m) n (Acc_inv d _) in
@@ -155,8 +151,7 @@ Lemma ack_sub_calls_inv p q :
        | (  0 ,   n) => False
        | (S m ,   0) => (m,1) = p
        | (S m , S n) => (S m,n) = p
-                      ∨ ∃v, Gack (S m) n v
-                          ∧ (m,v) = p
+                      ∨ ∃v, Gack (S m) n v ∧ (m,v) = p
        end.
 Proof. destruct 1; eauto. Qed.
 

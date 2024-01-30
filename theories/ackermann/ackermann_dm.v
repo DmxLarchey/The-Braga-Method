@@ -45,7 +45,7 @@
 Require Import Utf8 Extraction.
 
 Inductive Gack : nat → nat → nat → Prop :=
-  | Gack_0_n n       : Gack 0 n (1+n)
+  | Gack_0_n n       : Gack 0 n (S n)
   | Gack_S_0 m o     : Gack m 1 o
                      → Gack (S m) 0 o
   | Gack_S_S m n v o : Gack (S m) n v
@@ -55,7 +55,7 @@ Inductive Gack : nat → nat → nat → Prop :=
 Fact Gack_inv m n o :
         Gack m n o
       → match m, n with
-        |   0 ,   _ => o = 1+n
+        |   0 ,   _ => S n = o
         | S m ,   0 => Gack m 1 o
         | S m , S n => ∃v, Gack (S m) n v ∧ Gack m v o
         end.
@@ -118,8 +118,8 @@ Definition Dack_pi1 {m} (d : Dack (S m) 0) : Dack m 1 :=
 
 Definition Dack_pi2 {m n} (d : Dack (S m) (S n)) : Dack (S m) n :=
   match d in Dack m n return is_S_S m n → Dack _ (pred n) with
-  | Dack_0_n _   => λ C, match C with end
-  | Dack_S_0 h   => λ C, match C with end
+  | Dack_0_n _     => λ C, match C with end
+  | Dack_S_0 h     => λ C, match C with end
   | Dack_S_S h _ _ => λ _, h
   end I.
 
