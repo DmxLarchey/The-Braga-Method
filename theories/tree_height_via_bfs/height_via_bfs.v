@@ -7,12 +7,40 @@
 (*             Mozilla Public License MPL v2.0                *)
 (**************************************************************)
 
-(** Following a discussion with JC Filliâtre, here is a correct
-    by construction recursive terminal algorithm 
+(** Following a discussion with JC Filliâtre, here is 
+    a correct by construction recursive terminal algorithm 
     for computing the height of an undecorated rose tree via 
-    a zizaging Breadth First Traversal. *)
+    a zizaging Breadth First Traversal.
 
-(** This file is slef contained over StdLib *)
+      type rtree = Rt of rtree list
+
+      let rtree_ht_bfs t =
+        let rec level h n = function
+        | []      -> next (S h) n
+        | Rt l::c -> level h (rev_app n l) c
+        and next h n = match n with
+        | [] -> h
+        | _  -> level h [] n
+        in level 0 [] [t] 
+
+    "Surprise surprise" in the position where
+     h should be increased.
+
+     In particular, the following variant 
+
+        let rec level h n = function
+        | []      -> next h n
+        | ...     -> level h ...
+        and next h n = match n with
+        | [] -> h
+        | _  -> level (S h) ...
+        in level 1 [] [t]
+
+     could not be proved correct. Possibly
+     the spec was too cumbersome over the
+     version above. *)
+
+(** This file is self contained over StdLib *)
 
 From Coq Require Import Arith Max Lia List Wellfounded Extraction Utf8.
 
@@ -24,11 +52,7 @@ Section list_sum_max.
 
   Variables (X : Type) (f : X → nat).
 
-  Fixpoint list_sum l :=
-    match l with
-    | []   => 0
-    | x::l => f x + list_sum l
-    end.
+  Definition list_sum := fold_right (λ x n, f x + n) 0.
 
   Fact list_sum_cons x l : list_sum (x::l) = f x + list_sum l.
   Proof. reflexivity. Qed.
@@ -36,11 +60,7 @@ Section list_sum_max.
   Fact list_sum_rev_append l m : list_sum (rev_append l m) = list_sum l + list_sum m.
   Proof. induction l as [ | x l IHl ] in m |- *; simpl; auto; rewrite IHl; simpl; lia. Qed.
 
-  Fixpoint list_max l :=
-    match l with
-    | []   => 0
-    | x::l => Nat.max (f x) (list_max l)
-    end.
+  Definition list_max := fold_right (λ x n, Nat.max (f x) n) 0.
 
   Fact list_max_cons x l : list_max (x::l) = Nat.max (f x) (list_max l).
   Proof. reflexivity. Qed.
@@ -94,10 +114,18 @@ Qed.
 (** The type of undecorated rose trees *)
 
 Unset Elimination Schemes.
-Inductive rtree := rt : list rtree -> rtree.
+
+Inductive rtree :=
+| rt : list rtree -> rtree.
+
 Set Elimination Schemes.
 
 #[local] Notation "⟨ l ⟩" := (rt l).
+
+Definition rtree_sons t :=
+  match t with 
+  | ⟨l⟩ => l
+  end.
 
 (* This is the non recursive terminal way of computing the size, via dfs *)
 Fixpoint rtree_sz t :=
@@ -115,22 +143,6 @@ Fact rtree_ht_ge_1 t : 1 ≤ rtree_ht t.
 Proof. destruct t; simpl; lia. Qed.
 
 Section rtree_ht_via_bfs.
-
-  (** Extraction of
-
-      type rtree = Rt of rtree list
-
-      let rtree_ht_bfs t =
-        let rec level h n = function
-        | []      -> next (S h) n
-        | Rt l::c -> level h (rev_app n l) c
-        and next h n = match n with
-        | [] -> h
-        | _  -> level h [] n
-        in level 1 [] [t];; 
-
-     "Surprise surprise" in the position where
-        h should be increased ... *)
 
   Implicit Types (h o : nat) (n c : list rtree).
 
@@ -153,19 +165,19 @@ Section rtree_ht_via_bfs.
 
   Inductive Dlevel : nat → list rtree → list rtree → Prop :=
 
-  | Dlevel_nil h n :      Dnext (S h) n
-                        → Dlevel h n []
+  | Dlevel_nil {h n} :      Dnext (S h) n
+                          → Dlevel h n []
 
-  | Dlevel_cons h n l c : Dlevel h (rev_append l n) c
-                        → Dlevel h n (⟨l⟩::c)
+  | Dlevel_cons {h n l c} : Dlevel h (rev_append l n) c
+                          → Dlevel h n (⟨l⟩::c)
 
   with Dnext : nat → list rtree → Prop :=
 
-  | Dnext_nil h :   Dnext h []
+  | Dnext_nil {h} :         Dnext h []
 
-  | Dnext_not h n : n ≠ []
-                  → Dlevel h [] n
-                  → Dnext h n
+  | Dnext_not {h n} :       n ≠ []
+                          → Dlevel h [] n
+                          → Dnext h n
   .
 
   Hint Constructors Glevel Gnext : core.
@@ -199,18 +211,18 @@ Section rtree_ht_via_bfs.
 
   (** Termination, ie totality of level *)
 
-  (* level h n []      ~~> level (S h) [] n is n <> []
-     level h n ⟨l⟩ᵣ::c ~~> level h (rev_append n l) c
+  (* level h n []      ~~>  level (S h) [] n is n ≠ []
+     level h n ⟨l⟩::c  ~~>  level h (rev_append n l) c
 
-     hence the lexicographic product of 
+     hence the lexicographic product of
       1) total size of n and c
       2) max of (1 + max height in n) and (max height in c)
-     decreases on recursive calls *)
+     decreases on recursive calls. *)
 
   Theorem level_terminates h n c : Dlevel h n c.
   Proof.
     induction on h n c as IH
-      with wf     nat_lex_wf
+      with wf nat_lex_wf
       and measure (list_sum rtree_sz n + list_sum rtree_sz c, 
                    Nat.max (1+list_max rtree_ht n) (list_max rtree_ht c)).
     destruct c as [ | [l] c ].
@@ -232,27 +244,81 @@ Section rtree_ht_via_bfs.
       rewrite list_sum_rev_append, list_sum_cons; simpl; lia.
   Qed.
 
-  (** Implementation of the fully spec'd mutually recursive function 
+  (** Inversion lemmas for D{level,next} using small inversions *)
 
-      DLW: the inversion can be replaced with small inversions *)
+  Local Fact nnil_eq_nil {x c} : x::c = [] → False.
+  Proof. discriminate. Qed.
+
+  Definition Dlevel_pi1 {h n} (d : Dlevel h n []) : Dnext (S h) n :=
+    match d in Dlevel h n c return c = [] → Dnext (S h) n with
+    | Dlevel_nil d  => λ _, d
+    | Dlevel_cons _ => λ e, match nnil_eq_nil e with end
+    end eq_refl.
+
+  Print Dlevel_pi1.
+
+  Let is_nnil c := match c with [] => False | _ => True end.
+
+  Let head x c : rtree :=
+    match c with
+    | []   => x
+    | t::_ => t
+    end.
+
+  Definition Dlevel_pi2 {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c.
+  Proof. now inversion d. Defined.
+
+(* None of the attempts below give perfect extraction ie w/o __/obj.magic 
+   contrary to the inversion tactic which, on the other hand, produces 
+   a very difficult to term to decypher *)
+
+(*
+   refine (
+    match d in Dlevel h' n' c' return h = h' -> n = n' -> ⟨l⟩::c = c' -> Dlevel h (rev_append l n) c with
+    | Dlevel_nil _  => λ _ _ e, match nnil_eq_nil e with end
+    | Dlevel_cons d => λ e1 e2 e3, _
+    end eq_refl eq_refl eq_refl).
+    generalize (f_equal (λ x, rtree_sons (head ⟨l⟩ x)) e3) (f_equal (@tail _) e3).
+    simpl; intros -> ->.
+    rewrite e1, e2.
+    exact d.
+  Defined. *)
+
+(*
+∀p : is_nnil c, Dlevel h (rev_append (rtree_sons (dhead p)) n) (dtail p) with
+    | Dlevel_nil _  => λ C, match C with end
+    | Dlevel_cons d => λ _, d
+    end I. *)
+
+  Definition Dnext_pi1 {h n} (d : Dnext h n) : n ≠ [] → Dlevel h [] n :=
+    match d with 
+    | Dnext_nil     => λ C, match C eq_refl with end
+    | Dnext_not _ d => λ _, d
+    end.
+
+  (** Implementation of the fully spec'd mutually recursive function.
+      The above inversion lemmas D{level,next}_pi{1,2} can also
+      be proved using the inversion tactic which works in this
+      case. In the Braga method, we favor explicit terms obtained
+      using the techniques of small inversions. *)
 
   Local Fixpoint level h n c (d : Dlevel h n c) { struct d } : sig (Glevel h n c) 
-            with next h n (d : Dnext h n) { struct d } : sig (Gnext h n).
-  + refine (match c return Dlevel _ _ c → _ with
-    | []     => λ d, let (o,ho) := next (S h) n _ in
+             with next h n   (d : Dnext h n)    { struct d } : sig (Gnext h n).
+  Proof.
+    + refine (match c return Dlevel _ _ c → _ with
+      | []   =>  λ d, let (o,ho) := next (S h) n (Dlevel_pi1 d) in
+                      exist _ o _
+      | t::c => 
+        match t return Dlevel _ _ (t::_) -> _ with
+        | ⟨l⟩ => λ d, let (o,ho) := level h (rev_append l n) c (Dlevel_pi2 d) in
+                      exist _ o _
+        end
+      end d); eauto.
+    + refine (match n as n' return n = n' → _ with
+      | []   => λ _, exist _ h _
+      | t::l => λ e, let (o,ho) := level h [] n (Dnext_pi1 d _) in
                      exist _ o _
-    | ⟨l⟩::c => λ d, let (o,ho) := level h (rev_append l n) c _ in
-                     exist _ o _
-    end d); (eauto || now inversion d).
-  + refine (match n as n' return n = n' -> _ with
-    | []   => λ _, exist _ h _
-    | t::l => λ e, let (o,ho) := level h [] n _ in
-                   exist _ o _
-    end eq_refl); eauto.
-    * inversion d.
-      - exfalso; now subst.
-      - trivial.
-    * subst; now constructor 2.
+      end eq_refl); eauto; subst; easy || now constructor 2.
   Defined.
 
   (* This is extracted to a recursive terminal way of computing the height, via bfs *)
@@ -265,9 +331,9 @@ Section rtree_ht_via_bfs.
   Proof.
     generalize (rtree_ht_bfs_spec t).
     intros ->%level_partial_correctness.
-    rewrite Nat.max_r.
-    + simpl; lia.
-    + simpl; generalize (rtree_ht_ge_1 t); lia.
+    rewrite Nat.max_r; simpl.
+    + lia.
+    + generalize (rtree_ht_ge_1 t); lia.
   Qed.
 
 End rtree_ht_via_bfs.
