@@ -73,7 +73,7 @@ Lemma ack_termination m n : Dack m n.
 Proof.
   induction m in n |- *; eauto.
   induction n; eauto.
-Qed.
+Defined.
 
 (* Now the definition of Ackermann, combined with termination
    and stripped of its low-level spec *)
@@ -166,5 +166,31 @@ Qed.
 (** Then we can finish as in the case of Dack with the def of ack
     and the fixpoint equations, and extraction *)
 
+(* ---------------------------------------------------------------------- *)
+(* Computation times *)
 
+(* Explicit program for termination certificates *)
+Definition ack_termination_expl : ∀ m n, Dack m n :=
+  fix loop_m m : ∀ n, Dack m n :=
+    match m with
+    | O   => Dack_0_n
+    | S m =>
+        let loopm := loop_m m in
+        fix loop_n n : Dack (S m) n :=
+          match n with
+          | O   => Dack_S_0 (loopm 1)
+          | S n => Dack_S_S (loop_n n) (λ v _, loopm v)
+          end
+    end.
 
+Definition ack_expl m n := proj1_sig (ack_pwc m n (ack_termination_expl m n)).
+
+(* Very small values as input provide much maller computation times *)
+Time Compute ack_termination_expl 3 2. (* 0.004 s *)
+Time Compute ack_expl 3 4. (* 0.002 s *)
+
+(* Larger values can be computed *)
+Time Compute ack_termination 9 9. (* 2.36 s *)
+Time Compute ack_termination_expl 9 9. (* 0.98 s *)
+Time Compute ack_expl 3 10. (* 8.7 s *)
+Time Compute ack 3 10. (* 8.1 s *)

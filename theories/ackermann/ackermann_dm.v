@@ -40,6 +40,8 @@
    version favoured in Braga with a nested ∀ contains none of them, it
    just waits for such outputs instead, and can then be seen as a lazy
    version of the ∃ certificate.
+
+   JFM: many things need to be transparent in order to perform computations
 *)
 
 Require Import Utf8 Extraction.
@@ -59,13 +61,13 @@ Fact Gack_inv m n o :
         | S m ,   0 => Gack m 1 o
         | S m , S n => ∃v, Gack (S m) n v ∧ Gack m v o
         end.
-Proof. destruct 1; eauto. Qed.
+Proof. destruct 1; eauto. Defined.
 
 Lemma Gack_fun {m n o₁ o₂} : Gack m n o₁ → Gack m n o₂ → o₁ = o₂.
 Proof.
   induction 1 as [ | | ? ? ? ? _ IH1 _ ? ] in o₂ |- *; intros G%Gack_inv; auto.
   destruct G as (? & <-%IH1 & ?); eauto.
-Qed.
+Defined.
 
 (* The modification is on the second rule 
    which is now ∃v, Gack (S m) n v ∧ Dack m v 
@@ -156,14 +158,14 @@ Proof.
   induction m in n |- *; eauto.
   induction n; auto.
   destruct ack_pwc with (1 := IHn); eauto.
-Qed.
+Defined.
 
 (* Unchanged below *)
 
 Definition ack m n := proj1_sig (ack_pwc m n (ack_termination m n)).
 
 Lemma ack_spec m n : Gack m n (ack m n).
-Proof. apply (proj2_sig _). Qed.
+Proof. apply (proj2_sig _). Defined.
 
 #[local] Hint Resolve ack_spec Gack_fun : core.
 
@@ -178,3 +180,30 @@ Proof. eauto. Qed.
 
 Extraction Inline ack_pwc.
 Extraction ack.
+
+(* ---------------------------------------------------------------------- *)
+(* Computation times *)
+
+(* Explicit program for termination certificates *)
+Definition ack_termination_expl : ∀ m n, Dack m n :=
+  fix loop_m m : ∀ n, Dack m n :=
+    match m with
+    | O   => Dack_0_n
+    | S m =>
+        let loopm := loop_m m in
+        fix loop_n n : Dack (S m) n :=
+          match n with
+          | O   => Dack_S_0 (loopm 1)
+          | S n =>
+              let dn := loop_n n in (* used twice *)
+              let (v, hv) := ack_pwc (S m ) n dn in
+              Dack_S_S dn hv (loopm v)
+          end
+    end.
+
+Definition ack_expl m n := proj1_sig (ack_pwc m n (ack_termination_expl m n)).
+
+(* Only very small inputs can be considered *)
+Time Compute ack_expl 3 4. (* 2.0 s *)
+Time Compute ack_termination_expl 3 2. (* 0.9 s *)
+(* Beyond, the issue could be related to printing *)
