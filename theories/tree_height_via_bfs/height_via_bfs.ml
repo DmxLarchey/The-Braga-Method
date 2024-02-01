@@ -22,12 +22,6 @@ let rec rev_app a = function
 | []   -> a
 | x::l -> rev_app (x::a) l;;
 
-let rev_map f = 
-  let rec loop a = function
-  | []   -> a
-  | x::l -> loop (f x::a) l
-  in loop;;
-
 (** A recursive terminal BFS algorithm marking the nodes with
     a pair composed of its height and its order in BFS traversal
     order *)
