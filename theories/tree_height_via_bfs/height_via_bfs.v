@@ -52,6 +52,7 @@ Import ListNotations.
 
 (** List sum and max utilities *)
 
+(* rev_app with arguments ordered as OCaml *)
 Definition rev_app {X} :=
   fix loop (l m : list X) :=
     match m with
@@ -88,18 +89,17 @@ Arguments list_max {_}.
 
 Section measure3_rect.
 
-  Variable (X Y Z M : Type) (R : M → M → Prop) (HR : well_founded R)
-           (m : X → Y → Z → M) (P : X → Y → Z → Type).
+  Variable (X Y Z M : Type) (m : X → Y → Z → nat) (P : X → Y → Z → Type).
 
-  Hypothesis F : (∀ x y z, (∀ x' y' z', R (m x' y' z') (m x y z) → P x' y' z') → P x y z).
+  Hypothesis F : (∀ x y z, (∀ x' y' z', m x' y' z' < m x y z → P x' y' z') → P x y z).
 
   Arguments F : clear implicits.
 
   Let m' (c : X * Y * Z) := match c with (x,y,z) => m x y z end.
 
-  Notation R' := (λ c d, R (m' c) (m' d)).
+  Notation R' := (λ c d, m' c < m' d).
   Local Fact Rwf : well_founded R'.
-  Proof. apply wf_inverse_image with (f := m'), HR. Qed.
+  Proof. apply wf_inverse_image with (f := m'), lt_wf. Qed.
 
   Definition measure3_rect x y z : P x y z :=
     (fix loop x y z (a : Acc R' (x,y,z)) { struct a } := 
@@ -107,20 +107,8 @@ Section measure3_rect.
 
 End measure3_rect.
 
-Tactic Notation "induction" "on" hyp(x) hyp(y) hyp(z) "as" ident(IH) "with" "wf" constr(wf) "and" "measure" uconstr(f) :=
-   pattern x, y, z; revert x y z; apply measure3_rect with (1 := wf) (m := λ x y z, f); intros x y z IH.
-
-Inductive nat_lex : nat*nat -> nat*nat -> Prop :=
-| nat_lex_lft a b c d : a < c → nat_lex (a,b) (c,d)
-| nat_lex_rt  a b c d : a = c → b < d → nat_lex (a,b) (c,d).
-
-Lemma nat_lex_wf : well_founded nat_lex.
-Proof.
-  intros (x,y).
-  induction x in y |- * using (well_founded_induction lt_wf).
-  induction y using (well_founded_induction lt_wf).
-  constructor; inversion 1; subst; eauto.
-Qed.
+Tactic Notation "induction" "on" hyp(x) hyp(y) hyp(z) "as" ident(IH) "with" "measure" uconstr(f) :=
+   pattern x, y, z; revert x y z; apply measure3_rect with (m := λ x y z, f); intros x y z IH.
 
 (** The type of undecorated rose trees *)
 
@@ -210,40 +198,45 @@ Section rtree_ht_via_bfs.
   (* level h n []      ~~>  level (S h) [] n is n ≠ []
      level h n ⟨l⟩::c  ~~>  level h (rev_append n l) c
 
-     hence the lexicographic product of
-      1) total size of n and c
-      2) max of (1 + max height in n) and (max height in c)
-     decreases on recursive calls. *)
+     We find a linear measure that decrease at
+     these two reduction steps :
+     the sum of 
+       1) total size of n and c
+       2) the max of (1 + max height in n) and (max height in c) 
+
+     Hence one could show termination in linear
+     amount of recursive calls by indexing the
+     domain Dlevel and the graph Glevel predicates
+     with the number of steps. *)
 
   Theorem level_terminates h n c : Dlevel h n c.
   Proof.
     induction on h n c as IH
-      with wf nat_lex_wf
-      and measure (list_sum rtree_sz n + list_sum rtree_sz c, 
-                   Nat.max (1+list_max rtree_ht n) (list_max rtree_ht c)).
+      with measure (          list_sum rtree_sz n + list_sum rtree_sz c
+                 + Nat.max (1+list_max rtree_ht n) (list_max rtree_ht c)).
     destruct c as [ | [l] c ].
     + constructor.
-      case_eq n.
-      * constructor 1.
-      * intros r n' e; constructor 2; [ easy | rewrite <- e ].
-        apply IH.
-        constructor 2.
-        - lia.
-        - simpl plus.
-          apply Nat.max_lt_iff; left.
-          cut (1 <= list_max rtree_ht n); [ lia | ].
-          subst; simpl.
-          generalize (rtree_ht_ge_1 r); lia.
+      case_eq n; [ constructor 1 | intros r n' e ].
+      constructor 2; [ easy | rewrite <- e ].
+      apply IH.
+      simpl list_sum; simpl list_max.
+      rewrite Nat.max_r, Nat.max_l; try lia.
+      subst; simpl.
+      generalize (rtree_ht_ge_1 r); lia.
     + constructor 2.
       apply IH.
-      constructor 1.
-      rewrite list_sum_rev_app, list_sum_cons; simpl; lia.
+      rewrite list_sum_rev_app, list_max_rev_app, list_sum_cons, list_max_cons.
+      simpl rtree_ht; simpl rtree_sz. 
+      lia.
   Qed.
 
   (** Inversion lemmas for D{level,next} using small inversions *)
 
-  Local Fact nnil_eq_nil {x c} : x::c = [] → False.
+  Local Fact nnil_eq_nil {x c} : x::c ≠ [].
   Proof. discriminate. Qed.
+
+  Local Fact cons_eq {l₁ l₂ c₁ c₂} : ⟨l₁⟩::c₁ = ⟨l₂⟩::c₂ → l₂ = l₁ ∧ c₂ = c₁.
+  Proof. now inversion 1. Qed.
 
   Definition Dlevel_pi1 {h n} (d : Dlevel h n []) : Dnext (S h) n :=
     match d in Dlevel h n c return c = [] → Dnext (S h) n with
@@ -260,9 +253,6 @@ Section rtree_ht_via_bfs.
 
   (** The below inversion the one actually used in the fixpoint,
       is readable and avoids __/Obj.magic as well *)
-
-  Local Fact cons_eq {l₁ l₂ c₁ c₂} : ⟨l₁⟩::c₁ = ⟨l₂⟩::c₂ → l₂ = l₁ ∧ c₂ = c₁.
-  Proof. now inversion 1. Defined.
 
   Definition Dlevel_pi2 {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_app n l) c :=
     match d in Dlevel h' n' c' return ⟨l⟩::c = c' → Dlevel h' (rev_app n' l) c with
@@ -304,9 +294,9 @@ Section rtree_ht_via_bfs.
   (** The attempt below is shortest and the one usually *favored* in Braga 
       but however gives *imperfect* extraction ie with __/Obj.magic  *)
 
-  Let is_nnil c := match c with [] => False | _ => True end.
-  Let head c    := match c with [] => [] | ⟨l⟩::_ => l end. (* Default value is [] *)
-  Let tail c    := match c with [] => [] |   _::c => c end. (* Default value is [] *)
+  Let is_nnil c := match c with [] => False | _      => True end.
+  Let head c    := match c with [] => []    | ⟨l⟩::_ => l end. (* Default value is [] *)
+  Let tail c    := match c with [] => []    |   _::c => c end. (* Default value is [] *)
 
   Definition Dlevel_pi2'' {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_app n l) c :=
     match d in Dlevel h' n' c' return is_nnil c' → Dlevel h' (rev_app n' (head c')) (tail c') with
