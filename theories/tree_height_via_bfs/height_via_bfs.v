@@ -263,10 +263,34 @@ Section rtree_ht_via_bfs.
     | t::_ => t
     end.
 
-  Definition Dlevel_pi2 {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c.
+  Definition Dlevel_pi2_inv {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c.
   Proof. now inversion d. Defined.
 
-  Print Dlevel_pi2.
+  Print Dlevel_pi2_inv.
+
+  Inductive Dlevel_shape2 l c : list rtree -> Prop :=
+  | Dlevel_shape2_intro : Dlevel_shape2 l c (⟨l⟩::c).
+
+  Arguments Dlevel_shape2_intro {l c}.
+
+  Local Fact Dlevel_shape2_inv {l c c'} :
+         Dlevel_shape2 l c c'
+      -> match c' with
+         | []       => False
+         | ⟨l'⟩::c' => l' = l ∧ c' = c
+         end.
+  Proof. destruct 1; eauto. Qed.
+
+  Definition Dlevel_pi2 {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c :=
+    match d in Dlevel h' n' c' return Dlevel_shape2 l c c' → Dlevel h' (rev_append l n') c with
+    | Dlevel_nil _  => λ e, match Dlevel_shape2_inv e with end
+    | Dlevel_cons d => λ e, match Dlevel_shape2_inv e with
+                            | conj e1 e2 => 
+                              match e1, e2 with 
+                              | eq_refl, eq_refl => d
+                              end
+                            end
+    end Dlevel_shape2_intro.
 
 (* None of the attempts below give perfect extraction ie w/o __/obj.magic 
    contrary to the inversion tactic which, on the other hand, produces 
@@ -280,7 +304,7 @@ Section rtree_ht_via_bfs.
     end eq_refl).
   Defined.
 
-  Let cons_eq l1 l2 c1 c2 : ⟨l1⟩::c1 = ⟨l2⟩::c2 → l1 = l2 ∧ c1 = c2.
+  Local Fact cons_eq l1 l2 c1 c2 : ⟨l1⟩::c1 = ⟨l2⟩::c2 → l1 = l2 ∧ c1 = c2.
   Proof. now inversion 1. Defined.
 
   Definition Dlevel_pi2'' {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c.
@@ -291,8 +315,6 @@ Section rtree_ht_via_bfs.
     end eq_refl eq_refl eq_refl).
     inversion e3; subst; exact d. (* if inversion is replaced with apply cons_eq in e3 as [], then __/Obj.Magic *)
   Defined.
-
-  Print Dlevel_pi2''.
 
   Definition Dnext_pi1 {h n} (d : Dnext h n) : n ≠ [] → Dlevel h [] n :=
     match d with 
@@ -314,7 +336,7 @@ Section rtree_ht_via_bfs.
                       exist _ o _
       | t::c => 
         match t return Dlevel _ _ (t::_) -> _ with
-        | ⟨l⟩ => λ d, let (o,ho) := level h (rev_append l n) c (Dlevel_pi2'' d) in
+        | ⟨l⟩ => λ d, let (o,ho) := level h (rev_append l n) c (Dlevel_pi2 d) in
                       exist _ o _
         end
       end d); eauto.
