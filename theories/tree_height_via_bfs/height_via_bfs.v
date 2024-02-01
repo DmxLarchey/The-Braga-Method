@@ -120,7 +120,7 @@ Inductive rtree :=
 
 Set Elimination Schemes.
 
-#[local] Notation "⟨ l ⟩" := (rt l).
+#[local] Notation "⟨ l ⟩" := (rt l) (at level 1, format "⟨ l ⟩").
 
 Definition rtree_sons t :=
   match t with 
@@ -255,8 +255,6 @@ Section rtree_ht_via_bfs.
     | Dlevel_cons _ => λ e, match nnil_eq_nil e with end
     end eq_refl.
 
-  Print Dlevel_pi1.
-
   Let is_nnil c := match c with [] => False | _ => True end.
 
   Let head x c : rtree :=
@@ -268,27 +266,33 @@ Section rtree_ht_via_bfs.
   Definition Dlevel_pi2 {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c.
   Proof. now inversion d. Defined.
 
+  Print Dlevel_pi2.
+
 (* None of the attempts below give perfect extraction ie w/o __/obj.magic 
    contrary to the inversion tactic which, on the other hand, produces 
    a very difficult to term to decypher *)
 
-(*
-   refine (
-    match d in Dlevel h' n' c' return h = h' -> n = n' -> ⟨l⟩::c = c' -> Dlevel h (rev_append l n) c with
-    | Dlevel_nil _  => λ _ _ e, match nnil_eq_nil e with end
+  Definition Dlevel_pi2' {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c.
+  Proof.
+    refine (match d in Dlevel h' n' c' return ⟨l⟩::c = c' → Dlevel h' (rev_append (rtree_sons (head ⟨l⟩ c')) n') (tail c') with
+    | Dlevel_nil _  => λ e, match nnil_eq_nil e with end
+    | Dlevel_cons d => λ e, d
+    end eq_refl).
+  Defined.
+
+  Let cons_eq l1 l2 c1 c2 : ⟨l1⟩::c1 = ⟨l2⟩::c2 → l1 = l2 ∧ c1 = c2.
+  Proof. now inversion 1. Defined.
+
+  Definition Dlevel_pi2'' {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_append l n) c.
+  Proof.
+    refine (match d in Dlevel h' n' c' return h = h' → n = n' → ⟨l⟩::c = c' → Dlevel h (rev_append l n) c with
+    | Dlevel_nil _  => λ _  _  e3, match nnil_eq_nil e3 with end
     | Dlevel_cons d => λ e1 e2 e3, _
     end eq_refl eq_refl eq_refl).
-    generalize (f_equal (λ x, rtree_sons (head ⟨l⟩ x)) e3) (f_equal (@tail _) e3).
-    simpl; intros -> ->.
-    rewrite e1, e2.
-    exact d.
-  Defined. *)
+    inversion e3; subst; exact d. (* if inversion is replaced with apply cons_eq in e3 as [], then __/Obj.Magic *)
+  Defined.
 
-(*
-∀p : is_nnil c, Dlevel h (rev_append (rtree_sons (dhead p)) n) (dtail p) with
-    | Dlevel_nil _  => λ C, match C with end
-    | Dlevel_cons d => λ _, d
-    end I. *)
+  Print Dlevel_pi2''.
 
   Definition Dnext_pi1 {h n} (d : Dnext h n) : n ≠ [] → Dlevel h [] n :=
     match d with 
@@ -310,7 +314,7 @@ Section rtree_ht_via_bfs.
                       exist _ o _
       | t::c => 
         match t return Dlevel _ _ (t::_) -> _ with
-        | ⟨l⟩ => λ d, let (o,ho) := level h (rev_append l n) c (Dlevel_pi2 d) in
+        | ⟨l⟩ => λ d, let (o,ho) := level h (rev_append l n) c (Dlevel_pi2'' d) in
                       exist _ o _
         end
       end d); eauto.
@@ -340,3 +344,4 @@ End rtree_ht_via_bfs.
 
 Extraction Inline level next.
 Recursive Extraction rtree_ht_bfs.
+
