@@ -59,7 +59,17 @@ performing too many tasks: those tasks will be quickly performed
 and you have the result, yes, but WITHOUT providing any understanding 
 (the real meaning of intelligence) of what happens; even worse, 
 like here, HIDING what happens.
-*)
+
+(DLW) Modifying Dack to correspond to the induction principle
+actually used to show termination is very *NOT* Braga IHMO.
+Precisely because you do not want to know a priori why it
+terminates.
+
+The script "ack_termination" gives enough info on the proof.
+Induction on m (with n universally quantified), then on n.
+The rest is solved by eauto because it is so easy. I could
+have detailed it, or used info_auto or info_eauto to get the
+details. *)
 
 Inductive Dack : nat → nat → Prop :=
   | Dack_0_n n     : Dack 0 n
@@ -113,9 +123,12 @@ Defined.
 (* Termination of ack. Lexicographic product is by nested induction *)
 Lemma ack_termination m n : Dack m n.
 Proof.
-  induction m in n |- *; eauto.
-  induction n; eauto.
-Defined.
+  induction m in n |- *.
+  + info_trivial.
+  + induction n.
+    * info_auto.
+    * info_auto.
+Qed.
 
 (* Now the definition of Ackermann, combined with termination
    and stripped of its low-level spec *)

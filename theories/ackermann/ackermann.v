@@ -75,9 +75,30 @@ Proof.
   induction n; eauto.
 Defined.
 
+(* ---------------------------------------------------------------------- *)
+(* Computation times *)
+
+(* Explicit program for termination certificates *)
+Definition ack_termination_expl : ∀ m n, Dack m n :=
+  fix loop_m m : ∀ n, Dack m n :=
+    match m with
+    | O   => Dack_0_n
+    | S m =>
+        fix loop_n n : Dack (S m) n :=
+          match n with
+          | O   => Dack_S_0 (loop_m m 1)
+          | S n => Dack_S_S (loop_n n) (λ v _, loop_m m v)
+          end
+    end.
+
 (* Now the definition of Ackermann, combined with termination
-   and stripped of its low-level spec *)
+   and stripped of its low-level spec 
+   
+   The two versions of ack and ack_expl are there to compare
+   the computation time of the Ltac based termination proof
+   and of the program based version of the proof. *)
 Definition ack m n := proj1_sig (ack_pwc m n (ack_termination m n)).
+Definition ack_expl m n := proj1_sig (ack_pwc m n (ack_termination_expl m n)).
 
 (* We recover the spec for ack *)
 Lemma ack_spec m n : Gack m n (ack m n).
@@ -166,31 +187,30 @@ Qed.
 (** Then we can finish as in the case of Dack with the def of ack
     and the fixpoint equations, and extraction *)
 
-(* ---------------------------------------------------------------------- *)
-(* Computation times *)
-
-(* Explicit program for termination certificates *)
-Definition ack_termination_expl : ∀ m n, Dack m n :=
-  fix loop_m m : ∀ n, Dack m n :=
-    match m with
-    | O   => Dack_0_n
-    | S m =>
-        let loopm := loop_m m in
-        fix loop_n n : Dack (S m) n :=
-          match n with
-          | O   => Dack_S_0 (loopm 1)
-          | S n => Dack_S_S (loop_n n) (λ v hv, loopm v)
-          end
-    end.
-
-Definition ack_expl m n := proj1_sig (ack_pwc m n (ack_termination_expl m n)).
+Print ack_termination.
+Print ack_termination_expl.
 
 (* Very small values as input provide much maller computation times *)
 Time Compute ack_termination_expl 3 2. (* 0.004 s *)
 Time Compute ack_expl 3 4. (* 0.002 s *)
 
-(* Larger values can be computed *)
-Time Compute ack_termination 9 9. (* 2.36 s *)
-Time Compute ack_termination_expl 9 9. (* 0.98 s *)
-Time Compute ack_expl 3 10. (* 8.7 s *)
+(** DLW: for some strange reason, the hand coded computation
+    of the value is slower than the one using the Ltac script.
+    I suspect the hand coded version does not have any opaque
+    part while the other one may have some non-critical bits
+    Opaque. I do not see any another reason because both
+    proofs perform the same computation ... 
+
+    Btw I do not get stable enough times to compare. 
+    In the last try, the _expl version is 0.5% faster ... *) 
 Time Compute ack 3 10. (* 8.1 s *)
+Time Compute ack_expl 3 10. (* 8.7 s *)
+
+
+(* Larger values can be computed *)
+(* Time Compute ack_termination 9 9. (* 2.36 s *)
+Time Compute ack_termination_expl 9 9. (* 0.98 s *) *)
+
+
+
+

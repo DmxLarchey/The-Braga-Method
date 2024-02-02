@@ -9,6 +9,22 @@
 (*         CeCILL v2.1 FREE SOFTWARE LICENSE AGREEMENT        *)
 (**************************************************************)
 
+(** Extraction of the following version of Ackermann
+    where the two branches depending on the match on
+    n are factored in before the outer call of ack
+
+    let rec ack m n =
+      match m with
+     |   0 -> S n
+     | S m -> ack m 
+      (match n with
+       |   0 -> S 0
+      | S n -> ack (S m) n)
+
+    Several versions, including one inspired by D. Monniaux
+    using an inductive subspec Prop instead of a match subspec.
+*)
+
 Require Import Utf8 Extraction.
 
 Inductive Gack : nat → nat → nat → Prop :=
@@ -54,14 +70,6 @@ Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Gack (S m) n v → Da
   | Dack_S_0 h   => λ C, match C with end
   | Dack_S_S _ h => λ _, h
   end I.
-
-(** let rec ack m n =
-  match m with
-  |   0 -> S n
-  | S m -> ack m 
-   (match n with
-    |   0 -> S 0
-    | S n -> ack (S m) n) *)
 
 (* The fully specified Ackermann function *)
 Fixpoint ack_pwc m n (d : Dack m n) : sig (Gack m n).
@@ -112,17 +120,18 @@ Proof.
   destruct hv; eauto.
 Defined.
 
-Fixpoint ack_pwc'' m n (d : Dack m n) : sig (Gack m n).
+Definition ack_pwc'' : ∀ m n, Dack m n → sig (Gack m n).
 Proof.
+  fix loop 3; intros m n Hn.
   destruct m as [ | m ].
   + exists (S n); eauto.
   + assert {v | Gack' m n v} as (v & hv).
     * destruct n as [ | n ].
       - exists 1; eauto.
-      - destruct (ack_pwc'' (S m) n) as (v & hv).
+      - destruct (loop (S m) n) as (v & hv).
         ++ now apply Dack_pi2.
         ++ exists v; eauto.
-    * destruct (ack_pwc'' m v) as (o & ho).
+    * destruct (loop m v) as (o & ho).
       - destruct hv.
         ++ now apply Dack_pi1.
         ++ eapply Dack_pi3; eauto.
