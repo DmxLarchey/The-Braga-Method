@@ -9,6 +9,9 @@
 (*         CeCILL v2.1 FREE SOFTWARE LICENSE AGREEMENT        *)
 (**************************************************************)
 
+(* A simpler inductive domain that works for
+   special cases such as the Ackermann function *)
+
 Require Import Utf8 Extraction.
 
 Inductive Gack : nat → nat → nat → Prop :=
@@ -19,12 +22,51 @@ Inductive Gack : nat → nat → nat → Prop :=
                      → Gack m v o
                      → Gack (S m) (S n) o.
 
+(* Inductive domain, without any reference to Gack, which NOT the
+   standard Braga method.*)
+
+(*
+There is a pitfall here: it is always possible to remove G in the
+definition of the domain, as far as the DEFINITION of the function is
+concerned; but the big danger is that the domain will become much 
+smaller than expected or even empty.
+(Exagerating a lot more, take a domain such as 
+Inductive Dack n m : Prop := Dack x y : Dack x y → Dack n m).
+
+This is why it is important to look at actual termination, i.e. 
+Lemma ack_termination here.
+
+Usually G is crucial for termination in the presence of nested 
+recursion because it constrains the recursive calls actually performed.  
+In the case of the Ackermann function this constraint happens to be 
+unneeded.
+
+However to see that, it is necessary to be aware of what happens in
+the construction of proof certificates performed by ack_termination.
+Here, writing the program turns out to be not that hard, though it 
+requires more effort than writing the script and results in 11 lines 
+instead of 2 to 4.
+More importantly, we immediately see that many variants of the function
+(where recursive calls are replaced by other expressions) are
+definable and total. Thinking a little bit more, if you ignored
+lexicographix ordering (which is certainly not the case of the
+readers; but it is not the point here), you have an opportunity
+to discover it.
+
+I (JFM) see this as an intereresting take hom lesson against the
+temptation of letting whatever kind of "Artificial Intelligence" 
+performing too many tasks: those tasks will be quickly performed 
+and you have the result, yes, but WITHOUT providing any understanding 
+(the real meaning of intelligence) of what happens; even worse, 
+like here, HIDING what happens.
+*)
+
 Inductive Dack : nat → nat → Prop :=
   | Dack_0_n n     : Dack 0 n
   | Dack_S_0 {m}   : Dack m 1
                    → Dack (S m) 0
   | Dack_S_S {m n} : Dack (S m) n
-                   → (∀v, Gack (S m) n v → Dack m v)
+                   → (∀v, Dack m v)
                    → Dack (S m) (S n).
 
 #[local] Hint Constructors Gack Dack : core.
@@ -48,8 +90,8 @@ Definition Dack_pi2 {m n} (d : Dack (S m) (S n)) : Dack (S m) n :=
   | Dack_S_S h _ => λ _, h
   end I.
 
-Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Gack (S m) n v → Dack m v :=
-  match d in Dack m n return is_S_S m n → ∀v, Gack _ (pred n) v → Dack (pred m) v with
+Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Dack m v :=
+  match d in Dack m n return is_S_S m n → ∀v, Dack (pred m) v with
   | Dack_0_n _   => λ C, match C with end
   | Dack_S_0 h   => λ C, match C with end
   | Dack_S_S _ h => λ _, h
@@ -63,7 +105,7 @@ Proof.
   | S m ,   0 => λ d, let (o,ho) := ack_pwc m 1 (Dack_pi1 d)     in
                       exist _ o _
   | S m , S n => λ d, let (v,hv) := ack_pwc (S m) n (Dack_pi2 d) in
-                      let (o,ho) := ack_pwc m v (Dack_pi3 d hv)  in
+                      let (o,ho) := ack_pwc m v (Dack_pi3 d)  in
                       exist _ o _
   end d); eauto.
 Defined.
@@ -74,6 +116,40 @@ Proof.
   induction m in n |- *; eauto.
   induction n; eauto.
 Defined.
+
+(* Explicit program for termination certificates *)
+(* "expl" stands both for "explicit" and "explanation" *)
+Definition ack_termination_expl : ∀ m n, Dack m n :=
+  fix loop_m m : ∀ n, Dack m n := 
+    match m with
+    | O   => Dack_0_n
+    | S m =>
+        let loopm := loop_m m in
+        fix loop_n n : Dack (S m) n :=
+          match n with
+          | O   => Dack_S_0 (loopm 1)
+          | S n => Dack_S_S (loop_n n) loopm
+          end
+    end.
+
+(*
+Here is the program developed in file ackermann.v:
+Definition ack_termination_expl : ∀ m n, Dack m n :=
+  fix loop_m m : ∀ n, Dack m n :=
+    match m with
+    | O   => Dack_0_n
+    | S m =>
+        let loopm := loop_m m in
+        fix loop_n n : Dack (S m) n :=
+          match n with
+          | O   => Dack_S_0 (loopm 1)
+          | S n => Dack_S_S (loop_n n) (λ v hv, loopm v)
+          end
+    end.
+There we discovered that hv, a proof of Gack (S m) n v, is unused.
+This suggests that Dack could be simplified as proposed in the current
+file. And without loss in Lemma ack_termination as just checked.
+*)
 
 (* Now the definition of Ackermann, combined with termination
    and stripped of its low-level spec *)
@@ -117,80 +193,3 @@ Proof. eauto. Qed.
 (* Extraction is right on spot *)
 Extraction Inline ack_pwc.
 Extraction ack.
-
-(* This alternate avoids tailored small inversions and
-   replaces them with the generic Acc_inv, so we get
-   a shorter proof.*)
-
-(* We define the sub-call/call relation inductivelly *)
-Inductive ack_sub_calls : nat*nat → nat*nat → Prop :=
-  | ack_sc_1 m     : ack_sub_calls (m,1) (S m,0)
-  | ack_sc_2 m n   : ack_sub_calls (S m,n) (S m, S n)
-  | ack_sc_3 m n v : Gack (S m) n v → ack_sub_calls (m,v) (S m,S n).
-
-#[local] Hint Constructors ack_sub_calls : core.
-
-Arguments Acc_inv {_ _ _} _ {_}.
-
-(* We use Acc_inv that recover the sub-term for a proof of d : Acc ... *)
-Fixpoint ack_pwc_Acc m n (d : Acc ack_sub_calls (m,n)) : sig (Gack m n).
-Proof.
-  refine(match m, n return Acc ack_sub_calls (m,n) → sig (Gack m n) with
-  |   0 ,   _ => λ _, exist _ (S n) _
-  | S m ,   0 => λ d, let (o,ho) := ack_pwc_Acc m 1 (Acc_inv d _)     in
-                      exist _ o _
-  | S m , S n => λ d, let (v,hv) := ack_pwc_Acc (S m) n (Acc_inv d _) in
-                      let (o,ho) := ack_pwc_Acc m v (Acc_inv d _)     in
-                      exist _ o _
-  end d); eauto.
-Defined.
-
-Lemma ack_sub_calls_inv p q :
-       ack_sub_calls p q 
-     → match q with
-       | (  0 ,   n) => False
-       | (S m ,   0) => (m,1) = p
-       | (S m , S n) => (S m,n) = p
-                      ∨ ∃v, Gack (S m) n v ∧ (m,v) = p
-       end.
-Proof. destruct 1; eauto. Qed.
-
-Lemma ack_termination_Acc m n : Acc ack_sub_calls (m,n).
-Proof.
-  induction m in n |- *; [ | induction n ];
-    constructor. 
-  1,2: intros ? []%ack_sub_calls_inv; auto.
-  intros ? [ | (? & _ & ?)]%ack_sub_calls_inv; subst; auto.
-Qed.
-
-(** Then we can finish as in the case of Dack with the def of ack
-    and the fixpoint equations, and extraction *)
-
-(* ---------------------------------------------------------------------- *)
-(* Computation times *)
-
-(* Explicit program for termination certificates *)
-Definition ack_termination_expl : ∀ m n, Dack m n :=
-  fix loop_m m : ∀ n, Dack m n :=
-    match m with
-    | O   => Dack_0_n
-    | S m =>
-        let loopm := loop_m m in
-        fix loop_n n : Dack (S m) n :=
-          match n with
-          | O   => Dack_S_0 (loopm 1)
-          | S n => Dack_S_S (loop_n n) (λ v hv, loopm v)
-          end
-    end.
-
-Definition ack_expl m n := proj1_sig (ack_pwc m n (ack_termination_expl m n)).
-
-(* Very small values as input provide much maller computation times *)
-Time Compute ack_termination_expl 3 2. (* 0.004 s *)
-Time Compute ack_expl 3 4. (* 0.002 s *)
-
-(* Larger values can be computed *)
-Time Compute ack_termination 9 9. (* 2.36 s *)
-Time Compute ack_termination_expl 9 9. (* 0.98 s *)
-Time Compute ack_expl 3 10. (* 8.7 s *)
-Time Compute ack 3 10. (* 8.1 s *)
