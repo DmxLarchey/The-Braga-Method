@@ -117,40 +117,6 @@ Proof.
   induction n; eauto.
 Defined.
 
-(* Explicit program for termination certificates *)
-(* "expl" stands both for "explicit" and "explanation" *)
-Definition ack_termination_expl : ∀ m n, Dack m n :=
-  fix loop_m m : ∀ n, Dack m n := 
-    match m with
-    | O   => Dack_0_n
-    | S m =>
-        let loopm := loop_m m in
-        fix loop_n n : Dack (S m) n :=
-          match n with
-          | O   => Dack_S_0 (loopm 1)
-          | S n => Dack_S_S (loop_n n) loopm
-          end
-    end.
-
-(*
-Here is the program developed in file ackermann.v:
-Definition ack_termination_expl : ∀ m n, Dack m n :=
-  fix loop_m m : ∀ n, Dack m n :=
-    match m with
-    | O   => Dack_0_n
-    | S m =>
-        let loopm := loop_m m in
-        fix loop_n n : Dack (S m) n :=
-          match n with
-          | O   => Dack_S_0 (loopm 1)
-          | S n => Dack_S_S (loop_n n) (λ v hv, loopm v)
-          end
-    end.
-There we discovered that hv, a proof of Gack (S m) n v, is unused.
-This suggests that Dack could be simplified as proposed in the current
-file. And without loss in Lemma ack_termination as just checked.
-*)
-
 (* Now the definition of Ackermann, combined with termination
    and stripped of its low-level spec *)
 Definition ack m n := proj1_sig (ack_pwc m n (ack_termination m n)).
@@ -193,3 +159,52 @@ Proof. eauto. Qed.
 (* Extraction is right on spot *)
 Extraction Inline ack_pwc.
 Extraction ack.
+
+(* ---------------------------------------------------------------------- *)
+(* Computation times *)
+
+(* Explicit program for termination certificates *)
+(* "expl" stands both for "explicit" and "explanation" *)
+Definition ack_termination_expl : ∀ m n, Dack m n :=
+  fix loop_m m : ∀ n, Dack m n := 
+    match m with
+    | O   => Dack_0_n
+    | S m =>
+        let loopm := loop_m m in
+        fix loop_n n : Dack (S m) n :=
+          match n with
+          | O   => Dack_S_0 (loopm 1)
+          | S n => Dack_S_S (loop_n n) loopm
+          end
+    end.
+
+(*
+Here is the program developed in file ackermann.v:
+Definition ack_termination_expl : ∀ m n, Dack m n :=
+  fix loop_m m : ∀ n, Dack m n :=
+    match m with
+    | O   => Dack_0_n
+    | S m =>
+        let loopm := loop_m m in
+        fix loop_n n : Dack (S m) n :=
+          match n with
+          | O   => Dack_S_0 (loopm 1)
+          | S n => Dack_S_S (loop_n n) (λ v hv, loopm v)
+          end
+    end.
+There we discovered that hv, a proof of Gack (S m) n v, is unused.
+This suggests that Dack could be simplified as proposed in the current
+file. And without loss in Lemma ack_termination as just checked.
+*)
+
+Definition ack_expl m n := proj1_sig (ack_pwc m n (ack_termination_expl m n)).
+
+(* Very small values as input provide much maller computation times *)
+Time Compute ack_termination_expl 3 2. (* 0.004 s *)
+Time Compute ack_expl 3 4. (* 0.002 s *)
+
+(* Larger values can be computed *)
+Time Compute ack_termination 9 9. (* 0.61 s *)
+Time Compute ack_termination_expl 9 9. (* 2.3 s *)
+Time Compute ack_expl 3 10. (* 9.6 s *)
+Time Compute ack 3 10. (* 8.2 s *)
