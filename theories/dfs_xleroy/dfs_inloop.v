@@ -1,3 +1,18 @@
+(**************************************************************)
+(*   Copyright Dominique Larchey-Wendling [*]                 *)
+(*             JF Monin                   [**]                *)
+(*                                                            *)
+(*                             [*] Affiliation LORIA -- CNRS  *)
+(*                            [**] Affiliation Verimag -- UGA *)
+(**************************************************************)
+(*      This file is distributed under the terms of the       *)
+(*         CeCILL v2.1 FREE SOFTWARE LICENSE AGREEMENT        *)
+(**************************************************************)
+
+(* TODO: remove this comment
+   Work in progress: consistency with [2] and the other files
+   of the current directory *)
+
 (* The Braga method applied to dfs, expressed with an internal loop *)
 (* Jean-François Monin, Verimag, Univ. Grenoble-Alpes, 2024         *)
 
@@ -6,16 +21,12 @@
     https://inria.hal.science/hal-04356563/document
 [2] Dominique Larchey-Wendling and Jean-François Monin
     The Braga Method https://cnrs.hal.science/hal-03338785v1
-[3] Jean-François Monin
-    Small inversions for smaller inversions, TYPES'2022
-    https://www-verimag.imag.fr/~monin/Talks/sminv22.pdf
 
 The algorithm provided in [1] is not quite the usual dfs algorithm
 Chapter 1 shows the use of the Braga method on the rectified version
 of this algorithm.
 Then Chapter 2 provides a number of transformations from
-this algorithm to the one considered in [2],
-using dependent small inversion explained in [3].
+this algorithm to the one considered in [2].
 
  *)
 
@@ -26,6 +37,8 @@ Import ListNotations.
 #[local] Infix "∈" := In (at level 70, no associativity).
 #[local] Infix "∉" := (λ x a, ¬ In x a) (at level 70, no associativity).
 #[local] Infix "⊆" := incl (at level 70, no associativity).
+
+Require Import dfs_abstract.
 
 (* Needed for dfs_stack *)
 (* Then we reuse it for Gdfs_list as well (but keep Ddfs_list mutual recursive) *)
@@ -486,6 +499,7 @@ Section dfs.
   Definition dfs_book_eff x :                                     (* *)  Ddfs_stack [] ([[x]]) →
                               list X := dfs_stack [] [[x]].
 
+  (* TODO remove this part and replace with some suitable Gdfs_stack *)
   (* Dependent small inversions for Ddfs_stack *)
 
   Inductive Ddfs_stack_n a : Ddfs_stack a [] → Prop :=
@@ -837,6 +851,8 @@ Section dfs.
   Definition dfs_book x :                                         (* *)  Ddfs_flatten [] ([x]) →
                           list X := dfs_flatten [] [x].
 
+  (* TODO remove this part and replace with some suitable Gdfs_flatten *)
+  (* TODO just refer to the previous dfs (from book)? *)
   (* Dependent small inversions for Ddfs_flatten *)
 
   Inductive Ddfs_flatten_n a : Ddfs_flatten a [] → Prop :=
