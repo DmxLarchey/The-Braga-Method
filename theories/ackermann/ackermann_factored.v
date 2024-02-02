@@ -112,6 +112,24 @@ Proof.
   destruct hv; eauto.
 Defined.
 
+Fixpoint ack_pwc'' m n (d : Dack m n) : sig (Gack m n).
+Proof.
+  destruct m as [ | m ].
+  + exists (S n); eauto.
+  + assert {v | Gack' m n v} as (v & hv).
+    * destruct n as [ | n ].
+      - exists 1; eauto.
+      - destruct (ack_pwc'' (S m) n) as (v & hv).
+        ++ now apply Dack_pi2.
+        ++ exists v; eauto.
+    * destruct (ack_pwc'' m v) as (o & ho).
+      - destruct hv.
+        ++ now apply Dack_pi1.
+        ++ eapply Dack_pi3; eauto.
+      - exists o.
+        destruct hv; eauto.
+Defined.
+
 (* Termination of ack. Lexicographic product is by nested induction *)
 Lemma ack_termination m n : Dack m n.
 Proof.
@@ -160,4 +178,4 @@ Proof. eauto. Qed.
 
 (* Extraction is right on spot *)
 Extraction Inline ack_pwc.
-Recursive Extraction ack ack_pwc'.
+Recursive Extraction ack ack_pwc' ack_pwc''.
