@@ -33,7 +33,7 @@ let bfs t =
   | [] -> rev_app [] a
   | _  -> level h i a [] n
   in level 0 0 [] [] [t];;
-
+		
 let t2 = t 3;;
 bfs t2;;
 
