@@ -55,6 +55,14 @@ Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Gack (S m) n v → Da
   | Dack_S_S _ h => λ _, h
   end I.
 
+(** let rec ack m n =
+  match m with
+  |   0 -> S n
+  | S m -> ack m 
+   (match n with
+    |   0 -> S 0
+    | S n -> ack (S m) n) *)
+
 (* The fully specified Ackermann function *)
 Fixpoint ack_pwc m n (d : Dack m n) : sig (Gack m n).
 Proof.
@@ -73,6 +81,35 @@ Proof.
                 exist _ o _
   end d); eauto.
   destruct n; subst; eauto.
+Defined.
+
+Inductive Gack' m : nat → nat → Prop :=
+  | Gack'_0 : Gack' m 0 1
+  | Gack'_S n o : Gack (S m) n o → Gack' m (S n) o.
+
+#[local] Hint Constructors Gack' : core.
+
+Arguments Gack'_0 {_}.
+Arguments Gack'_S {_ _ _}.
+
+(* The same with an inductive spec *)
+Fixpoint ack_pwc' m n (d : Dack m n) : sig (Gack m n).
+Proof.
+  refine (match m return Dack m _ → sig (Gack m _) with
+  | 0   => λ _, exist _ (S n) _
+  | S m => λ d, let (v,hv) := match n return Dack _ n → sig (Gack' _ n) with
+                  | 0   => λ d, exist _ 1 _
+                  | S n => λ d, let (v,hv) := ack_pwc' (S m) n (Dack_pi2 d) in
+                                exist _ v _
+                end d in
+                let (o,ho) := ack_pwc' m v
+                  (match hv in Gack' _ n v return Dack _ n → Dack _ v with
+                  | Gack'_0   => λ d, Dack_pi1 d
+                  | Gack'_S h => λ d, Dack_pi3 d h
+                  end d) in
+                exist _ o _
+  end d); eauto.
+  destruct hv; eauto.
 Defined.
 
 (* Termination of ack. Lexicographic product is by nested induction *)
@@ -123,4 +160,4 @@ Proof. eauto. Qed.
 
 (* Extraction is right on spot *)
 Extraction Inline ack_pwc.
-Extraction ack.
+Recursive Extraction ack ack_pwc'.
