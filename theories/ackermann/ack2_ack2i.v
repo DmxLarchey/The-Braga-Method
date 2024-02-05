@@ -15,6 +15,10 @@ with ack2i_spec : nat → nat → nat → Prop :=
 | ack2i_n0 {m} : ack2i_spec m 0 1
 | ack2i_nS {m n x} : ack2_spec (S m) n x → ack2i_spec m (S n) x.
 
+(* Le constructeur alternatif *)
+Fact ack2_mS' {m n x y} : ack2i_spec m n x → ack2_spec m x y → ack2_spec (S m) n y.
+Proof. constructor 2; eauto. Qed.
+
 Lemma ack2_spec_inv {m n y} :
       ack2_spec m n y
     → match m with
