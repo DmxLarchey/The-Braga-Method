@@ -77,12 +77,18 @@ Section ack123_spec_ind.
 
   (** Voici le récurseur standard, qui a le même type, mais pas le même algo. *)
 
-  Fixpoint ack1_spec_ind_std m n x (a : ack1_spec m n x) { struct a } : P m n x
-      with ack3_spec_ind_std m n x (a : ack3_spec m n x) { struct a } : Q m n x.
-  Proof.
-    + destruct a as [ | m n y [ ] ]; eauto.
-    + destruct a; eauto.
-  Qed.
+  Fixpoint ack1_spec_ind_std {m n x} (a : ack1_spec m n x) { struct a } : P m n x :=
+    match a with
+    | ack1_m0   => HP0
+    | ack1_mS h => match h with
+                   | ack2_in h1 h2 => HPS h1 (ack3_spec_ind_std h1) h2 (ack1_spec_ind_std h2)
+                   end
+    end
+  with ack3_spec_ind_std {m n x} (a : ack3_spec m n x) { struct a } : Q m n x :=
+    match a with
+    | ack3_n0   => HQ0
+    | ack3_nS h => HQS h (ack1_spec_ind_std  h)
+    end.
 
 End ack123_spec_ind.
 
