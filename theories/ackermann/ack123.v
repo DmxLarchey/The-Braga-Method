@@ -63,14 +63,14 @@ Section ack123_spec_ind.
             (HQS : ∀ {m n x}, ack1_spec (S m) n x → P (S m) n x → Q m (S n) x).
 
   Fixpoint ack1_spec_ind_alt {m n x} (a : ack1_spec m n x) { struct a } : P m n x :=
-    match m return ack1_spec m _ _ -> _ with
+    match m return ack1_spec m _ _ → _ with
     | 0   => λ a, match ack1_spec_inv a in _ = n return P _ _ n with eq_refl => HP0 end
     | S m => λ a, match ack1_spec_inv_S a with
                   | ack2_in h1 h2 => HPS h1 (ack3_spec_ind_alt h1) h2 (ack1_spec_ind_alt h2)
                   end
     end a
   with ack3_spec_ind_alt {m n x} (a : ack3_spec m n x) { struct a } : Q m n x :=
-    match n return ack3_spec _ n _ -> _ with
+    match n return ack3_spec _ n _ → _ with
     | 0   => λ a, match ack3_spec_inv a in _ = n return Q _ _ n with eq_refl => HQ0 end
     | S n => λ a, HQS (ack3_spec_inv_S a) (ack1_spec_ind_alt (ack3_spec_inv_S a))
     end a.
