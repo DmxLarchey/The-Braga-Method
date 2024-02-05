@@ -60,6 +60,7 @@ unif/unif_term.v
 ackermann/ackermann.v
 ackermann/ackermann_dm.v
 ackermann/ackermann_factored.v
+ackermann/ack2_ack2i.v
 
 # Utilities
 
