@@ -1,6 +1,6 @@
 (** DLW: ceci est un retravail d'un code initial de David Monniaux *) 
 
-(* Unset Elimination Schemes. *)
+Unset Elimination Schemes.
 
 (* On garde la forme existencielle ici, au lieu de déplier et on 
    a donc un type mutuellement inductif imbriqué avec ex(ists) et
@@ -70,6 +70,54 @@ Proof.
   + destruct n as [ | n ].
     * apply ack2i_spec_inv in SPECi1, SPECi2; simpl in *; now subst.
     * exact (ack2_spec_det _ _ _ _ (ack2i_spec_inv_S SPECi1) (ack2i_spec_inv SPECi2)).
+Qed.
+
+Section ack2_spec_ind.
+
+  (** Ici on factorise le recurseur de la preuve précédente. Attention ce n'est pas
+      le recurseur usuel qui procède par un match sur a en premier. *)
+
+  Variables (P Q : nat -> nat -> nat -> Prop)
+            (HP0 : forall n, P 0 n (S n))
+            (HPS : forall m n x y, ack2i_spec m n x -> Q m n x -> ack2_spec m x y -> P m x y -> P (S m) n y)
+            (HQ0 : forall m, Q m 0 1)
+            (HQS : forall m n x, ack2_spec (S m) n x -> P (S m) n x -> Q m (S n) x).
+
+  Fixpoint ack2_spec_ind_alt m n x (a : ack2_spec m n x) { struct a } : P m n x
+      with ack2i_spec_ind_alt m n x (a : ack2i_spec m n x) { struct a } : Q m n x.
+  Proof.
+    + destruct m as [ | m ].
+      * now apply ack2_spec_inv in a as ->.
+      * apply ack2_spec_inv_S in a as (y & H1 & H2).
+        apply HPS with y; trivial.
+        - now apply ack2i_spec_ind_alt.
+        - now apply ack2_spec_ind_alt.
+    + destruct n as [ | n ].
+      * now apply ack2i_spec_inv in a as ->.
+      * apply HQS; [ | apply ack2_spec_ind_alt ]; now apply ack2i_spec_inv_S.
+  Qed.
+
+  (** Voici le récurseur standard, qui a le même type, mais pas le même algo. *)
+
+  Fixpoint ack2_spec_ind_std m n x (a : ack2_spec m n x) { struct a } : P m n x
+      with ack2i_spec_ind_std m n x (a : ack2i_spec m n x) { struct a } : Q m n x.
+  Proof.
+    + destruct a as [ | m n y (x & []) ]; eauto.
+    + destruct a; eauto.
+  Qed.
+
+End ack2_spec_ind.
+
+(* La même preuve que ack2*_spec_det mais avec le recurseur factorisé: on
+   peut utiliser n'importe lequel entre ack2_spec_ind_{alt,std} *)
+Theorem ack2_spec_det_with_recursor m n r1 r2 : ack2_spec m n r1 -> ack2_spec m n r2 -> r1 = r2.
+Proof.
+  intros a; revert r2; pattern m, n, r1; revert m n r1 a.
+  apply ack2_spec_ind_alt with (Q := fun m n r => forall r2, ack2i_spec m n r2 -> r = r2).
+  + now intros ? ? ->%ack2_spec_inv.
+  + now intros ? ? ? ? _ IH1 _ IH2 ? (? & <-%IH1 & ?%IH2)%ack2_spec_inv.
+  + now intros ? ? ->%ack2i_spec_inv.
+  + now intros ? ? ? _ IH ? ?%ack2i_spec_inv%IH.
 Qed.
 
 (*** On garde ça pour la petite histoire *)
