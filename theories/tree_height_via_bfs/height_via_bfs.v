@@ -350,9 +350,17 @@ Section rtree_ht_via_bfs.
     + generalize (rtree_ht_ge_1 t); lia.
   Qed.
 
+  Hint Resolve rtree_ht_bfs_total_correctness : core.
+
+  Corollary rtree_ht_bfs_fix l : rtree_ht_bfs ⟨l⟩ = 1+list_max rtree_ht_bfs l.
+  Proof.
+    rewrite rtree_ht_bfs_total_correctness; simpl; f_equal.
+    symmetry; induction l; simpl; f_equal; auto.
+  Qed.
+
 End rtree_ht_via_bfs.
 
-Check rtree_ht_bfs_total_correctness.
+Check rtree_ht_bfs_fix.
 
 Extraction Inline level next.
 Recursive Extraction rtree_ht_bfs.

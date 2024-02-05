@@ -149,11 +149,14 @@ Two variants of the `head : α list -> α` partial function:
 
 ### [Rose Tree height with Breadth First Search](theories/tree_height_via_bfs/height_via_bfs.v)
 
-As an exercise suggested by J.C. Filliâtre at JFLA'24:
+As an exercise suggested by J.C. Filliâtre at JFLA'24, the computation of the
+height of a finitely branching tree (ie. _rose tree_) using a zigzagging BFS algorithm
+implemented using two mutually recursive functions `level`/`next`:
+* the program is proved correct by construction against the following spec:
+* `rtree_ht_bfs (Rt l) = 1+list_max rtree_ht_bfs l`
 
 ```ocaml 
-       
-    type rtree = | Rt of rtree list
+    type rtree = Rt of rtree list
     
     let rec rev_app l = function
     | []   -> l
