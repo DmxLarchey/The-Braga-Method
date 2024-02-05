@@ -7,9 +7,9 @@
 (*             Mozilla Public License MPL v2.0                *)
 (**************************************************************)
 
-(** Following a discussion with JC Filliâtre, here is 
+(** Following a discussion with JC Filliâtre, here is
     a correct by construction recursive terminal algorithm 
-    for computing the height of an undecorated rose tree via 
+    for computing the height of an undecorated rose tree via
     a zizaging Breadth First Traversal.
 
       type rtree = Rt of rtree list
@@ -30,8 +30,8 @@
     "Surprise surprise" in the position where
      h should be increased.
 
-     In particular, I could not prove the following 
-     variant
+     In particular, I could not prove the correctness
+     of the following variant
 
         let rec level h n = function
         | []      -> next h n
@@ -41,8 +41,8 @@
         | _  -> level (S h) ...
         in level 1 [] [t]
 
-     correct. Possibly the spec was too cumbersome 
-     compared to the straightforward version above. *)
+     Possibly the spec was too cumbersome compared to 
+     the more straightforward version above. *)
 
 (** This file is self contained over StdLib *)
 
@@ -52,7 +52,7 @@ Import ListNotations.
 
 (** List sum and max utilities *)
 
-(* rev_app with arguments ordered as OCaml *)
+(* rev_app with arguments ordered as in OCaml *)
 Definition rev_app {X} :=
   fix loop (l m : list X) :=
     match m with
@@ -140,11 +140,11 @@ Section rtree_ht_via_bfs.
 
   with Gnext : nat → list rtree → nat → Prop :=
 
-  | Gnext_nil h :     Gnext h [] h
+  | Gnext_nil h :           Gnext h [] h
 
-  | Gnext_not h n o : n ≠ []
-                    → Glevel h [] n o
-                    → Gnext h n o
+  | Gnext_not h n o :       n ≠ []
+                          → Glevel h [] n o
+                          → Gnext h n o
   .
 
   Inductive Dlevel : nat → list rtree → list rtree → Prop :=
@@ -199,7 +199,7 @@ Section rtree_ht_via_bfs.
      level h n ⟨l⟩::c  ~~>  level h (rev_append n l) c
 
      We find a linear measure that decrease at
-     these two reduction steps :
+     the above two reduction steps:
      the sum of 
        1) total size of n and c
        2) the max of (1 + max height in n) and (max height in c) 
@@ -248,8 +248,6 @@ Section rtree_ht_via_bfs.
       in the fixpoint and does not introduce __/Obj.magic *)
   Definition Dlevel_pi2_inv {h n l c} (d : Dlevel h n (⟨l⟩::c)) : Dlevel h (rev_app n l) c.
   Proof. now inversion d. Defined.
-
-  Print Dlevel_pi2_inv.
 
   (** The below inversion the one actually used in the fixpoint,
       is readable and avoids __/Obj.magic as well *)
@@ -353,6 +351,8 @@ Section rtree_ht_via_bfs.
   Qed.
 
 End rtree_ht_via_bfs.
+
+Check rtree_ht_bfs_total_correctness.
 
 Extraction Inline level next.
 Recursive Extraction rtree_ht_bfs.
