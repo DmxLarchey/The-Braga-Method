@@ -1,49 +1,48 @@
 (** DLW: ceci est un retravail d'un code initial de David Monniaux *) 
 
+Require Import Utf8.
+
 Unset Elimination Schemes.
 
 (* On garde la forme existencielle ici, au lieu de déplier et on 
    a donc un type mutuellement inductif imbriqué avec ex(ists) et
    and ("et" logique) *)
-Inductive ack2_spec : nat -> nat -> nat -> Prop :=
-| ack2_m0 : forall n, ack2_spec O n (S n)
-| ack2_mS : forall m n y, (exists x, ack2i_spec m n x /\ ack2_spec m x y) -> ack2_spec (S m) n y
+Inductive ack2_spec : nat → nat → nat → Prop :=
+| ack2_m0 {n} : ack2_spec 0 n (S n)
+| ack2_mS {m n y} : (∃x, ack2i_spec m n x ∧ ack2_spec m x y) → ack2_spec (S m) n y
 
-with ack2i_spec : nat -> nat -> nat -> Prop :=
-| ack2i_n0 : forall m, ack2i_spec m O (S O)
-| ack2i_nS : forall m n x, ack2_spec (S m) n x -> ack2i_spec m (S n) x.
+with ack2i_spec : nat → nat → nat → Prop :=
+| ack2i_n0 {m} : ack2i_spec m 0 1
+| ack2i_nS {m n x} : ack2_spec (S m) n x → ack2i_spec m (S n) x.
 
 Lemma ack2_spec_inv {m n y} :
-    ack2_spec m n y ->
-      match m with
-      | O => y = (S n)
-      | S m => exists x, ack2i_spec m n x /\ ack2_spec m x y
+      ack2_spec m n y
+    → match m with
+      | O   => y = S n
+      | S m => ∃x, ack2i_spec m n x ∧ ack2_spec m x y
       end.
 Proof. now intros []. Qed.
 
 Definition not0 n := match n with 0 => False | _ => True end.
 
-Definition ack2_spec_inv_S {m n y} (a : ack2_spec (S m) n y) : exists x, ack2i_spec m n x /\ ack2_spec m x y :=
-  match a in ack2_spec m' _ _ return not0 m' -> exists x, ack2i_spec (pred m') _ x /\ ack2_spec (pred m') x _ with
-  | ack2_m0 _       => fun C => match C with end
-  | ack2_mS _ _ _ h => fun _ => h
+Definition ack2_spec_inv_S {m n y} (a : ack2_spec (S m) n y) : ∃x, ack2i_spec m n x ∧ ack2_spec m x y :=
+  match a in ack2_spec m _ _ return not0 m → ∃_, ack2i_spec (pred m) _ _ ∧ ack2_spec (pred m) _ _ with
+  | ack2_m0   => λ C, match C with end
+  | ack2_mS h => λ _, h
   end I.
 
 Lemma ack2i_spec_inv {m n x} :
-    ack2i_spec m n x ->
-    match n with
-    | O => x = (S O)
-    | S n => ack2_spec (S m) n x
-    end.
+      ack2i_spec m n x 
+    → match n with
+      | O => x = 1
+      | S n => ack2_spec (S m) n x
+      end.
 Proof. now intros []. Qed.
 
-(* L'inversion ack2i_spec m (S n) x produit une simple valeur
-   donc le code de cette factorisation est bcp plus naturel que
-   ack_spec_inv ci-dessus. *)
 Definition ack2i_spec_inv_S {m n x} (a : ack2i_spec m (S n) x) : ack2_spec (S m) n x :=
-  match a in ack2i_spec _ n' _ return not0 n' -> ack2_spec _ (pred n') _ with
-  | ack2i_n0 _       => fun C => match C with end
-  | ack2i_nS _ _ _ h => fun _ => h
+  match a in ack2i_spec _ n _ return not0 n → ack2_spec _ (pred n) _ with
+  | ack2i_n0   => λ C, match C with end
+  | ack2i_nS h => λ _, h
   end I.
 
 (* La même idée de départ que DM:
@@ -57,8 +56,8 @@ Definition ack2i_spec_inv_S {m n x} (a : ack2i_spec m (S n) x) : ack2_spec (S m)
    est dans Prop, càd utiliser le récurseur standard sur les
    inductif mutuel. C'est plus simple en fait, mais là ce n'est 
    plus les petites inversions *)
-Fixpoint ack2_spec_det {m n r1 r2} (SPEC1 : ack2_spec m n r1) (SPEC2 : ack2_spec m n r2) {struct SPEC1 } : r1 = r2
-   with  ack2i_spec_det {m n r1 r2} (SPECi1 : ack2i_spec m n r1) (SPECi2 : ack2i_spec m n r2) {struct SPECi1} : r1 = r2.
+Fixpoint ack2_spec_det {m n r₁ r₂} (SPEC1 : ack2_spec m n r₁) (SPEC2 : ack2_spec m n r₂) {struct SPEC1 } : r₁ = r₂
+   with  ack2i_spec_det {m n r₁ r₂} (SPECi1 : ack2i_spec m n r₁) (SPECi2 : ack2i_spec m n r₂) {struct SPECi1} : r₁ = r₂.
 Proof.
   + destruct m as [ | m ].
     * apply ack2_spec_inv in SPEC1, SPEC2; simpl in *; now subst.
@@ -77,11 +76,11 @@ Section ack2_spec_ind.
   (** Ici on factorise le recurseur de la preuve précédente. Attention ce n'est pas
       le recurseur usuel qui procède par un match sur a en premier. *)
 
-  Variables (P Q : nat -> nat -> nat -> Prop)
-            (HP0 : forall n, P 0 n (S n))
-            (HPS : forall m n x y, ack2i_spec m n x -> Q m n x -> ack2_spec m x y -> P m x y -> P (S m) n y)
-            (HQ0 : forall m, Q m 0 1)
-            (HQS : forall m n x, ack2_spec (S m) n x -> P (S m) n x -> Q m (S n) x).
+  Variables (P Q : nat → nat → nat → Prop)
+            (HP0 : ∀ n, P 0 n (S n))
+            (HPS : ∀ m n x y, ack2i_spec m n x → Q m n x → ack2_spec m x y → P m x y → P (S m) n y)
+            (HQ0 : ∀ m, Q m 0 1)
+            (HQS : ∀ m n x, ack2_spec (S m) n x → P (S m) n x → Q m (S n) x).
 
   Fixpoint ack2_spec_ind_alt m n x (a : ack2_spec m n x) { struct a } : P m n x
       with ack2i_spec_ind_alt m n x (a : ack2i_spec m n x) { struct a } : Q m n x.
@@ -110,10 +109,10 @@ End ack2_spec_ind.
 
 (* La même preuve que ack2*_spec_det mais avec le recurseur factorisé: on
    peut utiliser n'importe lequel entre ack2_spec_ind_{alt,std} *)
-Theorem ack2_spec_det_with_recursor m n r1 r2 : ack2_spec m n r1 -> ack2_spec m n r2 -> r1 = r2.
+Theorem ack2_spec_det_with_recursor m n r₁ r₂ : ack2_spec m n r₁ → ack2_spec m n r₂ → r₁ = r₂.
 Proof.
-  intros a; revert r2; pattern m, n, r1; revert m n r1 a.
-  apply ack2_spec_ind_alt with (Q := fun m n r => forall r2, ack2i_spec m n r2 -> r = r2).
+  intros a; revert r₂; pattern m, n, r₁; revert m n r₁ a.
+  apply ack2_spec_ind_alt with (Q := λ m n r₁, ∀ r₂, ack2i_spec m n r₂ → r₁ = r₂).
   + now intros ? ? ->%ack2_spec_inv.
   + now intros ? ? ? ? _ IH1 _ IH2 ? (? & <-%IH1 & ?%IH2)%ack2_spec_inv.
   + now intros ? ? ->%ack2i_spec_inv.
@@ -126,11 +125,11 @@ Qed.
    retour doit être un triplet dépendant de la forme
            exists x, P x /\ Q x 
    Donc on lui donne la forme d'un principe d'induction *)
-Definition ack_spec_inv_S' (P : nat -> nat -> Prop) m n y : 
-       (forall x, ack2i_spec m n x -> ack2_spec m x y -> P n y)
-    -> ack2_spec (S m) n y -> P n y :=
-  fun f a => match a in ack2_spec m' n' y' return not0 m' -> (forall x : nat, ack2i_spec (pred m') n' x -> ack2_spec (pred m') x y' -> P n' y') -> P n' y' with
-  | ack2_m0 _             => fun C _ => match C with end
-  | ack2_mS m n y (ex_intro _ _ (conj h1 h2)) => fun _ f => f _ h1 h2
+Definition ack_spec_inv_S' (P : nat → nat → Prop) m n y : 
+       (∀x, ack2i_spec m n x → ack2_spec m x y → P n y)
+      → ack2_spec (S m) n y → P n y := λ f a,
+  match a in ack2_spec m' _ _ return not0 m' → (∀x, ack2i_spec (pred m') _ x → ack2_spec (pred m') x _ → P _ _) → P _ _ with
+  | ack2_m0                             => λ C _, match C with end
+  | ack2_mS (ex_intro _ _ (conj h1 h2)) => λ _ f, f _ h1 h2
   end I f.
 
