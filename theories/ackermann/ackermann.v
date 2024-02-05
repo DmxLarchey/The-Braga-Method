@@ -202,7 +202,10 @@ Time Compute ack_expl 3 4. (* 0.002 s *)
     proofs perform the same computation ... 
 
     Btw I do not get stable enough times to compare. 
-    In the last try, the _expl version is 0.5% faster ... *) 
+    In the last try, the _expl version is 0.5% faster ... *)
+
+(** JFM: got similarly unstable results. *)
+
 Time Compute ack 3 10. (* 8.1 s *)
 Time Compute ack_expl 3 10. (* 8.7 s *)
 
