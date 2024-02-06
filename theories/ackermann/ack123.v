@@ -18,6 +18,8 @@ with      ack3_spec : nat → nat → nat → Prop :=
 
 (* Le constructeur alternatif *)
 (* JFM: résidu inutile ? Ca compile sans *)
+(* DLW: juste pour montrer que c'est un type équilavent au type d'origine
+        mais effectivement, il ne sert pas ici *)
 (*Fact ack1_mS' {m n x y} : ack3_spec m n x → ack1_spec m x y → ack1_spec (S m) n y.
 Proof. constructor 2; auto; econstructor; eauto. Qed.
 *)
