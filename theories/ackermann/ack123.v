@@ -4,7 +4,7 @@ Require Import Utf8.
 
 Unset Elimination Schemes.
 
-(* On garde la forme existencielle ici, avec un prédicat spécialisé 
+(* On garde la forme existentielle ici, avec un prédicat spécialisé 
    en lieu et place de (∃x, ack2i_spec m n x ∧ ack2_spec m x y),
    ck ack2_ack2i.v *)
 Inductive ack1_spec : nat → nat → nat → Prop :=
@@ -17,8 +17,10 @@ with      ack3_spec : nat → nat → nat → Prop :=
 | ack3_nS {m n x} : ack1_spec (S m) n x → ack3_spec m (S n) x.
 
 (* Le constructeur alternatif *)
-Fact ack1_mS' {m n x y} : ack3_spec m n x → ack1_spec m x y → ack1_spec (S m) n y.
+(* JFM: résidu inutile ? Ca compile sans *)
+(*Fact ack1_mS' {m n x y} : ack3_spec m n x → ack1_spec m x y → ack1_spec (S m) n y.
 Proof. constructor 2; auto; econstructor; eauto. Qed.
+*)
 
 Lemma ack1_spec_inv {m n y} :
       ack1_spec m n y
