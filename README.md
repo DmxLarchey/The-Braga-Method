@@ -147,6 +147,33 @@ Two variants of the `head : α list -> α` partial function:
 * [`ns.v`](theories/ns/ns.v): unbounded search `ns` via custom domain predicates 
 * [`ns_acc.v`](theories/ns/ns_acc.v): unbounded search `ns` via `Acc`-based domain predicates
 
+### [Rose Tree height with Breadth First Search](theories/tree_height_via_bfs/height_via_bfs.v)
+
+As an exercise suggested by J.C. Filliâtre at JFLA'24, the computation of the
+height of a finitely branching tree (ie. _rose tree_) using a zigzagging BFS algorithm
+implemented using two mutually recursive functions `level`/`next`:
+* the program is proved correct by construction against the following spec:
+* `rtree_ht_bfs (Rt l) = 1+list_max rtree_ht_bfs l`
+
+```ocaml 
+    type rtree = Rt of rtree list
+    
+    let rec rev_app l = function
+    | []   -> l
+    | x::m -> rev_app (x::l) m
+
+    let rtree_ht_bfs t =
+      let rec level h n = function
+      | []      -> next (S h) n
+      | Rt l::c -> level h (rev_app n l) c
+      and next h n = match n with
+      | [] -> h
+      | _  -> level h [] n
+      in level 0 [] [t] 
+```
+
+*[`height_via_bfs.v`](theories/tree_height_via_bfs/height_via_bfs.v)
+
 ### [Depth-First Search on an infinite graph `dfs`](theories/dfs)
 
 ```ocaml
