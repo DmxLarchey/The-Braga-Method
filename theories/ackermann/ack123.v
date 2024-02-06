@@ -75,6 +75,22 @@ Section ack123_spec_ind.
     | S n => λ a, HQS (ack3_spec_inv_S a) (ack1_spec_ind_alt (ack3_spec_inv_S a))
     end a.
 
+  (* Le même avec 3 fixpoints mutuels *) 
+  Fixpoint ack1_spec_ind_alt3 {m n x} (a : ack1_spec m n x) { struct a } : P m n x :=
+    match m return ack1_spec m _ _ → _ with
+    | 0   => λ a, match ack1_spec_inv a in _ = n return P _ _ n with eq_refl => HP0 end
+    | S m => λ a, ack2_spec_ind_alt3 (ack1_spec_inv_S a)
+    end a
+  with ack2_spec_ind_alt3 {m n x} (a : ack2_spec m n x) { struct a } : P (S m) n x :=
+    match a with
+    | ack2_in h1 h2 => HPS h1 (ack3_spec_ind_alt3 h1) h2 (ack1_spec_ind_alt3 h2)
+    end
+  with ack3_spec_ind_alt3 {m n x} (a : ack3_spec m n x) { struct a } : Q m n x :=
+    match n return ack3_spec _ n _ → _ with
+    | 0   => λ a, match ack3_spec_inv a in _ = n return Q _ _ n with eq_refl => HQ0 end
+    | S n => λ a, HQS (ack3_spec_inv_S a) (ack1_spec_ind_alt3 (ack3_spec_inv_S a))
+    end a.
+
   (** Voici le récurseur standard, qui a le même type, mais pas le même algo. *)
 
   Fixpoint ack1_spec_ind_std {m n x} (a : ack1_spec m n x) { struct a } : P m n x :=
@@ -88,6 +104,22 @@ Section ack123_spec_ind.
     match a with
     | ack3_n0   => HQ0
     | ack3_nS h => HQS h (ack1_spec_ind_std  h)
+    end.
+
+  (* Le même avec 3 fixpoints mutuels *) 
+  Fixpoint ack1_spec_ind_std3 {m n x} (a : ack1_spec m n x) { struct a } : P m n x :=
+    match a with
+    | ack1_m0   => HP0
+    | ack1_mS h => ack2_spec_ind_std3 h
+    end
+  with ack2_spec_ind_std3 {m n x} (a : ack2_spec m n x) { struct a } : P (S m) n x :=
+    match a with
+    | ack2_in h1 h2 => HPS h1 (ack3_spec_ind_std3 h1) h2 (ack1_spec_ind_std3 h2)
+    end
+  with ack3_spec_ind_std3 {m n x} (a : ack3_spec m n x) { struct a } : Q m n x :=
+    match a with
+    | ack3_n0   => HQ0
+    | ack3_nS h => HQS h (ack1_spec_ind_std3  h)
     end.
 
 End ack123_spec_ind.
