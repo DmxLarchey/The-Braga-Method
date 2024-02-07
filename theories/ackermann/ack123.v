@@ -1,4 +1,18 @@
-(** DLW: ceci est un retravail d'un code initial de David Monniaux *) 
+(** DLW: ceci est un retravail d'un code initial de David Monniaux *)
+(** Le schéma suivi pour regrouper les composantes de certains constructeurs
+    dans un inductif auxiliaire (ack2_spec) est apparenté au schéma suivi
+    pour les petites inversions à base d'inductifs partiels exposées en 2021
+    https://www-verimag.imag.fr/~monin/Talks/sir.pdf
+    et évoquées à TYPES'22
+    https://www-verimag.imag.fr/~monin/Publis/Docs/types22-smallinv.pdf
+
+    L'objectif ici est de permettre d'accéder dans le même match
+    aux deux sous-termes de la spec de ack (S m) (S n) y
+    pour alléger l'écriture du récurseur.
+ *)
+
+(* JFM -> DLW : le résumé ci-dessus correspond à ma perception, tu vérifies
+   quand même que cela te va, ou tu rectifies ? *)
 
 Require Import Utf8.
 
@@ -7,6 +21,7 @@ Unset Elimination Schemes.
 (* On garde la forme existentielle ici, avec un prédicat spécialisé 
    en lieu et place de (∃x, ack2i_spec m n x ∧ ack2_spec m x y),
    ck ack2_ack2i.v *)
+(* JFM -> DLW : typo ligne juste avant ? *)
 Inductive ack1_spec : nat → nat → nat → Prop :=
 | ack1_m0 {n} : ack1_spec 0 n (S n)
 | ack1_mS {m n y} : ack2_spec m n y → ack1_spec (S m) n y
@@ -16,13 +31,10 @@ with      ack3_spec : nat → nat → nat → Prop :=
 | ack3_n0 {m} : ack3_spec m 0 1
 | ack3_nS {m n x} : ack1_spec (S m) n x → ack3_spec m (S n) x.
 
-(* Le constructeur alternatif *)
-(* JFM: résidu inutile ? Ca compile sans *)
-(* DLW: juste pour montrer que c'est un type équilavent au type d'origine
-        mais effectivement, il ne sert pas ici *)
-(*Fact ack1_mS' {m n x y} : ack3_spec m n x → ack1_spec m x y → ack1_spec (S m) n y.
+(* Le constructeur alternatif, montrant que cette spec est équivalente
+   à celle d'origine *)
+Fact ack1_mS' {m n x y} : ack3_spec m n x → ack1_spec m x y → ack1_spec (S m) n y.
 Proof. constructor 2; auto; econstructor; eauto. Qed.
-*)
 
 Lemma ack1_spec_inv {m n y} :
       ack1_spec m n y
