@@ -94,6 +94,20 @@ Section strict_lex_list.
     destruct (IHl m) as [| [<- | ] ]; eauto.
   Qed.
 
+  Lemma sll_prefix_choose l m :
+        l <s m
+      → (∃ x k, m = l++x::k)
+      ∨ (∃ p x u y v, l = p++x::u /\ m = p++y::v /\ R x y).
+  Proof.
+    induction 1 as [ x l | x l m _ IH | x y l m H ].
+    + left; simpl; eauto.
+    + destruct IH as [ (y & k & ->) | (p & y & u & z & v & -> & -> & ?) ].
+      * left; simpl; eauto.
+      * right.
+        exists (x::p), y, u, z, v; simpl; auto.
+    + right; exists [], x, l, y, m; simpl; auto.
+  Qed.
+
 End strict_lex_list.
 
 Arguments strict_lex_list {_}.
@@ -363,10 +377,12 @@ Section dfs_cycle_br.
     + now apply is_prefix_iff in Hq as (<- & _).
   Qed.
 
+  Local Definition npfx (l m : list nat) := ~ ∃k, m = l++k.
+
   Lemma Gdfs_path_sll a l o :
           Gdfs_paths a l o
         → ordered (sll lt) (map π₂ (rev a++l))
-        → ordered (fun u v => ~ ipf u v) l (** l is not of the form ...++[(x,l,_)]++...++[(x,l++_,_)]++... *)
+        → ordered npfx (map π₂ l) (** l is not of the form ...++[(_,l,_)]++...++[(_,l++_,_)]++... *)
         → ordered (sll lt) (map π₂ (rev o)).
   Proof.
     induction 1 as [ a | a x p y l o H1 H2 IH2 | a x p y l o H1 H2 IH2 ]; intros Hal Hl. 
@@ -389,13 +405,19 @@ Section dfs_cycle_br.
       * rewrite map_app, map_map_n, ordered_app; repeat split; eauto.
         - apply map_n_ordered.
           intros ? ? ? ? ?; apply sll_app; now constructor 3.
-        - (* need more info here eg:
-              the members of l are not prefix to each orther *)
-           apply Forall_forall.
+        - apply Forall_forall.
            intros ? (n & z & -> & G5)%in_map_n; simpl.
+           simpl map in Hl.
            apply ordered_cons_iff in Hl as (Hl1 & _).
-           (* should follow from G2 & Hl1 *)
-           admit. 
+           revert G2 Hl1; simpl.
+           generalize (map π₂ l).
+           induction 1 as [ | u m IHm ]; auto.
+           intros (F1 & F2)%Forall_cons_iff; constructor; auto.
+           apply sll_prefix_choose in IHm
+             as [ (xp & pp & ->) | (p1 & a1 & u1 & b1 & v1 & -> & -> & ?) ].
+           ++ destruct F1; eauto.
+           ++ rewrite app_ass; simpl.
+              apply sll_app; now constructor 3.
       * simpl; rewrite !map_app, Forall_app; split.
         - revert G4; apply Forall_impl.
           intros k [G4 G5]%Forall_cons_iff.
@@ -414,7 +436,22 @@ Section dfs_cycle_br.
           simpl.
           rewrite (app_nil_end p) at 1.
           apply sll_app; constructor.
-  Admitted.
+      * simpl in Hl; apply ordered_cons_iff in Hl as (Hl1 & Hl2).
+        rewrite map_app, map_map_n, ordered_app.
+        repeat split; auto.
+        - apply map_n_ordered.
+          intros ? ? ? ? H (k & e); simpl in e.
+          rewrite app_ass in e.
+          apply app_inv_head in e.
+          inversion e; subst.
+          revert H; apply lt_irrefl.
+        - simpl.
+          apply Forall_forall.
+          intros ? (n & z & -> & ?)%in_map_n.
+          revert Hl1; apply Forall_impl.
+          intros q C (k & ->); apply C.
+          exists (n::k); now rewrite app_ass.
+  Qed.
 
   (** We get that the output of dfs_paths is a strictly ordered list of paths
       wrt the reverse of the lexicographic (strict & total) order *)
