@@ -172,7 +172,7 @@ implemented using two mutually recursive functions `level`/`next`:
       in level 0 [] [t] 
 ```
 
-*[`height_via_bfs.v`](theories/tree_height_via_bfs/height_via_bfs.v)
+* [`height_via_bfs.v`](theories/tree_height_via_bfs/height_via_bfs.v)
 
 ### [Depth-First Search on an infinite graph `dfs`](theories/dfs)
 
