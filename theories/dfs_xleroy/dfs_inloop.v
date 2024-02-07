@@ -370,16 +370,16 @@ Section dfs.
   Definition stack X := list (list X).
 
   (* The inductive domain is expressed with the following type instead of
-     list X → list X → stack X → Prop, in order to be shared with dfs_stack *)
+     list X → stack X → list X → Prop, in order to be shared with dfs_stack *)
   Inductive Ddfs_stack : stack X → list X → Prop :=
   | Ddfs_stack_nil {a} :               Ddfs_stack [] a
   | Ddfs_stack_nil_emp {a} :           Ddfs_stack ([] :: []) a
-  | Ddfs_stack_nil_push {a l s}  :     Ddfs_stack (l :: s) a
+  | Ddfs_stack_nil_push {l s a}  :     Ddfs_stack (l :: s) a
                                      → Ddfs_stack ([] :: l :: s) a
-  | Ddfs_stack_cons_stop {a x l s} :   x ∈ a
+  | Ddfs_stack_cons_stop {x l s a} :   x ∈ a
                                      → Ddfs_stack (l :: s) a
                                      → Ddfs_stack ((x :: l) :: s) a
-  | Ddfs_stack_cons_next {a x l s} :   x ∉ a
+  | Ddfs_stack_cons_next {x l s a} :   x ∉ a
                                      → Ddfs_stack (succs x :: l :: s) (x :: a)
                                      → Ddfs_stack ((x :: l) :: s) a.
 
@@ -530,11 +530,11 @@ Section dfs.
 
    (* Specification and correctness of dfs_list_stack / Gdfs *)
 
-   Definition Gdfs_stack := Gfoldleft Gdfs_list.
+   Definition Gdfs_fld_fld := Gfoldleft Gdfs_list.
 
    Inductive Gdfs_list_stack l s a o : Prop :=
    | Gdfs_list_stack_intro b :   Gdfs_list l a b
-                               → Gdfs_stack s b o
+                               → Gdfs_fld_fld s b o
                                → Gdfs_list_stack l s a o.
 
    (* *)
@@ -697,7 +697,7 @@ Section dfs.
 
    (* A correctness proof of dfs_stack using correctness of dfs_list_stack / Gdfs *)
 
-   Lemma dfs_stack_Gdfs s a (δ : Ddfs_stack s a) : Gdfs_stack s a (dfs_stack s a δ).
+   Lemma dfs_stack_Gdfs s a (δ : Ddfs_stack s a) : Gdfs_fld_fld s a (dfs_stack s a δ).
    Proof.
      rewrite dfs_stack_same_special.
      destruct (dfs_list_stack_Gdfs [] s a (Ddfs_stack_nil_l δ)) as [b γab γbo].
@@ -708,25 +708,25 @@ Section dfs.
    (* ------------------------------------------------------------------------- *)
    (* Bonus: a direct correctness proof of dfs_stack (bypassing dfs_list_stack) *)
 
-   Fact Gdfs_stack_corr1 {a} : Gdfs_stack [[]] a a.
+   Fact Gdfs_fld_fld_corr1 {a} : Gdfs_fld_fld [[]] a a.
    Proof. exact (Gfl_cons (Gfl_nil a) (Gfl_nil a)). Qed.
 
-   Fact Gdfs_stack_corr2 {s a o} :
-       Gdfs_stack s a o
-     → Gdfs_stack ([] :: s) a o.
+   Fact Gdfs_fld_fld_corr2 {s a o} :
+       Gdfs_fld_fld s a o
+     → Gdfs_fld_fld ([] :: s) a o.
    Proof. intro γao. exact (Gfl_cons (Gfl_nil a) γao). Qed.
 
-   Fact Gdfs_stack_corr3 {x l s a o} (yes : x ∈ a) :
-       Gdfs_stack (l :: s) a o
-     → Gdfs_stack ((x :: l) :: s) a o.
+   Fact Gdfs_fld_fld_corr3 {x l s a o} (yes : x ∈ a) :
+       Gdfs_fld_fld (l :: s) a o
+     → Gdfs_fld_fld ((x :: l) :: s) a o.
    Proof.
      intro γao. refine (Gfoldleft_first _ l _ γao).
      intros b γab. exact (Gfl_cons (Gdfs_stop yes) γab).
    Qed.
 
-   Fact Gdfs_stack_corr4 {x l s a o} (no : x ∉ a) :
-        Gdfs_stack (succs x :: l :: s) (x :: a) o
-      → Gdfs_stack ((x :: l) :: s) a o.
+   Fact Gdfs_fld_fld_corr4 {x l s a o} (no : x ∉ a) :
+        Gdfs_fld_fld (succs x :: l :: s) (x :: a) o
+      → Gdfs_fld_fld ((x :: l) :: s) a o.
    Proof.
      intros γxao.
      destruct (Gfoldleft_inv γxao) as [b c γxab γbo].
@@ -734,7 +734,7 @@ Section dfs.
      exact (Gfl_cons (Gfl_cons (Gdfs_next no γxab) γbc) γco).
    Qed.
 
-   Lemma dfs_stack_Gdfs_direct s a (δ : Ddfs_stack s a) : Gdfs_stack s a (dfs_stack s a δ).
+   Lemma dfs_stack_Gdfs_direct s a (δ : Ddfs_stack s a) : Gdfs_fld_fld s a (dfs_stack s a δ).
    Proof.
      refine (
      (fix loop s a (δ : Ddfs_stack s a) {struct δ} : _ :=
@@ -750,10 +750,10 @@ Section dfs.
         end δ
      ) s a δ).
      - rewrite dfs_stack_eqn0. apply (Gfl_nil a).
-     - rewrite dfs_stack_eqn1. apply Gdfs_stack_corr1.
-     - rewrite dfs_stack_eqn2. apply Gdfs_stack_corr2, loop.
-     - rewrite (dfs_stack_eqn3 yes). apply (Gdfs_stack_corr3 yes), loop.
-     - rewrite (dfs_stack_eqn4 no).  apply (Gdfs_stack_corr4 no), loop.
+     - rewrite dfs_stack_eqn1. apply Gdfs_fld_fld_corr1.
+     - rewrite dfs_stack_eqn2. apply Gdfs_fld_fld_corr2, loop.
+     - rewrite (dfs_stack_eqn3 yes). apply (Gdfs_fld_fld_corr3 yes), loop.
+     - rewrite (dfs_stack_eqn4 no).  apply (Gdfs_fld_fld_corr4 no), loop.
    Qed.
 
    (* 2.3 Flattening s in dfs_stack provides the algorithm considered in [2] *)
@@ -915,14 +915,14 @@ Section dfs.
    (* Hence a correctness proof of dfs_flatten / Gdfs *)
 
    Lemma dfs_flatten_Gdfs s a (δ : Ddfs_stack s a) :
-     Gdfs_stack s a (dfs_flatten (flatten s) a (Ddfs_stack_flatten δ)).
+     Gdfs_fld_fld s a (dfs_flatten (flatten s) a (Ddfs_stack_flatten δ)).
    Proof.
      rewrite dfs_flatten_same_special. apply dfs_stack_Gdfs.
    Qed.
 
    (* Correctness of dfs_book_eff and dfs_book / Gdfs *)
 
-   Lemma Gdfs_stack_Gdfs x o : Gdfs_stack [[x]] [] o → Gdfs_simple x o.
+   Lemma Gdfs_fld_fld_Gdfs x o : Gdfs_fld_fld [[x]] [] o → Gdfs_simple x o.
    Proof.
      intro γxo.
      destruct (Gfoldleft_inv γxo) as [c o γxc γco]; destruct (Gfoldleft_inv γco); clear γxo γco.
@@ -932,11 +932,11 @@ Section dfs.
 
    Corollary dfs_book_eff_Gdfs x : ∀ (δ : Ddfs_stack [[x]] []),
      Gdfs_simple x (dfs_book_eff x δ).
-   Proof. intro δ; apply Gdfs_stack_Gdfs, dfs_stack_Gdfs. Qed.
+   Proof. intro δ; apply Gdfs_fld_fld_Gdfs, dfs_stack_Gdfs. Qed.
 
    Corollary dfs_book_Gdfs x : ∀ (δ : Ddfs_stack [[x]] []), let δ := Ddfs_stack_flatten δ in
      Gdfs_simple x (dfs_book x δ).
-   Proof. intro δ; apply Gdfs_stack_Gdfs, dfs_flatten_Gdfs. Qed.
+   Proof. intro δ; apply Gdfs_fld_fld_Gdfs, dfs_flatten_Gdfs. Qed.
 
 End dfs.
 
