@@ -15,11 +15,133 @@ Import ListNotations.
 
 Require Import dfs_abstract dfs_cycle.
 
-Inductive is_nth {X} : list X → X → nat → Prop :=
-  | is_nth_stop l x : is_nth (x::l) x 0
-  | is_nth_next y l x n : is_nth l x n → is_nth (y::l) x (S n).
+Set Implicit Arguments.
+
+Section is_nth.
+
+  Variable (X : Type).
+
+  Inductive is_nth : list X → X → nat → Prop :=
+    | is_nth_stop l x : is_nth (x::l) x 0
+    | is_nth_next y l x n : is_nth l x n → is_nth (y::l) x (S n).
+
+  Fact is_nth_fun l x y n : is_nth l x n → is_nth l y n → x = y.
+  Proof.
+    intros H; revert H y.
+    induction 1; inversion 1; auto.
+  Qed.
+
+End is_nth.
+
+Arguments is_nth {_}.
+Arguments is_nth_fun {_ _ _ _ _}.
 
 #[local] Hint Constructors is_nth : core.
+
+Definition stotal {X} (R : X → X → Prop) := ∀x y, R x y ∨ x = y ∨ R y x.
+
+Section strict_lex_list.
+
+  Variables (X : Type) (R : X → X → Prop).
+
+  Reserved Notation "l '<s' m" (at level 70).
+
+  Inductive strict_lex_list : list X → list X → Prop :=
+    | sll_nil x l : [] <s x::l
+    | sll_tail x l m : l <s m → x::l <s x::m
+    | sll_head x y l m : R x y → x::l <s y::m
+  where "l <s m" := (strict_lex_list l m).
+
+  Hint Constructors strict_lex_list : core.
+
+  Fact sll_app l m k : m <s k -> l++m <s l++k.
+  Proof. induction l; simpl; eauto. Qed.
+
+  Fact sll_inv l m :
+       l <s m
+     → match l, m with
+       | []   , _::_ => True
+       | x::l , y::m => R x y ∨ x = y ∧ l <s m
+       | _    , _    => False
+       end.
+  Proof. intros []; eauto. Qed.
+
+  Hypothesis Rtrans : ∀ x y z, R x y → R y z → R x z.
+
+  Fact sll_trans l m k : l <s m → m <s k → l <s k.
+  Proof.
+    intros H; revert H k. 
+    induction 1 as [ x l | x l m _ IH | x y l m H1 ]; intros [ | z k ] H2%sll_inv; easy || eauto.
+    all: destruct H2 as [ | (<- & ?) ]; eauto.
+  Qed.
+
+  Hypothesis Rirrefl : ∀x, ~ R x x.
+
+  Fact sll_irrefl : ∀l, ~ l <s l.
+  Proof.
+    intros l H; generalize (eq_refl l).
+    revert H; generalize l at 2 4; intros m.
+    induction 1; inversion 1; subst; eauto.
+    eapply Rirrefl; eauto.
+  Qed.
+
+  Hypothesis Rtotal : stotal R.
+
+  Fact sll_total : stotal strict_lex_list.
+  Proof.
+    intros l; induction l as [ | x l IHl ]; intros [ | y m ]; eauto.
+    destruct (Rtotal x y) as [| [<- | ] ]; eauto.
+    destruct (IHl m) as [| [<- | ] ]; eauto.
+  Qed.
+
+End strict_lex_list.
+
+Arguments strict_lex_list {_}.
+
+#[local] Notation sll := strict_lex_list.
+
+Section ordered.
+
+  Variables (X : Type) (R : X → X → Prop).
+
+  Inductive ordered : list X → Prop :=
+    | ordered_nil : ordered []
+    | ordered_cons x l : Forall (R x) l → ordered l → ordered (x::l).
+
+  Hint Constructors ordered : core.
+
+  Fact ordered_inv l :
+       ordered l
+     ↔ match l with
+       | []   => True
+       | x::l => Forall (R x) l ∧ ordered l
+       end.
+  Proof.
+    split.
+    + destruct 1; eauto.
+    + destruct l; simpl; constructor; tauto.
+  Qed.
+
+  Fact ordered_cons_iff x l : ordered (x::l) ↔ Forall (R x) l ∧ ordered l.
+  Proof. apply ordered_inv. Qed.
+
+  Fact ordered_app l m :
+       ordered (l++m)
+     ↔ ordered l 
+     ∧ ordered m
+     ∧ Forall (λ x, Forall (R x) m) l.
+  Proof.
+    induction l as [ | x l IHl ]; simpl.
+    + repeat split; eauto; tauto.
+    + rewrite ordered_inv, IHl, ordered_cons_iff,
+              Forall_app, Forall_cons_iff; tauto.
+  Qed.
+
+End ordered.
+
+Arguments ordered {_}.
+
+#[local] Hint Constructors ordered : core.
 
 Section map_n.
 
@@ -58,6 +180,21 @@ Section map_n.
       now rewrite Nat.add_0_r in H.
   Qed.
 
+  Variables (R : Y → Y → Prop) (Hf : ∀ a b x y, a < b → R (f a x) (f b y)).
+
+  Local Lemma loop_ordered n l : ordered R (loop n l).
+  Proof.
+    induction l as [ | x l IHl ] in n |- *; simpl; eauto.
+    constructor; auto.
+    clear IHl.
+    generalize (S n) (Nat.lt_succ_diag_r n).
+    induction l as [ | y l IHl ]; intros m Hm; simpl; eauto.
+    constructor; auto.
+  Qed.
+
+  Lemma map_n_ordered l : ordered R (map_n l).
+  Proof. apply loop_ordered. Qed.
+
 End map_n.
 
 Arguments loop {X Y}.
@@ -77,7 +214,8 @@ Fact map_n_id X l : map_n (λ _ (x : X), x) l = l.
 Proof. apply loop_id. Qed.
 
 Local Definition π₁ {X Y Z} (c : X*Y*Z) := let '(x,_,_) := c in x.
-Local Definition π₃ {X Y Z} (c : X*Y*Z) := let '(_,_,y) := c in y.
+Local Definition π₂ {X Y Z} (c : X*Y*Z) := let '(_,y,_) := c in y.
+Local Definition π₃ {X Y Z} (c : X*Y*Z) := let '(_,_,z) := c in z.
 
 Section dfs_cycle_br.
 
@@ -107,6 +245,22 @@ Section dfs_cycle_br.
 
   Fact is_path_app x l y m z : is_path x l y → is_path y m z → is_path x (l++m) z.
   Proof. induction 1; simpl; eauto. Qed.
+
+  Fact is_path_inv x l y :
+       is_path x l y 
+     → match l with
+       | []   => x = y
+       | n::l => ∃u, is_nth (succs x) u n ∧ is_path u l y
+       end.
+  Proof. induction 1; eauto. Qed.
+
+  Fact is_path_fun x l y z : is_path x l y → is_path x l z → y = z.
+  Proof.
+    intros H; revert H z.
+    induction 1 as [ | ? ? ? ? ? H1 ]; intros ? G%is_path_inv; eauto.
+    destruct G as (? & G1 & G2).
+    rewrite (is_nth_fun G1 H1) in G2; auto.
+  Qed.
 
   Inductive is_prefix : X → list nat → X → X → list nat → X → Prop :=
     | is_prefix_app x l y m z : is_path x l y → is_path y m z → is_prefix x l y x (l++m) z.
@@ -209,6 +363,64 @@ Section dfs_cycle_br.
     + now apply is_prefix_iff in Hq as (<- & _).
   Qed.
 
+  Lemma Gdfs_path_sll a l o :
+          Gdfs_paths a l o
+        → ordered (sll lt) (map π₂ (rev a++l))
+        → ordered (fun u v => ~ ipf u v) l (** l is not of the form ...++[(x,l,_)]++...++[(x,l++_,_)]++... *)
+        → ordered (sll lt) (map π₂ (rev o)).
+  Proof.
+    induction 1 as [ a | a x p y l o H1 H2 IH2 | a x p y l o H1 H2 IH2 ]; intros Hal Hl. 
+    + now rewrite <- app_nil_end in Hal.
+    + rewrite map_app, ordered_app, map_cons, ordered_cons_iff in Hal.
+      destruct Hal as (G1 & (G2 & G3) & G4).
+      apply IH2.
+      * rewrite map_app, ordered_app; repeat split; auto.
+        revert G4; apply Forall_impl.
+        now intros ? []%Forall_cons_iff.
+      * apply ordered_cons_iff in Hl as []; auto.
+    + apply IH2.
+      rewrite map_app, ordered_app.
+      rewrite map_app, ordered_app, map_cons, ordered_cons_iff in Hal.
+      destruct Hal as (G1 & (G2 & G3)& G4).
+      repeat split; eauto.
+      * simpl; rewrite map_app, ordered_app; repeat split; simpl; eauto.
+        revert G4; apply Forall_impl.
+        intros ? []%Forall_cons_iff; auto.
+      * rewrite map_app, map_map_n, ordered_app; repeat split; eauto.
+        - apply map_n_ordered.
+          intros ? ? ? ? ?; apply sll_app; now constructor 3.
+        - (* need more info here eg:
+              the members of l are not prefix to each orther *)
+           apply Forall_forall.
+           intros ? (n & z & -> & G5)%in_map_n; simpl.
+           apply ordered_cons_iff in Hl as (Hl1 & _).
+           (* should follow from G2 & Hl1 *)
+           admit. 
+      * simpl; rewrite !map_app, Forall_app; split.
+        - revert G4; apply Forall_impl.
+          intros k [G4 G5]%Forall_cons_iff.
+          apply Forall_app; split; auto.
+          rewrite map_map_n.
+          apply Forall_forall.
+          intros ? (n & z & -> & ?)%in_map_n.
+          apply sll_trans with (1 := lt_trans) (2 := G4).
+          simpl.
+          rewrite (app_nil_end p) at 1.
+          apply sll_app; constructor.
+        - constructor; simpl; auto.
+          rewrite map_map_n, Forall_app; split; auto.
+          apply Forall_forall.
+          intros ? (n & z & -> & ?)%in_map_n.
+          simpl.
+          rewrite (app_nil_end p) at 1.
+          apply sll_app; constructor.
+  Admitted.
+
+  (** We get that the output of dfs_paths is a strictly ordered list of paths
+      wrt the reverse of the lexicographic (strict & total) order *)
+  Corollary Gdfs_path_ordered x o : Gdfs_paths [] [(x,[],x)] o → ordered (sll lt) (map π₂ (rev o)).
+  Proof. intros ?%Gdfs_path_sll; auto; simpl; eauto. Qed.
+
   Hint Constructors Gdfs_book : core.
 
   (* We related the image of dfs_paths to that of dfs_book *)
@@ -279,6 +491,8 @@ Section dfs_cycle_br.
     induction 1; simpl; eauto.
     constructor 2; tauto.
   Qed.
+
+
 
 End dfs_cycle_br.
 
