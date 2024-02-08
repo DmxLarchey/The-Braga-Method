@@ -424,176 +424,168 @@ Section dfs.
 
   (* *)
 
-  Fixpoint dfs_list_stack l s a (δ : Ddfs_stack (l :: s) a) {struct δ} : list X :=
+  Inductive Gdfs_stack : stack X → list X → list X → Prop :=
+  | Gdfs_stack_nil {a} :                 Gdfs_stack [] a a
+  | Gdfs_stack_nil_emp {a} :             Gdfs_stack ([] :: []) a a
+  | Gdfs_stack_nil_push {l s a o}  :     Gdfs_stack (l :: s) a o
+                                       → Gdfs_stack ([] :: l :: s) a o
+  | Gdfs_stack_cons_stop {x l s a o} :   x ∈ a
+                                       → Gdfs_stack (l :: s) a o
+                                       → Gdfs_stack ((x :: l) :: s) a o
+  | Gdfs_stack_cons_next {x l s a o} :   x ∉ a
+                                       → Gdfs_stack (succs x :: l :: s) (x :: a) o
+                                       → Gdfs_stack ((x :: l) :: s) a o.
+
+  Definition Gdfs_stack_list: list X → stack X → list X → list X → Prop :=
+    λ l s, Gdfs_stack (l :: s).
+
+  Fixpoint dfs_list_stack l s a (δ : Ddfs_stack (l :: s) a) {struct δ} : {o | Gdfs_stack_list l s a o} :=
     match l                                                             (* *) return Ddfs_stack (l :: s) a → _
     with
     | [] =>                                                             (* *) λ δ,
         match s                                                         (* *) return Ddfs_stack ([] :: s) a → _
         with
         | []     =>                                                     (* *) λ _,
-                    a
+                    exist a                                             (* *) Gdfs_stack_nil_emp
         | l :: s =>                                                     (* *) λ δ,
-                    dfs_list_stack l s a                                (* *) (Ddfs_stack_nil_push_pi δ)
+                    let (o, γ) := dfs_list_stack l s a                  (* *) (Ddfs_stack_nil_push_pi δ)
+                    in exist o                                          (* *) (Gdfs_stack_nil_push γ)
         end                                                             (* *) δ
     | x :: l =>                                                         (* *) λ δ,
         match in_dec x a with
-        | left yes => dfs_list_stack l s a                              (* *) (Ddfs_stack_cons_stop_pi δ yes)
-        | right no => dfs_list_stack (succs x) (l :: s) (x :: a)        (* *) (Ddfs_stack_cons_next_pi δ no)
+        | left yes =>
+                    let (o, γ) := dfs_list_stack l s a                  (* *) (Ddfs_stack_cons_stop_pi δ yes)
+                    in exist o                                          (* *) (Gdfs_stack_cons_stop yes γ)
+        | right no =>
+                    let (o, γ) := dfs_list_stack (succs x) (l :: s) (x :: a)
+                                                                        (* *) (Ddfs_stack_cons_next_pi δ no)
+                    in exist o                                          (* *) (Gdfs_stack_cons_next no γ)
         end
     end δ.
 
   (* Main *)
   Definition dfs_cycle_stack x :                                        (* *)  Ddfs_stack ([x] :: []) [] →
-                                 list X := dfs_list_stack [x] [] [].
+                                 {o | Gdfs_stack_list [x] [] [] o} := dfs_list_stack [x] [] [].
 
   (* *)
 
-  Fixpoint dfs_stack s a (δ : Ddfs_stack s a) {struct δ} : list X :=
-    match s                                                       (* *) return Ddfs_stack s a → _
+  Fixpoint dfs_stack s a (δ : Ddfs_stack s a) {struct δ} : {o | Gdfs_stack s a o} :=
+    match s                                                                 (* *) return Ddfs_stack s a → _
     with
-    | []     =>                                                   (* *) λ _,
-                a
-    | [] :: [] =>                                                 (* *) λ δ,
-                a
-    | [] :: s =>                                                  (* *) λ δ,
-              dfs_stack s a                                       (* *) (Ddfs_stack_nil_push_pi δ)
-    | (x :: l) :: s =>                                            (* *) λ δ,
+    | []     =>                                                             (* *) λ _,
+              exist a                                                       (* *) Gdfs_stack_nil
+    | [] :: [] =>                                                           (* *) λ δ,
+              exist a                                                       (* *) Gdfs_stack_nil_emp
+    | [] :: s =>                                                            (* *) λ δ,
+              let (o, γ) := dfs_stack s a                                   (* *) (Ddfs_stack_nil_push_pi δ)
+              in exist o                                                    (* *) (Gdfs_stack_nil_push γ)
+    | (x :: l) :: s =>                                                      (* *) λ δ,
         match in_dec x a with
-        | left yes => dfs_stack (l :: s) a                        (* *) (Ddfs_stack_cons_stop_pi δ yes)
-        | right no => dfs_stack (succs x :: l :: s) (x :: a)      (* *) (Ddfs_stack_cons_next_pi δ no)
+        | left yes => let (o, γ) := dfs_stack (l :: s) a                    (* *) (Ddfs_stack_cons_stop_pi δ yes)
+                      in exist o                                            (* *) (Gdfs_stack_cons_stop yes γ)
+        | right no => let (o, γ) := dfs_stack (succs x :: l :: s) (x :: a)  (* *) (Ddfs_stack_cons_next_pi δ no)
+                      in exist o                                            (* *) (Gdfs_stack_cons_next no γ)
         end
     end δ.
 
   (* Main *)
-  Definition dfs_book_eff x :                                     (* *)  Ddfs_stack ([[x]]) [] →
-                              list X := dfs_stack [[x]] [].
+  Definition dfs_book_eff x :                                               (* *)  Ddfs_stack ([[x]]) [] →
+                              {o | Gdfs_stack [[x]] [] o} := dfs_stack [[x]] [].
 
-  (* TODO remove this part and replace with some suitable Gdfs_stack *)
-  (* Dependent small inversions for Ddfs_stack *)
+  (* Specification and correctness of dfs_list_stack / Gdfs *)
 
-  Inductive Ddfs_stack_n a : Ddfs_stack [] a → Prop :=
-  | Ddfs_stack_n_nil :  Ddfs_stack_n a Ddfs_stack_nil.
-  Inductive Ddfs_stack_ne a : Ddfs_stack [[]] a → Prop :=
-  | Ddfs_stack_ne_nil_emp :  Ddfs_stack_ne a Ddfs_stack_nil_emp.
-  Inductive Ddfs_stack_np l s a : Ddfs_stack ([] :: l :: s) a → Prop :=
-  | Ddfs_stack_np_nil_push : ∀ (δ : Ddfs_stack (l :: s) a),
-                             Ddfs_stack_np l s a (Ddfs_stack_nil_push δ).
-  Inductive Ddfs_stack_c x l s a : Ddfs_stack ((x :: l) :: s) a → Prop :=
-  | Ddfs_stack_cs_cons_stop : ∀ (yes : x ∈ a)
-                                (δ : Ddfs_stack (l :: s) a),
-                              Ddfs_stack_c x l s a (Ddfs_stack_cons_stop yes δ)
-  | Ddfs_stack_cn_cons_next : ∀ (no : x ∉ a)
-                                (δ : Ddfs_stack (succs x :: l :: s) (x :: a)),
-                              Ddfs_stack_c x l s a (Ddfs_stack_cons_next no δ).
+  Definition Gdfs_list_star := Gfoldleft Gdfs_list.
 
-  Definition Ddfs_stack_dispatch {s a} : Ddfs_stack s a → Prop :=
-    match s return Ddfs_stack s a → Prop with
-    | [] => Ddfs_stack_n a
-    | [[]] => Ddfs_stack_ne a
-    | [] :: (l :: s) => Ddfs_stack_np l s a
-    | (x :: l) :: s => Ddfs_stack_c x l s a
-    end.
+  Inductive Gdfs_list_plus l s a o : Prop :=
+  | Gdfs_list_plus_in b :   Gdfs_list l a b
+                          → Gdfs_list_star s b o
+                          → Gdfs_list_plus l s a o.
 
-  Definition Ddfs_stack_inv {s a} (δ : Ddfs_stack s a) : Ddfs_stack_dispatch δ.
-  Proof. destruct δ; constructor. Defined.
+  (* From Gdfs_list_star to Gdfs_simple *)
 
-  (* End of small inversions of Ddfs_stack *)
-
-  (* Recursive equations of dfs_list_stack *)
-  Fact dfs_list_stack_eqn1 {a} (δ : Ddfs_stack [[]] a) : dfs_list_stack [] [] a δ = a.
-  Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
-
-  Fact dfs_list_stack_eqn2 {l s a} (δ : Ddfs_stack ([] :: l :: s) a) :
-    dfs_list_stack [] (l :: s) a δ = dfs_list_stack l s a (Ddfs_stack_nil_push_pi δ).
-  Proof. destruct (Ddfs_stack_inv δ); cbn. reflexivity. Qed.
-
-  Fact dfs_list_stack_eqn3 {x l s a} (yes : x ∈ a) (δ : Ddfs_stack ((x :: l) :: s) a) :
-    dfs_list_stack (x :: l) s a δ = dfs_list_stack l s a (Ddfs_stack_cons_stop_pi δ yes).
+  Lemma Gdfs_list_star_Gdfs x o : Gdfs_list_star [[x]] [] o → Gdfs_simple x o.
   Proof.
-    destruct (Ddfs_stack_inv δ) as [yes' δ | no δ]; cbn.
-    - destruct (in_dec x a) as [_ | no].
-      + reflexivity.
-      + case (no yes).
-    - case (no yes).
+    intro γxo.
+    destruct (Gfoldleft_inv γxo) as [c o γxc γco]; destruct (Gfoldleft_inv γco); clear γxo γco.
+    destruct (Gfoldleft_inv γxc) as [b c γxb γbc]; destruct (Gfoldleft_inv γbc); clear γxc γbc.
+    exact γxb.
   Qed.
 
-  Fact dfs_list_stack_eqn4 {x l s a} (no : x ∉ a) (δ : Ddfs_stack ((x :: l) :: s) a) :
-    dfs_list_stack (x :: l) s a δ =
-    dfs_list_stack (succs x) (l :: s) (x :: a) (Ddfs_stack_cons_next_pi δ no).
-   Proof.
-     destruct (Ddfs_stack_inv δ) as [yes δ | no' δ]; cbn.
-     - case (no yes).
-     - destruct (in_dec x a) as [yes | _].
-      + case (no yes).
-      + reflexivity.
-   Qed.
+  (* *)
 
-   (* Specification and correctness of dfs_list_stack / Gdfs *)
+  Fact Gdfs_list_plus_corr1 a :
+    Gdfs_list_plus [] [] a a.
+  Proof.
+    exists a; exact (Gfl_nil a).
+  Qed.
 
-   Definition Gdfs_fld_fld := Gfoldleft Gdfs_list.
+  Fact Gdfs_list_plus_corr2 {l s a o} :
+      Gdfs_list_plus l s a o
+    → Gdfs_list_plus [] (l :: s) a o.
+  Proof.
+    destruct 1 as [b γab γbo].
+    exists a; [exact (Gfl_nil a) | exact (Gfl_cons γab γbo)].
+  Qed.
 
-   Inductive Gdfs_list_stack l s a o : Prop :=
-   | Gdfs_list_stack_intro b :   Gdfs_list l a b
-                               → Gdfs_fld_fld s b o
-                               → Gdfs_list_stack l s a o.
+  Fact Gdfs_list_plus_corr3 {x l s a o} (yes : x ∈ a) :
+      Gdfs_list_plus l s a o
+    → Gdfs_list_plus (x :: l) s a o.
+  Proof.
+    destruct 1 as [b γab γbo].
+    exists b; [exact (Gfl_cons (Gdfs_stop yes) γab) | exact γbo].
+  Qed.
 
-   (* *)
+  Fact Gdfs_list_plus_corr4 {x l s a o} (no : x ∉ a) :
+      Gdfs_list_plus (succs x) (l :: s) (x :: a) o
+    → Gdfs_list_plus (x :: l) s a o.
+  Proof.
+    destruct 1 as [b γxab γbo].
+    destruct (Gfoldleft_inv γbo) as [c o γbc γco].
+    exists c; [exact (Gfl_cons (Gdfs_next no γxab) γbc) | exact γco].
+  Qed.
 
-   Fact Gdfs_list_stack_corr1 a :
-     Gdfs_list_stack [] [] a a.
-   Proof.
-     exists a; exact (Gfl_nil a).
-   Qed.
+  Lemma Gdfs_list_stack_corr {l s a o} :   Gdfs_stack_list l s a o
+                                        → Gdfs_list_plus l s a o.
+  Proof.
+    revert l s; intros l0 s0 γ;
+    change (match l0 :: s0 with
+            | [] => True
+            | l :: s => Gdfs_list_plus l s a o
+            end);
+    induction γ as [a | a | l s a o γ Hγ
+                   | x l s a o yes γ Hγ
+                   | x l s a o no γ Hγ]; clear l0 s0.
+    - exact I.
+    - apply Gdfs_list_plus_corr1.
+    - apply Gdfs_list_plus_corr2, Hγ.
+    - apply (Gdfs_list_plus_corr3 yes), Hγ.
+    - apply (Gdfs_list_plus_corr4 no), Hγ.
+  Qed.
 
-   Fact Gdfs_list_stack_corr2 {l s a o} :
-       Gdfs_list_stack l s a o
-     → Gdfs_list_stack [] (l :: s) a o.
-   Proof.
-     destruct 1 as [b γab γbo].
-     exists a; [exact (Gfl_nil a) | exact (Gfl_cons γab γbo)].
-   Qed.
+  Lemma Gdfs_list_stack_compl l s a o :   Gdfs_list_plus l s a o
+                                        → Gdfs_stack_list l s a o.
+  Proof.
+    intros [b γab γbo]. red.
+    (* Pas si facile ; peut-être faire dfs_stack_compl avant *)
+  Abort.
+    (*
+    revert o γbo.
+    induction γab as [ a | x a l b o γab _ γbo].
+    - intros o γbo.
+      induction γbo as [ a | l a s b o γab γ γbo].
+      + constructor.
+      + apply (Gdfs_stack_nil_push).
+      induction s as [ | l s Hs].
+      + destruct (Gfoldleft_inv γbo). constructor.
+      + apply (Gdfs_stack_nil_push). γbo).
+    - induction γab as [ a | x a l b o γab _ γbo].
+      + constructor.
+      + destruct γab as [a x yes | a x b no γxab].
+        * exact (Gdfs_stack_cons_stop yes γbo).
+        * apply (Gdfs_stack_cons_next no). admit.
+*)
 
-   Fact Gdfs_list_stack_corr3 {x l s a o} (yes : x ∈ a) :
-       Gdfs_list_stack l s a o
-     → Gdfs_list_stack (x :: l) s a o.
-   Proof.
-     destruct 1 as [b γab γbo].
-     exists b; [exact (Gfl_cons (Gdfs_stop yes) γab) | exact γbo].
-   Qed.
-
-   Fact Gdfs_list_stack_corr4 {x l s a o} (no : x ∉ a) :
-       Gdfs_list_stack (succs x) (l :: s) (x :: a) o
-     → Gdfs_list_stack (x :: l) s a o.
-   Proof.
-     destruct 1 as [b γxab γbo].
-     destruct (Gfoldleft_inv γbo) as [c o γbc γco].
-     exists c; [exact (Gfl_cons (Gdfs_next no γxab) γbc) | exact γco].
-   Qed.
-
-   Lemma dfs_list_stack_Gdfs l s a (δ : Ddfs_stack (l :: s) a) :
-     Gdfs_list_stack l s a (dfs_list_stack l s a δ).
-   Proof.
-     refine (
-     (fix loop l s a (δ : Ddfs_stack (l :: s) a) {struct δ} : _ :=
-        match l with
-        | [] => λ δ,
-            match s with
-            | [] => λ δ, _
-            | l :: s => λ δ, _
-            end δ
-        | x :: l => λ δ,
-            match in_dec x a with
-            | left yes => _
-            | right no => _
-            end
-        end δ
-     ) l s a δ).
-     - rewrite dfs_list_stack_eqn1. apply Gdfs_list_stack_corr1.
-     - rewrite dfs_list_stack_eqn2. apply Gdfs_list_stack_corr2, loop.
-     - rewrite (dfs_list_stack_eqn3 yes). apply (Gdfs_list_stack_corr3 yes), loop.
-     - rewrite (dfs_list_stack_eqn4 no). apply (Gdfs_list_stack_corr4 no), loop.
-   Qed.
-
+   (*
   (* ---------------------------------------------------------------------- *)
   (* Recursive equations of dfs_stack *)
   Fact dfs_stack_eqn0 {a} (δ : Ddfs_stack [] a) : dfs_stack [] a δ = a.
@@ -626,135 +618,72 @@ Section dfs.
       + case (no yes).
       + reflexivity.
    Qed.
+*)
 
-   (* dfs_list_stack is a special case of dfs_stack *)
+  (* dfs_list_stack is a special case of dfs_stack
    Lemma dfs_list_stack_same {l s a} (δ δ' : Ddfs_stack (l :: s) a) :
-     dfs_stack (l :: s) a δ = dfs_list_stack l s a δ'.
-   Proof.
-     refine (
-     (fix loop l s a (δ δ' : Ddfs_stack (l :: s) a) {struct δ} : _ :=
-        match l with
-        | [] => λ δ δ',
-            match s with
-            | [] => λ δ δ', _
-            | l :: s => λ δ δ', _
-            end δ δ'
-        | x :: l => λ δ δ',
-            match in_dec x a with
-            | left yes => _
-            | right no => _
-            end
-        end δ δ'
-     ) l s a δ δ').
-     - rewrite dfs_list_stack_eqn1, dfs_stack_eqn1. reflexivity.
-     - rewrite dfs_list_stack_eqn2, dfs_stack_eqn2. apply loop.
-     - rewrite (dfs_list_stack_eqn3 yes), (dfs_stack_eqn3 yes). apply loop.
-     - rewrite (dfs_list_stack_eqn4 no), (dfs_stack_eqn4 no). apply loop.
-   Qed.
+     dfs_stack (l :: s) a δ = dfs_list_stack l s a δ'. *)
+  (* Semble couvert par Gdfs_stack_list l s := Gdfs_stack (l :: s) *)
 
-   (* Same proof in script style (+ initial fixpoint) *)
-   Fixpoint dfs_list_stack_same_script l s a (δ δ' : Ddfs_stack (l :: s) a) {struct δ} :
-     dfs_stack (l :: s) a δ = dfs_list_stack l s a δ'.
-   Proof.
-     destruct l as [ | x l].
-     - destruct s as [ | l s].
-       + rewrite dfs_list_stack_eqn1, dfs_stack_eqn1. reflexivity.
-       + rewrite dfs_list_stack_eqn2, dfs_stack_eqn2. apply dfs_list_stack_same_script.
-     - destruct (in_dec x a) as [yes | no].
-       + rewrite (dfs_list_stack_eqn3 yes), (dfs_stack_eqn3 yes).
-         apply dfs_list_stack_same_script.
-       + rewrite (dfs_list_stack_eqn4 no), (dfs_stack_eqn4 no).
-         apply dfs_list_stack_same_script.
-   Qed.
-
-   (* Corollaire amusant : dfs_list_stack ne dépend pas de δ *)
-   Corollary dfs_list_stack_domirr l s a (δ δ' : Ddfs_stack (l :: s) a) :
+  (* Corollaire amusant : dfs_list_stack ne dépend pas de δ *)
+  (* TODO determinisme de dfs_list_stack *)
+(*   Corollary dfs_list_stack_domirr l s a (δ δ' : Ddfs_stack (l :: s) a) :
      dfs_list_stack l s a δ = dfs_list_stack l s a δ'.
    Proof.
      rewrite <- (dfs_list_stack_same δ δ), <-(dfs_list_stack_same δ δ').
      reflexivity.
    Qed.
+*)
+  Definition Ddfs_stack_nil_l {s a} : Ddfs_stack s a → Ddfs_stack ([] :: s) a :=
+    match s with
+    | [] => λ _, Ddfs_stack_nil_emp
+    | l :: s => λ δ, (Ddfs_stack_nil_push δ)
+    end.
 
-   (* The converse is a corollary *)
-   Corollary dfs_stack_same {s a} (δ : Ddfs_stack s a) (δ' : Ddfs_stack ([] :: s) a) :
-     dfs_stack s a δ = dfs_list_stack [] s a δ'.
-   Proof.
-     destruct s as [ | l s].
-     - rewrite dfs_list_stack_eqn1, dfs_stack_eqn0. reflexivity.
-     - rewrite dfs_list_stack_eqn2. apply dfs_list_stack_same.
-   Qed.
+  Lemma Gdfs_stack_case {s a o} (γ : Gdfs_stack s a o) :
+    match s with [] => a = o | l :: s => Gdfs_stack_list l s a o end.
+  Proof.
+    destruct γ as [a | a | l s a o γ
+                     | x l s a o yes γ
+                     | x l s a o no γ]; try red.
+    - reflexivity.
+    - apply Gdfs_stack_nil_emp.
+    - exact (Gdfs_stack_nil_push γ).
+    - exact (Gdfs_stack_cons_stop yes γ).
+    - exact (Gdfs_stack_cons_next no γ).
+  Qed.
 
-   Definition Ddfs_stack_nil_l {s a} : Ddfs_stack s a → Ddfs_stack ([] :: s) a :=
-     match s with
-     | [] => λ _, Ddfs_stack_nil_emp
-     | l :: s => λ δ, (Ddfs_stack_nil_push δ)
-     end.
+  (* A correctness proof of dfs_stack using correctness of dfs_list_stack / Gdfs *)
 
-   Corollary dfs_stack_same_special {s a} (δ : Ddfs_stack s a) :
-     dfs_stack s a δ = dfs_list_stack [] s a (Ddfs_stack_nil_l δ).
-   Proof. apply dfs_stack_same. Qed.
+  Lemma Gdfs_stack_corr {s a o} :   Gdfs_stack s a o
+                                  → Gdfs_list_star s a o.
+  Proof.
+    intro γ. generalize (Gdfs_stack_case γ).
+    destruct s as [ | l s]; clear γ; intro γ.
+    - case γ. apply Gfl_nil.
+    - destruct (Gdfs_list_stack_corr γ) as [b γab γbo]. exact (Gfl_cons γab γbo).
+  Qed.
 
+  (*
+  (* TODO cmplétude ? *)
+  Lemma Gdfs_stack_compl {s a o} :   Gdfs_list_star s a o
+                                   → Gdfs_stack s a o.
+  Proof.
+    induction 1 as [ a | l a s c o γac _ γco].
+    - apply Gdfs_stack_nil.
+    - revert o γco.
+      induction γac as [ a | x a l b c γab γbc' fcb]; intros o γco.
+      + generalize (Gdfs_stack_case γco).
+        destruct s as [ | l s]; clear γco; intro γco.
+        * case γco. apply Gdfs_stack_nil_emp.
+        * exact (Gdfs_stack_nil_push γco).
+      +
+        destruct γab as [ a x yes | a x b no γxab].
+        * apply (Gdfs_stack_cons_stop yes). apply fcb, γco.
+        * apply (Gdfs_stack_cons_next no).
+          Check (fcb o γco).
 
-   (* A correctness proof of dfs_stack using correctness of dfs_list_stack / Gdfs *)
-
-   Lemma dfs_stack_Gdfs s a (δ : Ddfs_stack s a) : Gdfs_fld_fld s a (dfs_stack s a δ).
-   Proof.
-     rewrite dfs_stack_same_special.
-     destruct (dfs_list_stack_Gdfs [] s a (Ddfs_stack_nil_l δ)) as [b γab γbo].
-     destruct (Gfoldleft_inv γab).
-     exact γbo.
-   Qed.
-
-   (* ------------------------------------------------------------------------- *)
-   (* Bonus: a direct correctness proof of dfs_stack (bypassing dfs_list_stack) *)
-
-   Fact Gdfs_fld_fld_corr1 {a} : Gdfs_fld_fld [[]] a a.
-   Proof. exact (Gfl_cons (Gfl_nil a) (Gfl_nil a)). Qed.
-
-   Fact Gdfs_fld_fld_corr2 {s a o} :
-       Gdfs_fld_fld s a o
-     → Gdfs_fld_fld ([] :: s) a o.
-   Proof. intro γao. exact (Gfl_cons (Gfl_nil a) γao). Qed.
-
-   Fact Gdfs_fld_fld_corr3 {x l s a o} (yes : x ∈ a) :
-       Gdfs_fld_fld (l :: s) a o
-     → Gdfs_fld_fld ((x :: l) :: s) a o.
-   Proof.
-     intro γao. refine (Gfoldleft_first _ l _ γao).
-     intros b γab. exact (Gfl_cons (Gdfs_stop yes) γab).
-   Qed.
-
-   Fact Gdfs_fld_fld_corr4 {x l s a o} (no : x ∉ a) :
-        Gdfs_fld_fld (succs x :: l :: s) (x :: a) o
-      → Gdfs_fld_fld ((x :: l) :: s) a o.
-   Proof.
-     intros γxao.
-     destruct (Gfoldleft_inv γxao) as [b c γxab γbo].
-     destruct (Gfoldleft_inv γbo) as [c o γbc γco].
-     exact (Gfl_cons (Gfl_cons (Gdfs_next no γxab) γbc) γco).
-   Qed.
-
-   Lemma dfs_stack_Gdfs_direct s a (δ : Ddfs_stack s a) : Gdfs_fld_fld s a (dfs_stack s a δ).
-   Proof.
-     refine (
-     (fix loop s a (δ : Ddfs_stack s a) {struct δ} : _ :=
-        match s with
-        | [] => λ δ, _
-        | [[]] => λ δ, _
-        | [] :: l :: s => λ δ, _
-        | (x :: l) :: s => λ δ,
-            match in_dec x a with
-            | left yes => _
-            | right no => _
-            end
-        end δ
-     ) s a δ).
-     - rewrite dfs_stack_eqn0. apply (Gfl_nil a).
-     - rewrite dfs_stack_eqn1. apply Gdfs_fld_fld_corr1.
-     - rewrite dfs_stack_eqn2. apply Gdfs_fld_fld_corr2, loop.
-     - rewrite (dfs_stack_eqn3 yes). apply (Gdfs_fld_fld_corr3 yes), loop.
-     - rewrite (dfs_stack_eqn4 no).  apply (Gdfs_fld_fld_corr4 no), loop.
-   Qed.
+*)
 
    (* 2.3 Flattening s in dfs_stack provides the algorithm considered in [2] *)
 
@@ -801,142 +730,178 @@ Section dfs.
     | _               => λ absu _, match absu with end
     end I.
 
+  (* Syntactic specification of dfs_flatten *)
+
+  Inductive Gdfs_flatten : list X → list X → list X → Prop :=
+  | Gdfs_flatten_nil {a} :                  Gdfs_flatten [] a a
+  | Gdfs_flatten_cons_stop {x ls a o} :     x ∈ a
+                                          → Gdfs_flatten ls a o
+                                          → Gdfs_flatten (x :: ls) a o
+  | Gdfs_flatten_cons_next {x ls a o} :     x ∉ a
+                                          → Gdfs_flatten (succs x ++ ls) (x :: a) o
+                                          → Gdfs_flatten (x :: ls) a o.
+
   (* *)
 
   Fixpoint dfs_flatten lls a                                      (* *) (δ : Ddfs_flatten lls a) {struct δ}
-    : list X :=
+    : {o | Gdfs_flatten lls a o} :=
     match lls                                                     (* *) return Ddfs_flatten lls a → _
     with
     | []     =>                                                   (* *) λ _,
-                a
+                exist a                                           (* *) Gdfs_flatten_nil
     | x :: lls =>                                                 (* *) λ δ,
         match in_dec x a with
-        | left yes => dfs_flatten lls a                           (* *) (Ddfs_flatten_cons_stop_pi δ yes)
-        | right no => dfs_flatten (succs x ++ lls) (x :: a)       (* *) (Ddfs_flatten_cons_next_pi δ no)
+        | left yes =>
+            let (o, γ) := dfs_flatten lls a                       (* *) (Ddfs_flatten_cons_stop_pi δ yes)
+            in exist o                                            (* *) (Gdfs_flatten_cons_stop yes γ)
+        | right no =>
+            let (o, γ) := dfs_flatten (succs x ++ lls) (x :: a)   (* *) (Ddfs_flatten_cons_next_pi δ no)
+            in exist o                                            (* *) (Gdfs_flatten_cons_next no γ)
         end
     end δ.
 
   (* Main *)
   Definition dfs_book x :                                         (* *)  Ddfs_flatten [x] [] →
-                          list X := dfs_flatten [x] [].
+                          {o | Gdfs_flatten [x] [] o} := dfs_flatten [x] [].
 
-  (* TODO remove this part and replace with some suitable Gdfs_flatten *)
-  (* TODO just refer to the previous dfs (from book)? *)
-  (* Dependent small inversions for Ddfs_flatten *)
+  (* Relating dfs_flatten with dfs_stack *)
+  (* VERY UGLY PROOF :(
+     TODO make it smarter
+  Lemma dfs_flatten_corr {lls s a o} :
+     Gdfs_flatten lls a o -> flatten s = lls → Gdfs_stack s a o.
+ *)
 
-  Inductive Ddfs_flatten_n a : Ddfs_flatten [] a → Prop :=
-  | Ddfs_flatten_n_nil :  Ddfs_flatten_n a Ddfs_flatten_nil.
-  Inductive Ddfs_flatten_c x lls a : Ddfs_flatten (x :: lls) a → Prop :=
-  | Ddfs_flatten_cs_cons_stop : ∀ (yes : x ∈ a)
-                                (δ : Ddfs_flatten lls a),
-                              Ddfs_flatten_c x lls a (Ddfs_flatten_cons_stop yes δ)
-  | Ddfs_flatten_cn_cons_next : ∀ (no : x ∉ a)
-                                (δ : Ddfs_flatten (succs x ++ lls) (x :: a)),
-                              Ddfs_flatten_c x lls a (Ddfs_flatten_cons_next no δ).
+  Inductive all_nil : stack X → Prop :=
+  | all_nil_nil : all_nil []
+  | all_nil_cons s : all_nil s → all_nil ([] :: s).
 
-  Definition Ddfs_flatten_dispatch {lls a} : Ddfs_flatten lls a → Prop :=
-    match lls return Ddfs_flatten lls a → Prop with
-    | [] => Ddfs_flatten_n a
-    | x :: lls => Ddfs_flatten_c x lls a
-    end.
-
-  Definition Ddfs_flatten_inv {lls a} (δ : Ddfs_flatten lls a) : Ddfs_flatten_dispatch δ.
-  Proof. destruct δ; constructor. Defined.
-
-  (* End of small inversions of Ddfs_flatten *)
-
-  (* Recursive equations of dfs_flatten *)
-  Fact dfs_flatten_eqn1 {a} (δ : Ddfs_flatten [] a) : dfs_flatten [] a δ = a.
-  Proof. destruct (Ddfs_flatten_inv δ); cbn. reflexivity. Qed.
-
-  Fact dfs_flatten_eqn3 {x lls a} (yes : x ∈ a) (δ : Ddfs_flatten (x :: lls) a) :
-    dfs_flatten (x :: lls) a δ = dfs_flatten lls a (Ddfs_flatten_cons_stop_pi δ yes).
+  Lemma app_nil {l l'} : l ++ l' = [] → l = [] ∧ l' = [].
   Proof.
-    destruct (Ddfs_flatten_inv δ) as [yes' δ | no δ]; cbn.
-    - destruct (in_dec x a) as [_ | no].
-      + reflexivity.
-      + case (no yes).
-    - case (no yes).
+    revert l'; induction l as [ | x l Hl]; cbn; intros l'.
+    - destruct l' as [ | x' l']; intro e.
+      + split; reflexivity.
+      + discriminate e.
+    - destruct l' as [ | x' l']; intro e; discriminate e.
   Qed.
 
-  Fact dfs_flatten_eqn4 {x lls a} (no : x ∉ a) (δ : Ddfs_flatten (x :: lls) a) :
-    dfs_flatten (x :: lls) a δ =
-    dfs_flatten (succs x ++ lls) (x :: a) (Ddfs_flatten_cons_next_pi δ no).
-   Proof.
-     destruct (Ddfs_flatten_inv δ) as [yes δ | no' δ]; cbn.
-     - case (no yes).
-     - destruct (in_dec x a) as [yes | _].
-      + case (no yes).
-      + reflexivity.
-   Qed.
+  Lemma flatten_nil {s} : flatten s = [] → all_nil s.
+  Proof.
+    induction s as [ | l s Hs]; cbn; intro e.
+    - constructor.
+    - destruct (app_nil e) as [el es]. rewrite el. constructor. exact (Hs es).
+  Qed.
 
-   (* Relating dfs_flatten with dfs_stack *)
+  Inductive sub_stack x : list X → stack X → Prop :=
+  | subst_0 l s : sub_stack x (l ++ flatten s) ((x :: l) :: s)
+  | subst_1 l s : sub_stack x l s → sub_stack x l ([] :: s).
 
-   Ltac unflatten := repeat (change (?l ++ flatten ?s) with (flatten (l :: s))).
+  Lemma flatten_cons {s x ls} : flatten s = x :: ls → sub_stack x ls s.
+  Proof.
+    revert x ls; induction s as [ | l s Hs]; cbn; intros x ls e.
+    - discriminate e.
+    - destruct l as [ | x' l]; cbn in e.
+      + apply subst_1. apply Hs, e.
+      + injection e; clear e; intros e_l e_x. rewrite e_x, <- e_l. apply subst_0.
+  Qed.
 
-   Lemma dfs_flatten_same {s a} (δ : Ddfs_stack s a) (δ' : Ddfs_flatten (flatten s) a) :
-     dfs_flatten (flatten s) a δ' = dfs_stack s a δ.
-   Proof.
-     refine (
-     (fix loop s a (δ : Ddfs_stack s a) {struct δ} : _ :=
-        match s with
-        | [] => λ δ δ', _
-        | [[]] => λ δ δ', _
-        | [] :: l :: s => λ δ δ', _
-        | (x :: l) :: s => λ δ δ',
-            match in_dec x a with
-            | left yes => _
-            | right no => _
-            end
-        end δ
-     ) s a δ δ'); cbn [flatten List.app].
-     - rewrite dfs_stack_eqn0, dfs_flatten_eqn1. reflexivity.
-     - rewrite dfs_stack_eqn1, dfs_flatten_eqn1. reflexivity.
-     - rewrite dfs_stack_eqn2. unflatten. apply loop.
-     - rewrite (dfs_stack_eqn3 yes), (dfs_flatten_eqn3 yes). unflatten. apply loop.
-     - rewrite (dfs_stack_eqn4 no), (dfs_flatten_eqn4 no). unflatten. apply loop.
-   Qed.
+  Lemma sub_stack_nonemp {x l} : ~sub_stack x l [].
+  Proof.
+    intro su.
+    pose (f (l : list X) (s : stack X) := match s with [] => False | _ => True end).
+    change (f l []).
+    destruct su; exact I.
+  Qed.
 
-   Definition Ddfs_stack_flatten {a s} (δ : Ddfs_stack s a) : Ddfs_flatten (flatten s) a.
-   Proof.
-     refine ( (fix loop s a (δ : Ddfs_stack s a) {struct δ}: _ := _) s a δ).
-     destruct δ as [a | a | l s a | x l s a yes δ | x l s a no δ]; cbn; unflatten.
-     - constructor.
-     - constructor.
-     - apply loop, δ.
-     - apply (Ddfs_flatten_cons_stop yes), loop, δ.
-     - apply (Ddfs_flatten_cons_next no). unflatten. apply loop, δ.
-   Defined.
+  Lemma Gdfs_flatten_corr_eq {lls s a o} :
+    Gdfs_flatten lls a o -> flatten s = lls → Gdfs_stack s a o.
+  Proof.
+    intro γ; revert s. induction γ as [ a | x ls a o yes γ Hγ | x ls a o no γ Hγ]; intros s e.
+    - generalize (flatten_nil e); clear e.
+      induction 1 as [ | s ans Hans].
+      + apply Gdfs_stack_nil.
+      + destruct s as [ | l s].
+        * apply Gdfs_stack_nil_emp.
+        * apply (Gdfs_stack_nil_push Hans).
+    - generalize (flatten_cons e); clear e.
+      induction 1 as [l s | l s su Hsu].
+      + apply (Gdfs_stack_cons_stop yes). apply Hγ. reflexivity.
+      + specialize (Hsu γ Hγ); clear γ Hγ.
+        destruct s as [ | l' s].
+        * case (sub_stack_nonemp su).
+        * apply (Gdfs_stack_nil_push Hsu).
+    - generalize (flatten_cons e); clear e.
+      induction 1 as [l s | l s su Hsu].
+      + apply (Gdfs_stack_cons_next no). apply Hγ. reflexivity.
+      + specialize (Hsu γ Hγ). clear γ Hγ.
+        destruct s as [ | l' s].
+        * case (sub_stack_nonemp su).
+        * apply (Gdfs_stack_nil_push Hsu).
+  Qed.
 
-   Corollary dfs_flatten_same_special {s a} (δ : Ddfs_stack s a) :
-     dfs_flatten (flatten s) a (Ddfs_stack_flatten δ) = dfs_stack s a δ.
-   Proof. apply dfs_flatten_same. Qed.
+  Corollary Gdfs_flatten_corr {s a o} :
+    Gdfs_flatten (flatten s) a o → Gdfs_stack s a o.
+  Proof. intro γ. apply (Gdfs_flatten_corr_eq γ eq_refl). Qed.
 
-   (* Hence a correctness proof of dfs_flatten / Gdfs *)
+  Lemma Gdfs_flatten_compl {s a o} :
+    Gdfs_stack s a o → Gdfs_flatten (flatten s) a o.
+  Proof.
+    induction 1 as [a | a | l s a o γ Hγ
+                   | x l s a o yes γ Hγ
+                   | x l s a o no γ Hγ]; cbn.
+    - constructor.
+    - constructor.
+    - exact Hγ.
+    - apply (Gdfs_flatten_cons_stop yes Hγ).
+    - apply (Gdfs_flatten_cons_next no Hγ).
+  Qed.
 
-   Lemma dfs_flatten_Gdfs s a (δ : Ddfs_stack s a) :
-     Gdfs_fld_fld s a (dfs_flatten (flatten s) a (Ddfs_stack_flatten δ)).
-   Proof.
-     rewrite dfs_flatten_same_special. apply dfs_stack_Gdfs.
-   Qed.
+  (* TODO small inversion Gdfs_flatten *)
+  Lemma dfs_flatten_same {s a o o'} :
+    Gdfs_stack s a o → Gdfs_flatten (flatten s) a o' → o = o'.
+  Proof.
+    induction 1 as [a | a | l s a o γ Hγ
+                   | x l s a o yes γ Hγ
+                   | x l s a o no γ Hγ]; cbn; intro γ'.
+    - inversion γ'. reflexivity.
+    - inversion γ'. reflexivity.
+    - inversion γ'; subst.
+      + apply (Hγ γ').
+      + apply (Hγ γ').
+      + apply (Hγ γ').
+    - inversion γ'; subst.
+      + apply Hγ. cbn. apply H4.
+      + case (H1 yes).
+    - inversion γ'; subst.
+      + case (no H1).
+      + apply Hγ, H4.
+  Qed.
 
-   (* Correctness of dfs_book_eff and dfs_book / Gdfs *)
+  Ltac unflatten := repeat (change (?l ++ flatten ?s) with (flatten (l :: s))).
 
-   Lemma Gdfs_fld_fld_Gdfs x o : Gdfs_fld_fld [[x]] [] o → Gdfs_simple x o.
-   Proof.
-     intro γxo.
-     destruct (Gfoldleft_inv γxo) as [c o γxc γco]; destruct (Gfoldleft_inv γco); clear γxo γco.
-     destruct (Gfoldleft_inv γxc) as [b c γxb γbc]; destruct (Gfoldleft_inv γbc); clear γxc γbc.
-     exact γxb.
-   Qed.
+  Definition Ddfs_stack_flatten {a s} (δ : Ddfs_stack s a) : Ddfs_flatten (flatten s) a.
+  Proof.
+    refine ( (fix loop s a (δ : Ddfs_stack s a) {struct δ}: _ := _) s a δ).
+    destruct δ as [a | a | l s a | x l s a yes δ | x l s a no δ]; cbn; unflatten.
+    - constructor.
+    - constructor.
+    - apply loop, δ.
+    - apply (Ddfs_flatten_cons_stop yes), loop, δ.
+    - apply (Ddfs_flatten_cons_next no). unflatten. apply loop, δ.
+  Defined.
 
-   Corollary dfs_book_eff_Gdfs x : ∀ (δ : Ddfs_stack [[x]] []),
-     Gdfs_simple x (dfs_book_eff x δ).
-   Proof. intro δ; apply Gdfs_fld_fld_Gdfs, dfs_stack_Gdfs. Qed.
+  Lemma Gdfs_flatten_Gdfs {s a o} :
+    Gdfs_flatten (flatten s) a o → Gdfs_list_star s a o.
+  Proof. intro γ. apply Gdfs_stack_corr. apply (Gdfs_flatten_corr γ). Qed.
 
-   Corollary dfs_book_Gdfs x : ∀ (δ : Ddfs_stack [[x]] []), let δ := Ddfs_stack_flatten δ in
-     Gdfs_simple x (dfs_book x δ).
-   Proof. intro δ; apply Gdfs_fld_fld_Gdfs, dfs_flatten_Gdfs. Qed.
+  (* Correctness of dfs_book_eff and dfs_book / Gdfs *)
+
+  Corollary Gdfs_book_eff_Gdfs {x o} :
+    Gdfs_stack [[x]] [] o → Gdfs_simple x o.
+  Proof. intro γ. apply Gdfs_list_star_Gdfs, Gdfs_stack_corr, γ. Qed.
+
+  Corollary dfs_book_Gdfs {x o} :
+    Gdfs_flatten [x] [] o → Gdfs_simple x o.
+  Proof. intro γ. apply Gdfs_book_eff_Gdfs, Gdfs_flatten_corr, γ. Qed.
 
 End dfs.
 
