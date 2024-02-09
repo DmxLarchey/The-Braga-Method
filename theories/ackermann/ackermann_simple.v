@@ -22,16 +22,26 @@ Inductive Gack : nat → nat → nat → Prop :=
                      → Gack m v o
                      → Gack (S m) (S n) o.
 
-(* Inductive domain, without any reference to Gack, which NOT the
+(* Inductive domain, without any reference to Gack, which is NOT the
    standard Braga method.*)
 
 (*
-There is a pitfall here: it is always possible to remove G in the
+Warning: the point of this file is NOT to provide an alternative to
+the Braga method, or to replace ackermann.v, but 
+1) to present or recall a pitfall -- basically, ability to extract 
+the right code is not enough;    
+2) to remind and discuss the rôle of G within D;
+3) to explore how an when, starting with the Braga method, other 
+versions of the Coq code could be derived.
+
+About 2), there is a pitfall: it is always possible to remove G in the
 definition of the domain, as far as the DEFINITION of the function is
-concerned; but the big danger is that the domain will become much 
+concerned; but the big danger is that the domain will become much
 smaller than expected or even empty.
-(Exagerating a lot more, take a domain such as 
-Inductive Dack n m : Prop := Dack x y : Dack x y → Dack n m).
+
+Exaggerating a lot more, take a domain such as:
+Inductive Dack n m : Prop := Dack: (∀ x y, Dack x y) → Dack n m.
+See ackermann_exaggerate.v
 
 This is why it is important to look at actual termination, i.e. 
 Lemma ack_termination here.
@@ -53,23 +63,42 @@ lexicographix ordering (which is certainly not the case of the
 readers; but it is not the point here), you have an opportunity
 to discover it.
 
-I (JFM) see this as an intereresting take hom lesson against the
-temptation of letting whatever kind of "Artificial Intelligence" 
-performing too many tasks: those tasks will be quickly performed 
-and you have the result, yes, but WITHOUT providing any understanding 
-(the real meaning of intelligence) of what happens; even worse, 
-like here, HIDING what happens.
+I (JFM) see this as an intereresting take home lesson against the
+temptation of letting whatever kind of "Artificial Intelligence" (or
+more humbly, automation) performing too many tasks: those tasks will
+be quickly performed and you have the result, yes, but WITHOUT
+providing any understanding (the real meaning of intelligence) of what
+happens; even worse, like here, HIDING what happens.
 
 (DLW) Modifying Dack to correspond to the induction principle
 actually used to show termination is very *NOT* Braga IHMO.
 Precisely because you do not want to know a priori why it
 terminates.
+  (JFM) Agreed, it was even recalled (without detail, though) at
+  the beginning of the comment. I elaborate a little bit more
+  there.
 
 The script "ack_termination" gives enough info on the proof.
 Induction on m (with n universally quantified), then on n.
 The rest is solved by eauto because it is so easy. I could
 have detailed it, or used info_auto or info_eauto to get the
-details. *)
+details. 
+
+(JFM) Unless I miss smtg, (e)auto does NOT say what is used
+(hypotheses, hints...); my point is that when an hypothesis is 
+not used, this may provide an interesting information.
+Another typical example is when students use induction instead
+of destruct.
+
+BTW I would prefer to keep the v argument of Dack_pi3 explicit.
+(Similarly, m and n are kept explicit arguments of ack_pwc,
+though they could be made implicit).
+Here, making v implicit convoys the illusion that h works the
+same way as in Dack_pi2 and hides the lazy nature of this
+part of the termination certificate -- the very reason
+why ack_termination 9 9 is computed in a reasonable amount
+of time, in contrast with ack 9 9.
+*)
 
 Inductive Dack : nat → nat → Prop :=
   | Dack_0_n n     : Dack 0 n
@@ -100,7 +129,7 @@ Definition Dack_pi2 {m n} (d : Dack (S m) (S n)) : Dack (S m) n :=
   | Dack_S_S h _ => λ _, h
   end I.
 
-Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀{v}, Dack m v :=
+Definition Dack_pi3 {m n} (d : Dack (S m) (S n)) : ∀ v, Dack m v :=
   match d in Dack m n return is_S_S m n → ∀v, Dack (pred m) v with
   | Dack_0_n _   => λ C, match C with end
   | Dack_S_0 h   => λ C, match C with end
@@ -115,7 +144,7 @@ Proof.
   | S m ,   0 => λ d, let (o,ho) := ack_pwc m 1 (Dack_pi1 d)     in
                       exist _ o _
   | S m , S n => λ d, let (v,hv) := ack_pwc (S m) n (Dack_pi2 d) in
-                      let (o,ho) := ack_pwc m v (Dack_pi3 d)  in
+                      let (o,ho) := ack_pwc m v (Dack_pi3 d v)  in
                       exist _ o _
   end d); eauto.
 Defined.
