@@ -27,6 +27,11 @@ Inductive Gack : nat → nat → nat → Prop :=
 
 Inductive Dack (n m : nat) : Prop := Dexagg : (∀ x y, Dack x y) → Dack n m.
 
+(* Sure you can *always* replace the domain with False ... 
+   Exagerate is a bit of an understatement here ;-) *)
+Fact Dack_False n m : Dack n m → False.
+Proof. induction 1; auto. Qed.
+
 Definition Dack_pi {m n} (d : Dack m n) : ∀ {x y}, Dack x y :=
   match d with
   | Dexagg _ _ f => f

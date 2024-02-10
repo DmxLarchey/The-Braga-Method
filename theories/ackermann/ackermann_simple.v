@@ -38,10 +38,14 @@ About 2), there is a pitfall: it is always possible to remove G in the
 definition of the domain, as far as the DEFINITION of the function is
 concerned; but the big danger is that the domain will become much
 smaller than expected or even empty.
+  (DLW) clearly we want to preserve the relation between G and D which
+        is D x <-> ex (G y).
 
 Exaggerating a lot more, take a domain such as:
 Inductive Dack n m : Prop := Dack: (∀ x y, Dack x y) → Dack n m.
 See ackermann_exaggerate.v
+ (DLW) You can *always* replace the domain with False in that 
+       regard ... see Dack_False in ackermann_exaggerate.v
 
 This is why it is important to look at actual termination, i.e. 
 Lemma ack_termination here.
@@ -50,6 +54,17 @@ Usually G is crucial for termination in the presence of nested
 recursion because it constrains the recursive calls actually performed.  
 In the case of the Ackermann function this constraint happens to be 
 unneeded.
+  (DLW) Indeed because in the nesting 
+              ack (S m) (S n) = ack m (ack (S m) n)
+        you can replace the first call "ack (S m) n" with
+        *anything* terminating, that does not affect the
+        termination of the second call, eg for instance
+        ack' (S m) (S n) = ack' m (f (ack' (S m) n)) where
+        f is any total function.
+
+        This is precisely the property of the wf of the
+        lexicographic product which the definition of
+        Dack here embeds but w/o saying it.
 
 However to see that, it is necessary to be aware of what happens in
 the construction of proof certificates performed by ack_termination.
@@ -89,6 +104,10 @@ details.
 not used, this may provide an interesting information.
 Another typical example is when students use induction instead
 of destruct.
+  (DLW) info_eauto exists as well.
+  (DLW) Again, in the way you define Dack w/o refering to
+        Gack, you already embed the lexicographic product
+        into the definition of Gack. In the GitHub.
 
 BTW I would prefer to keep the v argument of Dack_pi3 explicit.
 (Similarly, m and n are kept explicit arguments of ack_pwc,
@@ -157,7 +176,7 @@ Proof.
   + induction n.
     * info_auto.
     * info_auto.
-Qed.
+Defined.
 
 (* Now the definition of Ackermann, combined with termination
    and stripped of its low-level spec *)
@@ -241,12 +260,27 @@ file. And without loss in Lemma ack_termination as just checked.
 
 Definition ack_expl m n := proj1_sig (ack_pwc m n (ack_termination_expl m n)).
 
+Definition ack_wo_proofs : nat → nat → nat :=
+  (fix loop1 m :=
+     match m with
+     | 0   => S
+     | S m =>
+       fix loop2 n :=
+         match n with
+         | 0   => loop1 m 1
+         | S n => loop1 m (loop2 n)
+         end
+     end).
+
 (* Very small values as input provide much maller computation times *)
 Time Compute ack_termination_expl 3 2. (* 0.004 s *)
 Time Compute ack_expl 3 4. (* 0.002 s *)
+Time Compute ack 3 4.
+Time Compute ack_wo_proofs 3 4.
 
 (* Larger values can be computed *)
 Time Compute ack_termination 9 9. (* 0.61 s *)
 Time Compute ack_termination_expl 9 9. (* 2.3 s *)
 Time Compute ack_expl 3 10. (* 9.6 s *)
 Time Compute ack 3 10. (* 8.2 s *)
+Time Compute ack_wo_proofs 3 10. (* Much faster w/o proof terms *)
