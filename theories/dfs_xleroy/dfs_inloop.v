@@ -43,7 +43,6 @@ Import ListNotations.
 
 #[local] Infix "∈" := In (at level 70, no associativity).
 #[local] Infix "∉" := (λ x a, ¬ In x a) (at level 70, no associativity).
-#[local] Infix "⊆" := incl (at level 70, no associativity).
 
 Require Import dfs_abstract.
 
@@ -765,77 +764,91 @@ Section dfs.
                           {o | Gdfs_flatten [x] [] o} := dfs_flatten [x] [].
 
   (* Relating dfs_flatten with dfs_stack *)
-  (* VERY UGLY PROOF :(
-     TODO make it smarter
-  Lemma dfs_flatten_corr {lls s a o} :
-     Gdfs_flatten lls a o -> flatten s = lls → Gdfs_stack s a o.
- *)
 
-  Inductive all_nil : stack X → Prop :=
-  | all_nil_nil : all_nil []
-  | all_nil_cons s : all_nil s → all_nil ([] :: s).
-
-  Lemma app_nil {l l'} : l ++ l' = [] → l = [] ∧ l' = [].
+  Remark Gdfs_stack_nil_all {s a o} : Gdfs_stack s a o → Gdfs_stack ([] :: s) a o.
   Proof.
-    revert l'; induction l as [ | x l Hl]; cbn; intros l'.
-    - destruct l' as [ | x' l']; intro e.
-      + split; reflexivity.
-      + discriminate e.
-    - destruct l' as [ | x' l']; intro e; discriminate e.
+    destruct 1 as [a | a | l s a o γ
+                   | x l s a o yes γ
+                   | x l s a o no  γ ]; cbn; try apply Gdfs_stack_nil_push.
+    - apply Gdfs_stack_nil_emp.
+    - apply Gdfs_stack_nil_emp.
+    - apply (Gdfs_stack_nil_push γ).
+    - apply (Gdfs_stack_cons_stop yes γ).
+    - apply (Gdfs_stack_cons_next no γ).
   Qed.
 
-  Lemma flatten_nil {s} : flatten s = [] → all_nil s.
+  (* An inductive characterization of flatten in the spirit of Gdfs_stack *)
+  Inductive iflatten : list (list X) → list X → Prop :=
+  | ifl_nil : iflatten [] []
+  | ifl_cons_nil {s ls} : iflatten s ls → iflatten ([] :: s) ls
+  | ifl_cons_cons {x l s ls} : iflatten (l :: s) ls → iflatten ((x :: l) :: s) (x :: ls).
+
+  (* Equivalence between iflatten and flatten *)
+  Lemma iflatten_flatten s : iflatten s (flatten s).
   Proof.
-    induction s as [ | l s Hs]; cbn; intro e.
+    induction s as [ | l s Hs]; cbn.
     - constructor.
-    - destruct (app_nil e) as [el es]. rewrite el. constructor. exact (Hs es).
+    - induction l as [ | x l Hl]; now constructor.
   Qed.
 
-  Inductive sub_stack x : list X → stack X → Prop :=
-  | subst_0 l s : sub_stack x (l ++ flatten s) ((x :: l) :: s)
-  | subst_1 l s : sub_stack x l s → sub_stack x l ([] :: s).
+  Corollary iflatten_flatten_eq {s ls} : flatten s = ls → iflatten s ls.
+  Proof. intro e. case e. apply iflatten_flatten. Qed.
 
-  Lemma flatten_cons {s x ls} : flatten s = x :: ls → sub_stack x ls s.
+  Lemma flatten_iflatten {s ls} : iflatten s ls → flatten s = ls.
   Proof.
-    revert x ls; induction s as [ | l s Hs]; cbn; intros x ls e.
-    - discriminate e.
-    - destruct l as [ | x' l]; cbn in e.
-      + apply subst_1. apply Hs, e.
-      + injection e; clear e; intros e_l e_x. rewrite e_x, <- e_l. apply subst_0.
+    intro ifl. induction ifl as [ | s ls ifl Hifl | s x l ls ifl Hifl]; cbn.
+    - reflexivity.
+    - exact Hifl.
+    - case Hifl; reflexivity.
   Qed.
 
-  Lemma sub_stack_nonemp {x l} : ~sub_stack x l [].
-  Proof.
-    intro su.
-    pose (f (l : list X) (s : stack X) := match s with [] => False | _ => True end).
-    change (f l []).
-    destruct su; exact I.
-  Qed.
+  Corollary iflatten_app {s ls l} : iflatten s ls → iflatten (l :: s) (l ++ ls).
+  Proof. intro ifl. case (flatten_iflatten ifl). apply iflatten_flatten. Qed.
 
-  Lemma Gdfs_flatten_corr_eq {lls s a o} :
-    Gdfs_flatten lls a o -> flatten s = lls → Gdfs_stack s a o.
+  (* Recursive small inversion of iflatten on its second argument *)
+  Inductive iflatten_nil : list (list X) → Prop :=
+  | ifln_nil : iflatten_nil []
+  | ifln_cons_nil {s} : iflatten_nil s → iflatten_nil ([] :: s).
+  Inductive iflatten_cons x ls : list (list X) → Prop :=
+  | iflc_cons_nil {s} : iflatten_cons x ls s → iflatten_cons x ls ([] :: s)
+  | iflc_cons_cons {l s} : iflatten (l :: s) ls → iflatten_cons x ls ((x :: l) :: s).
+  Definition iflatten_dispatch s ls :=
+    match ls with
+    | [] => iflatten_nil s
+    | x :: ls => iflatten_cons x ls s
+    end.
+
+  Lemma iflatten_inv {s ls} : iflatten s ls → iflatten_dispatch s ls.
   Proof.
-    intro γ; revert s. induction γ as [ a | x ls a o yes γ Hγ | x ls a o no γ Hγ]; intros s e.
-    - generalize (flatten_nil e); clear e.
-      induction 1 as [ | s ans Hans].
+    intro ifl.
+    induction ifl as [ | s ls ifl Hifl | x l s ls ifl Hifl]; try (constructor; exact ifl).
+    destruct ls as [ | x ls]; constructor; exact Hifl.
+  Qed.
+  (* End of small inversion *)
+
+  Lemma Gdfs_iflatten_corr {s a o ls} :
+    Gdfs_flatten ls a o → iflatten s ls → Gdfs_stack s a o.
+  Proof.
+    intros γ ifl. generalize (iflatten_inv ifl). clear ifl. revert s.
+    induction γ as [ a | x ls a o yes γ Hγ | x ls a o no γ Hγ]; cbn; intros s ifl.
+    - induction ifl as [ s | s ifl Hifl].
       + apply Gdfs_stack_nil.
-      + destruct s as [ | l s].
-        * apply Gdfs_stack_nil_emp.
-        * apply (Gdfs_stack_nil_push Hans).
-    - generalize (flatten_cons e); clear e.
-      induction 1 as [l s | l s su Hsu].
-      + apply (Gdfs_stack_cons_stop yes). apply Hγ. reflexivity.
-      + specialize (Hsu γ Hγ); clear γ Hγ.
-        destruct s as [ | l' s].
-        * case (sub_stack_nonemp su).
-        * apply (Gdfs_stack_nil_push Hsu).
-    - generalize (flatten_cons e); clear e.
-      induction 1 as [l s | l s su Hsu].
-      + apply (Gdfs_stack_cons_next no). apply Hγ. reflexivity.
-      + specialize (Hsu γ Hγ). clear γ Hγ.
-        destruct s as [ | l' s].
-        * case (sub_stack_nonemp su).
-        * apply (Gdfs_stack_nil_push Hsu).
+      + apply Gdfs_stack_nil_all. apply Hifl.
+    - induction ifl as [ s ifl Hifl | l s ifl].
+      + apply Gdfs_stack_nil_all. apply Hifl.
+      + apply (Gdfs_stack_cons_stop yes), Hγ, iflatten_inv, ifl.
+    - induction ifl as [ s ifl Hifl | l s ifl].
+      + apply Gdfs_stack_nil_all. apply Hifl.
+      + apply (Gdfs_stack_cons_next no), Hγ, iflatten_inv.
+        apply iflatten_app, ifl.
+  Qed.
+
+  (* *)
+
+  Lemma Gdfs_flatten_corr_eq {s a o ls} :
+    Gdfs_flatten ls a o → flatten s = ls → Gdfs_stack s a o.
+  Proof.
+    intros γ e. exact (Gdfs_iflatten_corr γ (iflatten_flatten_eq e)).
   Qed.
 
   Corollary Gdfs_flatten_corr {s a o} :
@@ -855,25 +868,44 @@ Section dfs.
     - apply (Gdfs_flatten_cons_next no Hγ).
   Qed.
 
-  (* TODO small inversion Gdfs_flatten *)
+  (* Small inversion Gdfs_flatten *)
+
+  Inductive Gdfs_flatten_part_nil : list X → list X → Prop :=
+  | Gdfs_flatten_part_nil_nil {a} :                  Gdfs_flatten_part_nil a a.
+  Inductive Gdfs_flatten_part_cons x ls : list X → list X → Prop :=
+  | Gdfs_flatten_part_cons_stop {a o} :     x ∈ a
+                                          → Gdfs_flatten ls a o
+                                          → Gdfs_flatten_part_cons x ls a o
+  | Gdfs_flatten_part_cons_next {a o} :     x ∉ a
+                                          → Gdfs_flatten (succs x ++ ls) (x :: a) o
+                                          → Gdfs_flatten_part_cons x ls a o.
+  Definition Gdfs_flatten_dispatch (ls : list X) : list X → list X → Prop :=
+    match ls with
+    | []      => Gdfs_flatten_part_nil
+    | x :: ls => Gdfs_flatten_part_cons x ls
+    end.
+  Definition Gdfs_flatten_inv {ls a o} (γ : Gdfs_flatten ls a o) : Gdfs_flatten_dispatch ls a o.
+  Proof. destruct γ; constructor; assumption. Qed.
+  (* End of small inversion *)
+
   Lemma dfs_flatten_same {s a o o'} :
     Gdfs_stack s a o → Gdfs_flatten (flatten s) a o' → o = o'.
   Proof.
     induction 1 as [a | a | l s a o γ Hγ
                    | x l s a o yes γ Hγ
                    | x l s a o no γ Hγ]; cbn; intro γ'.
-    - inversion γ'. reflexivity.
-    - inversion γ'. reflexivity.
-    - inversion γ'; subst.
-      + apply (Hγ γ').
-      + apply (Hγ γ').
-      + apply (Hγ γ').
-    - inversion γ'; subst.
-      + apply Hγ. cbn. apply H4.
-      + case (H1 yes).
-    - inversion γ'; subst.
-      + case (no H1).
-      + apply Hγ, H4.
+    - destruct (Gdfs_flatten_inv γ') as [a]. reflexivity.
+    - destruct (Gdfs_flatten_inv γ') as [a]. reflexivity.
+    - cbn in Hγ. generalize γ'. destruct γ' as [ a | x ls a o' yes | x ls a o' no]; try clear γ'.
+      + exact Hγ.
+      + exact Hγ.
+      + exact Hγ.
+   - destruct (Gdfs_flatten_inv γ') as [a o' _ γ'0 | a o' no _ ].
+      + apply (Hγ γ'0).
+      + case (no yes).
+   - destruct (Gdfs_flatten_inv γ') as [a o' yes _ | a o' _ γ'0 ].
+      + case (no yes).
+      + exact (Hγ γ'0).
   Qed.
 
   Ltac unflatten := repeat (change (?l ++ flatten ?s) with (flatten (l :: s))).
