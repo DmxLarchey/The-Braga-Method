@@ -864,6 +864,9 @@ Section dfs.
 
 End dfs.
 
+Extract Inductive sumbool => "bool" [ "true" "false" ].
+Extract Inductive list => "list" [ "[]" "( :: )" ].
+
 Recursive Extraction
   dfs_cycle_inld
   dfs_cycle_self
