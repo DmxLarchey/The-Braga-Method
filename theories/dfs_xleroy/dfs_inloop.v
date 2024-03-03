@@ -406,6 +406,17 @@ Section dfs.
 
   Definition stack X := list (list X).
 
+  Inductive Gdfs_list_stack : list X → stack X → list X → list X → Prop :=
+  | Gls_nil_emp {a} :             Gdfs_list_stack [] [] a a
+  | Gls_nil_push {l s a o}  :     Gdfs_list_stack l s a o
+                                → Gdfs_list_stack [] (l :: s) a o
+  | Gls_cons_stop {x l s a o} :   x ∈ a
+                                → Gdfs_list_stack l s a o
+                                → Gdfs_list_stack (x :: l) s a o
+  | Gls_cons_next {x l s a o} :   x ∉ a
+                                → Gdfs_list_stack (succs x) (l :: s) (x :: a) o
+                                → Gdfs_list_stack (x :: l) s a o.
+
   (* The inductive domain is expressed with the following type instead of
      list X → stack X → list X → Prop, in order to be shared with dfs_stack *)
   Inductive Ddfs_stack : stack X → list X → Prop :=
@@ -458,19 +469,6 @@ Section dfs.
     | Ds_cons_stop yes δ => λ _ no, match no yes with end
     | _                  => λ absu _, match absu with end
     end I.
-
-  (* *)
-
-  Inductive Gdfs_list_stack : list X → stack X → list X → list X → Prop :=
-  | Gls_nil_emp {a} :             Gdfs_list_stack [] [] a a
-  | Gls_nil_push {l s a o}  :     Gdfs_list_stack l s a o
-                                → Gdfs_list_stack [] (l :: s) a o
-  | Gls_cons_stop {x l s a o} :   x ∈ a
-                                → Gdfs_list_stack l s a o
-                                → Gdfs_list_stack (x :: l) s a o
-  | Gls_cons_next {x l s a o} :   x ∉ a
-                                → Gdfs_list_stack (succs x) (l :: s) (x :: a) o
-                                → Gdfs_list_stack (x :: l) s a o.
 
   Fixpoint dfs_list_stack l s a (δ : Ddfs_stack (l :: s) a) {struct δ} : {o | Gdfs_list_stack l s a o} :=
     match l                                                             (* *) return Ddfs_stack (l :: s) a → _
@@ -659,6 +657,17 @@ Section dfs.
     | l :: ll => l ++ flatten ll
     end.
 
+  (* Syntactic specification of dfs_flatten *)
+
+  Inductive Gdfs_flatten : list X → list X → list X → Prop :=
+  | Gf_nil {a} :                Gdfs_flatten [] a a
+  | Gf_cons_stop {x ls a o} :   x ∈ a
+                              → Gdfs_flatten ls a o
+                              → Gdfs_flatten (x :: ls) a o
+  | Gf_cons_next {x ls a o} :   x ∉ a
+                              → Gdfs_flatten (succs x ++ ls) (x :: a) o
+                              → Gdfs_flatten (x :: ls) a o.
+
   (* Inductive domain of dfs_flatten *)
   Inductive Ddfs_flatten : list X → list X → Prop :=
   | Df_nil {a} :              Ddfs_flatten [] a
@@ -694,17 +703,6 @@ Section dfs.
     | Df_cons_stop yes δ => λ _ no, match no yes with end
     | _                  => λ absu _, match absu with end
     end I.
-
-  (* Syntactic specification of dfs_flatten *)
-
-  Inductive Gdfs_flatten : list X → list X → list X → Prop :=
-  | Gf_nil {a} :                Gdfs_flatten [] a a
-  | Gf_cons_stop {x ls a o} :   x ∈ a
-                              → Gdfs_flatten ls a o
-                              → Gdfs_flatten (x :: ls) a o
-  | Gf_cons_next {x ls a o} :   x ∉ a
-                              → Gdfs_flatten (succs x ++ ls) (x :: a) o
-                              → Gdfs_flatten (x :: ls) a o.
 
   (* *)
 
@@ -872,7 +870,9 @@ Section dfs.
 End dfs.
 
 Recursive Extraction
-  dfs_cycle_inld dfs_cycle_inld_tr
-  dfs_cycle_self dfs_cycle_self_tr
-  dfs_cycle_stack dfs_book_eff dfs_book.
+  dfs_cycle_inld
+  dfs_cycle_self
+  dfs_cycle_stack
+  dfs_book_eff
+  dfs_book.
 
