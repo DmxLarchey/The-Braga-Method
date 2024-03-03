@@ -62,10 +62,18 @@ Definition Gfoldleft_inv {X Y : Type} {R : Y → X → X → Prop}
 Proof. destruct i; econstructor; eassumption. Defined.
 (* End of small inversion *)
 
-Class Gcl (X : Type) := { in_dec : ∀ (x : X) (l : list X), {x ∈ l} + {x ∉ l};
-                          succs :  X → list X}.
-
 Generalizable Variable X.
+
+Class Cgr (X : Type) := { succs :  X → list X }.
+
+Class Cdec (X : Type) := { in_dec : ∀ (x : X) (l : list X), {x ∈ l} + {x ∉ l} }.
+
+Class Cgd (X : Type) := {
+    _succs :: Cgr X ;
+    _in_dec :: Cdec X
+  }.
+
+Extraction Inline succs in_dec.
 
 (* Chapter 1. On the program provided in [1] *)
 
@@ -124,24 +132,24 @@ Generalizable Variable X.
    unused argument is introduced.
  *)
 
-Inductive Gdfs `{C : Gcl} : X → list X → list X → Prop :=
+Inductive Gdfs `{C : Cgr} : X → list X → list X → Prop :=
 | Gdfs_stop {x a} :     x ∈ a
                       → Gdfs x a a
 | Gdfs_next {x a o} :   x ∉ a
                       → Gdfs_list (succs x) (x :: a) o
                       → Gdfs x a o
-with Gdfs_list `{C : Gcl} : list X → list X → list X → Prop :=
+with Gdfs_list `{C : Cgr} : list X → list X → list X → Prop :=
 | Gdl_nil {a} :            Gdfs_list [] a a
 | Gdl_cons {x l a b o} :   Gdfs x a b
                          → Gdfs_list l b o
                          → Gdfs_list (x :: l) a o.
 
-Definition Gdfs_main `{C : Gcl} := λ x, Gdfs x [].
+Definition Gdfs_main `{C : Cgr} := λ x, Gdfs x [].
 
 
 (* Small inversion of Gdfs_list *)
 Section sec_small_inv.
-  Context  `{C : Gcl}.
+  Context  `{C : Cgr}.
   Inductive Gdfs_list_nil (a : list X) : list X → Prop :=
   | Gdl_nil_nil : Gdfs_list_nil a a.
   Inductive Gdfs_list_cons x l (a : list X) (o : list X) : Prop :=
@@ -158,7 +166,7 @@ End sec_small_inv.
 (* End of small inversion *)
 
 (* FYI but not used here *)
-Lemma Gdfs_deterministic `{C : Gcl} {x a o} (γ : Gdfs x a o) : ∀ {o'}, Gdfs x a o' → o = o'.
+Lemma Gdfs_deterministic `{C : Cgr} {x a o} (γ : Gdfs x a o) : ∀ {o'}, Gdfs x a o' → o = o'.
 Proof.
   revert x a o γ.
   refine (fix loop1 x a o γ {struct γ} : _ := _).
@@ -168,7 +176,7 @@ Proof.
     refine (
         let fix loop2 l a o (γ : Gdfs_list l a o) {struct γ} : ∀ o', Gdfs_list l a o' → o = o' := _
         in loop2 (succs x) (x :: a) o γ).
-    destruct γ as [a | x' l a b o γab γbo e]; intros o' γ'.
+    destruct γ as [a | x' l a b o γab γbo]; intros o' γ'.
     + destruct (Gdfs_list_inv γ'). reflexivity.
     + destruct (Gdfs_list_inv γ') as [b' γab' γb'o'].
       apply (loop2 _ _ _ γbo).
@@ -177,25 +185,25 @@ Proof.
 Qed.
 
 (* Correctness and completeness of Gdfs_list / Gdfs *)
-Definition Gdfs_list_corr `{C : Gcl}  {x a o} : Gdfs_list [x] a o → Gdfs x a o.
+Definition Gdfs_list_corr `{C : Cgr}  {x a o} : Gdfs_list [x] a o → Gdfs x a o.
 Proof.
   intro γ.
   destruct (Gdfs_list_inv γ) as [b γab γbo]; destruct (Gdfs_list_inv γbo).
   exact γab.
 Defined.
 
-Definition Gdfs_list_compl `{C : Gcl}  {x a o} : Gdfs x a o → Gdfs_list [x] a o
+Definition Gdfs_list_compl `{C : Cgr}  {x a o} : Gdfs x a o → Gdfs_list [x] a o
   := λ γ, Gdl_cons γ Gdl_nil.
 
 (* Corresponding inductive domain *)
-Inductive Ddfs `{C : Gcl} : X → list X → Prop :=
+Inductive Ddfs `{C : Cgr} : X → list X → Prop :=
 | Ddfs_stop {x a} :    x ∈ a
                      → Ddfs x a
 | Ddfs_next {x a} :     x ∉ a
                       → Ddfs_list (succs x) (x :: a)
                       → Ddfs x a
 
-with Ddfs_list `{C : Gcl} : list X → list X → Prop :=
+with Ddfs_list `{C : Cgr} : list X → list X → Prop :=
 | Ddl_nil {a} :         Ddfs_list [] a
 | Ddl_cons {x l a}  :   Ddfs x a
                       → (∀b, Gdfs x a b → Ddfs_list l b)
@@ -203,7 +211,7 @@ with Ddfs_list `{C : Gcl} : list X → list X → Prop :=
 
 (* Structurally smaller projections *)
 Section sec_proj.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Definition Ddfs_next_pi {x a} (δ : Ddfs x a) :
     x ∉ a → Ddfs_list (succs x) (x :: a) :=
@@ -233,7 +241,7 @@ Section sec_proj.
     end I.
 End sec_proj.
 
-Fixpoint dfs `{C : Gcl} (x: X) (a: list X)              (* *) (δ: Ddfs x a) {struct δ}
+Fixpoint dfs `{C : Cgd} (x: X) (a: list X)              (* *) (δ: Ddfs x a) {struct δ}
   : {o | Gdfs x a o} :=
   match in_dec x a with
   | left yes => exist a                                 (* *) (Gdfs_stop yes)
@@ -255,7 +263,7 @@ Fixpoint dfs `{C : Gcl} (x: X) (a: list X)              (* *) (δ: Ddfs x a) {st
   end.
 
 (* Main program: the inlined nested variant of dfs_cycle *)
-Definition dfs_cycle_inld `{C : Gcl} x : Ddfs x [] → {o | Gdfs_main x o} := dfs x [].
+Definition dfs_cycle_inld `{C : Cgd} x : Ddfs x [] → {o | Gdfs_main x o} := dfs x [].
 
 Recursive Extraction dfs_cycle_inld.
 
@@ -266,7 +274,7 @@ Recursive Extraction dfs_cycle_inld.
 
 (* Rearrangement of dfs_list above, where the call to dfs is inlined *)
 
-Inductive Gdfs_list_self `{C : Gcl}  : list X → list X → list X → Prop :=
+Inductive Gdfs_list_self `{C : Cgr}  : list X → list X → list X → Prop :=
 | Gdls_nil {a} :               Gdfs_list_self [] a a
 | Gdls_cons_yes {x l a o} :    x ∈ a
                              → Gdfs_list_self l a o
@@ -276,7 +284,7 @@ Inductive Gdfs_list_self `{C : Gcl}  : list X → list X → list X → Prop :=
                              → Gdfs_list_self l b o
                              → Gdfs_list_self (x :: l) a o.
 
-Inductive Ddfs_list_self `{C : Gcl}  : list X → list X → Prop :=
+Inductive Ddfs_list_self `{C : Cgr}  : list X → list X → Prop :=
 | Ddls_nil {a} :        Ddfs_list_self [] a
 | Ddls_cons_yes [x l a] :   x ∈ a
                           → Ddfs_list_self l a
@@ -287,7 +295,7 @@ Inductive Ddfs_list_self `{C : Gcl}  : list X → list X → Prop :=
                           → Ddfs_list_self (x :: l) a.
 (* Structurally smaller projections *)
 Section sec_proj.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Definition Ddfs_list_self_cons_yes_pi {x l a} (δ : Ddfs_list_self (x :: l) a) :
     x ∈ a → Ddfs_list_self l a :=
@@ -330,7 +338,7 @@ Section sec_proj.
 
 End sec_proj.
 
-Fixpoint dfs_list_self `{C : Gcl} l a           (* *) (δ : Ddfs_list_self l a) {struct δ}
+Fixpoint dfs_list_self `{C : Cgd} l a           (* *) (δ : Ddfs_list_self l a) {struct δ}
   : {o | Gdfs_list_self l a o}  :=
   match l                                       (* *) return Ddfs_list_self l a -> _
   with
@@ -351,7 +359,7 @@ Fixpoint dfs_list_self `{C : Gcl} l a           (* *) (δ : Ddfs_list_self l a) 
   end                                           (* *) δ.
 
 (* Main *)
-Definition dfs_cycle_self `{C : Gcl} x          (* *) (δ : Ddfs_list_self [x] [])
+Definition dfs_cycle_self `{C : Cgd} x          (* *) (δ : Ddfs_list_self [x] [])
   : {o | Gdfs_list_self [x] [] o} :=
   dfs_list_self [x] []                          (* *) δ.
 
@@ -359,7 +367,7 @@ Recursive Extraction dfs_cycle_self.
 
 (* Correctness and completeness of Gdfs_list_self / Gdfs_list*)
 Section sec_corr_compl.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Lemma Gdfs_list_self_corr {l a o} :
     Gdfs_list_self l a o → Gdfs_list l a o.
@@ -424,7 +432,7 @@ let dfs =
 
 Definition stack X := list (list X).
 
-Inductive Gdfs_list_stack `{C : Gcl} : list X → stack X → list X → list X → Prop :=
+Inductive Gdfs_list_stack `{C : Cgr} : list X → stack X → list X → list X → Prop :=
 | Gls_nil_emp {a} :             Gdfs_list_stack [] [] a a
 | Gls_nil_push {l s a o}  :     Gdfs_list_stack l s a o
                               → Gdfs_list_stack [] (l :: s) a o
@@ -437,7 +445,7 @@ Inductive Gdfs_list_stack `{C : Gcl} : list X → stack X → list X → list X 
 
 (* The inductive domain is expressed with the following type instead of
    list X → stack X → list X → Prop, in order to be shared with dfs_stack *)
-Inductive Ddfs_stack `{C : Gcl} : stack X → list X → Prop :=
+Inductive Ddfs_stack `{C : Cgr} : stack X → list X → Prop :=
 | Ds_nil {a} :               Ddfs_stack [] a
 | Ds_nil_emp {a} :           Ddfs_stack ([] :: []) a
 | Ds_nil_push {l s a}  :     Ddfs_stack (l :: s) a
@@ -451,7 +459,7 @@ Inductive Ddfs_stack `{C : Gcl} : stack X → list X → Prop :=
 
 (* Structurally smaller projections *)
 Section sec_proj.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Definition Ds_nil_push_pi {l s a} (δ : Ddfs_stack ([] :: l :: s) a) :
     Ddfs_stack (l :: s) a :=
@@ -492,7 +500,7 @@ Section sec_proj.
 
 End sec_proj.
 
-Fixpoint dfs_list_stack `{C : Gcl} l s a (δ : Ddfs_stack (l :: s) a) {struct δ} :
+Fixpoint dfs_list_stack `{C : Cgd} l s a (δ : Ddfs_stack (l :: s) a) {struct δ} :
   {o | Gdfs_list_stack l s a o} :=
   match l                                                             (* *) return Ddfs_stack (l :: s) a → _
   with
@@ -518,26 +526,26 @@ Fixpoint dfs_list_stack `{C : Gcl} l s a (δ : Ddfs_stack (l :: s) a) {struct δ
   end δ.
 
 (* Main *)
-Definition dfs_cycle_stack `{C : Gcl} x :                             (* *)  Ddfs_stack ([x] :: []) [] →
+Definition dfs_cycle_stack `{C : Cgd} x :                             (* *)  Ddfs_stack ([x] :: []) [] →
                            {o | Gdfs_list_stack [x] [] [] o} := dfs_list_stack [x] [] [].
 
 (* Specification, correctness and completeness of dfs_list_stack / Gdfs_list_self *)
 
-Definition Gdfs_list_self_star `{C : Gcl} := Gfoldleft Gdfs_list_self.
+Definition Gdfs_list_self_star `{C : Cgr} := Gfoldleft Gdfs_list_self.
 
-Inductive Gdfs_list_self_plus `{C : Gcl} l s a o : Prop :=
+Inductive Gdfs_list_self_plus `{C : Cgr} l s a o : Prop :=
 | Gls_plus b :   Gdfs_list_self l a b → Gdfs_list_self_star s b o
                → Gdfs_list_self_plus l s a o.
 Arguments Gls_plus {X C l s a o}.
 
-Fact Gls_plus1 `{C : Gcl} {l a o} : Gdfs_list_self l a o → Gdfs_list_self_plus l [] a o.
+Fact Gls_plus1 `{C : Cgr} {l a o} : Gdfs_list_self l a o → Gdfs_list_self_plus l [] a o.
 Proof. exact (λ γ, Gls_plus o γ Gfl_nil). Qed.
 
-Fact Gls_plus1_inv `{C : Gcl} {l a o} : Gdfs_list_self_plus l [] a o → Gdfs_list_self l a o.
+Fact Gls_plus1_inv `{C : Cgr} {l a o} : Gdfs_list_self_plus l [] a o → Gdfs_list_self l a o.
 Proof. destruct 1 as [b γab γbo]. destruct (Gfoldleft_inv γbo). exact γab. Qed.
 
 Section sec_corr_compl.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   (* Correctness *)
   Lemma Gdfs_list_stack_corr {l s a o} :
@@ -590,14 +598,14 @@ End sec_corr_compl.
 (* ------------------------------------------------------------------------------------------ *)
 (* dfs_stack *)
 
-Inductive Gdfs_stack `{C : Gcl} : stack X → list X → list X → Prop :=
+Inductive Gdfs_stack `{C : Cgr} : stack X → list X → list X → Prop :=
 | Gs_nil {a} :          Gdfs_stack [] a a
 | Gs_cons {l s a o} :   Gdfs_list_stack l s a o
                       → Gdfs_stack (l :: s) a o.
 
 (* Fake constructors for Gdfs_stack an  *)
 Section sec_Gdfs_stack.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Definition promote {l s a o l' s' a' o'} (f : Gdfs_list_stack l s a o → Gdfs_list_stack l' s' a' o') :
     Gdfs_stack (l :: s) a o → Gdfs_stack (l' :: s') a' o'.
@@ -623,7 +631,7 @@ Section sec_Gdfs_stack.
 
 End sec_Gdfs_stack.
 
-Remark Gdfs_stack_nil_all `{C : Gcl} {s a o} : Gdfs_stack s a o → Gdfs_stack ([] :: s) a o.
+Remark Gdfs_stack_nil_all `{C : Cgr} {s a o} : Gdfs_stack s a o → Gdfs_stack ([] :: s) a o.
 Proof.
   intro γ. apply Gs_cons.
   destruct γ as [a | l s a o γ].
@@ -633,7 +641,7 @@ Qed.
 
 (* *)
 
-Fixpoint dfs_stack `{C : Gcl} s a (δ : Ddfs_stack s a) {struct δ} : {o | Gdfs_stack s a o} :=
+Fixpoint dfs_stack `{C : Cgd} s a (δ : Ddfs_stack s a) {struct δ} : {o | Gdfs_stack s a o} :=
   match s                                                                 (* *) return Ddfs_stack s a → _
   with
   | []     =>                                                             (* *) λ _,
@@ -653,14 +661,14 @@ Fixpoint dfs_stack `{C : Gcl} s a (δ : Ddfs_stack s a) {struct δ} : {o | Gdfs_
   end δ.
 
 (* Main *)
-Definition dfs_book_eff `{C : Gcl} x :                                    (* *)  Ddfs_stack ([[x]]) [] →
+Definition dfs_book_eff `{C : Cgd} x :                                    (* *)  Ddfs_stack ([[x]]) [] →
                             {o | Gdfs_stack [[x]] [] o} := dfs_stack [[x]] [].
 
 Recursive Extraction dfs_book_eff.
 
 (* Correctness and completeness of Gdfs_stack / Gdfs_list_stack *)
 Section sec_corr_compl.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   (* Correctness *)
   Definition Gdfs_stack_corr {l s a o} :
@@ -703,7 +711,7 @@ Proof. apply app_nil_r. Qed.
 
 
 (* Syntactic specification of dfs_flatten *)
-Inductive Gdfs_flatten `{C : Gcl} : list X → list X → list X → Prop :=
+Inductive Gdfs_flatten `{C : Cgr} : list X → list X → list X → Prop :=
 | Gf_nil {a} :                Gdfs_flatten [] a a
 | Gf_cons_stop {x ls a o} :   x ∈ a
                             → Gdfs_flatten ls a o
@@ -713,7 +721,7 @@ Inductive Gdfs_flatten `{C : Gcl} : list X → list X → list X → Prop :=
                             → Gdfs_flatten (x :: ls) a o.
 
 (* Inductive domain of dfs_flatten *)
-Inductive Ddfs_flatten `{C : Gcl} : list X → list X → Prop :=
+Inductive Ddfs_flatten `{C : Cgr} : list X → list X → Prop :=
 | Df_nil {a} :              Ddfs_flatten [] a
 | Df_cons_stop {x ls a} :   x ∈ a
                           → Ddfs_flatten ls a
@@ -724,7 +732,7 @@ Inductive Ddfs_flatten `{C : Gcl} : list X → list X → Prop :=
 
 (* Structurally smaller projections *)
 Section sec_proj.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Definition Df_cons_stop_pi {x ls a} (δ : Ddfs_flatten (x :: ls) a) :
     x ∈ a → Ddfs_flatten ls a :=
@@ -752,7 +760,7 @@ Section sec_proj.
 
 End sec_proj.
 
-Fixpoint dfs_flatten `{C : Gcl} lls a                           (* *) (δ : Ddfs_flatten lls a) {struct δ}
+Fixpoint dfs_flatten `{C : Cgd} lls a                           (* *) (δ : Ddfs_flatten lls a) {struct δ}
   : {o | Gdfs_flatten lls a o} :=
   match lls                                                     (* *) return Ddfs_flatten lls a → _
   with
@@ -770,7 +778,7 @@ Fixpoint dfs_flatten `{C : Gcl} lls a                           (* *) (δ : Ddfs
   end δ.
 
 (* Main *)
-Definition dfs_book `{C : Gcl} x :                              (* *)  Ddfs_flatten [x] [] →
+Definition dfs_book `{C : Cgd} x :                              (* *)  Ddfs_flatten [x] [] →
                         {o | Gdfs_flatten [x] [] o} := dfs_flatten [x] [].
 
 Recursive Extraction dfs_book.
@@ -831,7 +839,7 @@ End sec_small_inv.
 
 (* Correctness and completeness of Gdfs_flatten / Gdfs_stack *)
 Section sec_corr_compl.
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Lemma Gdfs_iflatten_corr {s a o ls} :
     Gdfs_flatten ls a o → iflatten s ls → Gdfs_stack s a o.
@@ -879,7 +887,7 @@ Section sec_global_corr_compl.
   (* Correctness and completeness of Gdfs_stack and Gdfs_flatten / Gdfs_list  *)
   (* By chaining the previous lemmas, taking an initial singleton stack.      *)
 
-  Context `{C : Gcl}.
+  Context `{C : Cgr}.
 
   Lemma Gdfs_stack_corr_list {l a o} : Gdfs_stack [l] a o → Gdfs_list l a o.
   Proof.
