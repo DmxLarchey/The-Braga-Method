@@ -164,7 +164,7 @@ Section dfs.
       refine (
           let fix loop2 l a o (γ : Gdfs_list l a o) {struct γ} : ∀ o', Gdfs_list l a o' → o = o' := _
           in loop2 (succs x) (x :: a) o γ).
-      destruct γ as [a | x' l a b o γab γbo e]; intros o' γ'.
+      destruct γ as [a | x' l a b o γab γbo]; intros o' γ'.
       + destruct (Gdfs_list_inv γ'). reflexivity.
       + destruct (Gdfs_list_inv γ') as [b' γab' γb'o'].
         apply (loop2 _ _ _ γbo).
