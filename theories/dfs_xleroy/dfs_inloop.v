@@ -765,7 +765,7 @@ Section dfs.
     | x :: ls => iflatten_cons x ls s
     end.
 
-  Lemma iflatten_inv {s ls} : iflatten s ls → iflatten_dispatch s ls.
+  Lemma iflatten_recinv {s ls} : iflatten s ls → iflatten_dispatch s ls.
   Proof.
     intro ifl.
     induction ifl as [ | s ls ifl Hifl | x l s ls ifl Hifl]; try (constructor; exact ifl).
@@ -776,17 +776,17 @@ Section dfs.
   Lemma Gdfs_iflatten_corr {s a o ls} :
     Gdfs_flatten ls a o → iflatten s ls → Gdfs_stack s a o.
   Proof.
-    intros γ ifl. generalize (iflatten_inv ifl); clear ifl. revert s.
+    intros γ ifl. generalize (iflatten_recinv ifl); clear ifl. revert s.
     induction γ as [ a | x ls a o yes γ Hγ | x ls a o no γ Hγ]; cbn; intros s ifl.
     - induction ifl as [ | s ifl Hifl].
       + apply Gs_nil.
       + apply Gdfs_stack_nil_all. apply Hifl.
     - induction ifl as [ s ifl Hifl | l s ifl].
       + apply Gdfs_stack_nil_all. apply Hifl.
-      + apply (Gs_cons_stop yes), Hγ, iflatten_inv, ifl.
+      + apply (Gs_cons_stop yes), Hγ, iflatten_recinv, ifl.
     - induction ifl as [ s ifl Hifl | l s ifl].
       + apply Gdfs_stack_nil_all. apply Hifl.
-      + apply (Gs_cons_next no), Hγ, iflatten_inv.
+      + apply (Gs_cons_next no), Hγ, iflatten_recinv.
         apply iflatten_app, ifl.
   Qed.
 
@@ -873,4 +873,3 @@ Recursive Extraction
   dfs_cycle_stack
   dfs_book_eff
   dfs_book.
-
