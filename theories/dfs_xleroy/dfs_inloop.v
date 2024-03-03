@@ -585,16 +585,12 @@ Section dfs.
 
   (* *)
 
-  Remark Gdfs_list_stack_nil_all {s a o} : Gdfs_stack s a o → Gdfs_list_stack [] s a o.
-  Proof.
-    destruct 1 as [a | l s a o γ].
-    - apply Gls_nil_emp.
-    - apply (Gls_nil_push γ).
-  Qed.
-
   Remark Gdfs_stack_nil_all {s a o} : Gdfs_stack s a o → Gdfs_stack ([] :: s) a o.
   Proof.
-    intro γ. apply Gs_cons, Gdfs_list_stack_nil_all, γ.
+    intro γ. apply Gs_cons.
+    destruct γ as [a | l s a o γ].
+    - apply Gls_nil_emp.
+    - apply (Gls_nil_push γ).
   Qed.
 
   (* *)
@@ -865,7 +861,6 @@ Section dfs.
 
   Corollary Gdfs_book_compl {x o} : Gdfs_main x o → Gdfs_flatten [x] [] o.
   Proof. exact (λ γ, Gdfs_flatten_compl_list (Gdfs_list_compl γ)). Qed.
-
 
 End dfs.
 
