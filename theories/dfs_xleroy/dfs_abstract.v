@@ -62,7 +62,7 @@ End smallest.
 
 Arguments smallest {_}.
 
-(** Refl-trans closure avoinding a predicate 
+(** Refl-trans closure avoiding a predicate
     Instead of an inductive definition like
 
         Inductive crt_exclude {X} R A : X → X → Prop :=
@@ -366,15 +366,15 @@ Arguments foldleft {X Y} F {D}.
 
 Section dfs_post_condition.
 
-  Variables (X : Type) (succ : X → list X).
+  Variables (X : Type) (succs : X → list X).
 
   Implicit Types (A B α : X → Prop).
 
   (* The invariant for dfs wrt to accumulator "A" is an
-     upper bound of a stable under "succ" of its member
+     upper bound of a stable under "succs" of its member
      which are not members of "A" already, formulated in
      a positive way. *)
-  Definition dfs_invar A α := ∀x, α x → A x ∨ ⦃succ x⦄ ⊆ α.
+  Definition dfs_invar A α := ∀x, α x → A x ∨ ⦃succs x⦄ ⊆ α.
 
   Fact dfs_invar_mono A B α : A ⊆ B → dfs_invar A α → dfs_invar B α.
   Proof. intros H1 H2 x []%H2; auto. Qed.
@@ -385,7 +385,7 @@ Section dfs_post_condition.
     intros; apply E; auto.
   Qed.
 
-  Notation next := (λ v u, u ∈ succ v).
+  Notation next := (λ v u, u ∈ succs v).
 
   Local Fact dfs_invar_crt_exclude A α x y :
           dfs_invar A α
@@ -447,8 +447,8 @@ Section dfs_post_condition.
       * intro; rewrite <- H; tauto.
   Qed.
 
-  (* The invariant for dfs_braga is a set stable under succ *)
-  Definition dfs_braga_invar α := ∀ x y, α x → y ∈ succ x → α y.
+  (* The invariant for dfs_braga is a set stable under succs *)
+  Definition dfs_braga_invar α := ∀ x y, α x → y ∈ succs x → α y.
 
   Fact dfs_braga_invar_iff : dfs_braga_invar ≡ dfs_invar (λ _, False).
   Proof.

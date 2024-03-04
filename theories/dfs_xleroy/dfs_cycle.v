@@ -37,7 +37,7 @@
           | x::l ->
             match in_dec x v
             | true  -> dfs v l
-            | false -> dfs (x::v) (succs x)@l
+            | false -> dfs (x::v) (succs x @ l)
         in dfs [] [x]
 
     These two algoritms (dfs_cycle & dfs_book) are different 
