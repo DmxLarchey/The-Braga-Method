@@ -147,7 +147,7 @@ Tactic Notation "trm" "eq" "inv" hyp(H) "as" ident(E1) ident(E2) :=
 
 (** Various equality deciders *)
 
-Hint Resolve eqC_dec eqV_dec : core.
+#[export] Hint Resolve eqC_dec eqV_dec : core.
 
 Definition trm_eq_dec (u v : Λ) : { u=v } + { u≠v }.
 Proof. decide equality. Qed.

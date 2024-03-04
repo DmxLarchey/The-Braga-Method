@@ -32,7 +32,7 @@ Proof.
  induction 1; auto.
 Qed.
 
-Hint Resolve ce_size_sub_2 ce_size_sub_3 ce_size_mono ce_size_smono_1 : core.
+#[export] Hint Resolve ce_size_sub_2 ce_size_sub_3 ce_size_mono ce_size_smono_1 : core.
   
 (** nm preserves the measure *)
 

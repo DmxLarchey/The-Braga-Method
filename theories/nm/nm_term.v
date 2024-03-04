@@ -18,7 +18,7 @@ Set Implicit Arguments.
 
 (** Termination/totality by induction on ⟪e⟫ *)
 
-Hint Resolve nm_dec : core.
+#[export] Hint Resolve nm_dec : core.
 
 Theorem 𝔻nm_total e : 𝔻nm e.
 Proof.
@@ -34,7 +34,7 @@ Proof.
     auto.
 Qed.
 
-Hint Resolve nm_normal nm_equiv : core.
+#[export] Hint Resolve nm_normal nm_equiv : core.
 
 Definition pnm e : { ne | normal ne ∧ e ~Ω ne }. 
 Proof. exists (nm _ (𝔻nm_total e)); split; auto. Defined.

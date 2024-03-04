@@ -45,7 +45,7 @@ Proof.
   + now rewrite nm_fix_3.
 Qed.
 
-Hint Resolve ce_size_sub_2 ce_size_sub_3 ce_size_mono ce_size_smono_1 : core.
+#[export] Hint Resolve ce_size_sub_2 ce_size_sub_3 ce_size_mono ce_size_smono_1 : core.
   
 (** nm preserves the measure *)
 
