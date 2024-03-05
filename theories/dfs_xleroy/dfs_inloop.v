@@ -81,58 +81,60 @@ Extraction Inline succs in_dec.
 
 (* Inductive definition of the intended input-output relation, à la Prolog *)
 
-(* Following naming conventions of [2] we name it Gdfs (graph of the relation),
-   not to be confused with the graph to be traversed by dfs!
-   In the sequel "graph" stands for the latter graph;
-   we use "i/o relation" for Gdfs and similar relation such as Gdf_list.
+(* Following naming conventions of [2] we name it Gdfs (graph of the
+   relation), not to be confused with the graph to be traversed by
+   dfs!  In the sequel "graph" stands for the latter graph; we use
+   "i/o relation" for Gdfs and similar relation such as Gdf_list.
 
    The original intended OCaml recursive function is expressed using
-   an embedded fixpoint on lists, but could be as well be expressed using
-   mutual recursion: the underlying i/o relation is the same.
-   Using a basic embedded fixpoint on lists in Coq seems to be feasible at
-   first sight (see [1]) but only if the structural decreasing of the special
-   argument does not depend on the list argument of the internal fixpoint.
-   It works in [1] because the decreasing argument considered there is quite
-   simple, actually too simple to scale up to the standard dfs algorithm,
-   which is actually a *partial* recursive algorithm, whose termination
-   depends on global properties of the traversed graph.
+   an embedded fixpoint on lists, but could be as well be expressed
+   using mutual recursion: the underlying i/o relation is the same.
+   Using a basic embedded fixpoint on lists in Coq seems to be
+   feasible at first sight (see [1]) but only if the structural
+   decreasing of the special argument does not depend on the list
+   argument of the internal fixpoint.  It works in [1] because the
+   decreasing argument considered there is quite simple, actually too
+   simple to scale up to the standard dfs algorithm, which is actually
+   a *partial* recursive algorithm, whose termination depends on
+   global properties of the traversed graph.
 
-   As is well-known, when the structurally decreasing argument of a fixpoint
-   is not just an input data, an additional inductive input argument of sort
-   Prop is needed.
-   For the sake of simplicity it is preferable to keep a simple type for
-   the output (e.g., list X for dfs). This is possible when the recursive scheme
-   is simple enough, including with the simple embedded fixpoint of [1].
-   Unfortunately, in more general situations the structurally decreasing
-   inductive domain depends on outputs provided by embedded recursive calls.
-   This issue is dealt with in the Braga method by pairing the output with
-   (a proof of) a postcondition, which is simply the i/o relation.
+   As is well-known, when the structurally decreasing argument of a
+   fixpoint is not just an input data, an additional inductive input
+   argument of sort Prop is needed.  For the sake of simplicity it is
+   preferable to keep a simple type for the output (e.g., list X for
+   dfs). This is possible when the recursive scheme is simple enough,
+   including with the simple embedded fixpoint of [1].  Unfortunately,
+   in more general situations the structurally decreasing inductive
+   domain depends on outputs provided by embedded recursive calls.
+   This issue is dealt with in the Braga method by pairing the output
+   with (a proof of) a postcondition, which is simply the i/o
+   relation.
 
-   We try make the intended (OCaml) functional algorithm as apparent as possible,
-   as well as structurally decreasing terms.
-   For (proofs of) postconditions, a possible technique is to use the [refine]
-   tactic, with jokers for postconditions.
-   See for example the sibling file dfs_cycle.v by Dominique.
-   However the management of postconditions turns out to be quite simple
-   in the present framework -- basically, constructors of the i/o relation.
-   Here we choose to provide fully explicit terms, using greek letters
-   for propositional arguments and ad-hoc spacing for better readibility.
+   We try make the intended (OCaml) functional algorithm as apparent
+   as possible, as well as structurally decreasing terms.  For (proofs
+   of) postconditions, a possible technique is to use the [refine]
+   tactic, with jokers for postconditions.  See for example the
+   sibling file dfs_cycle.v.  However the management of postconditions
+   boils down to constructors of the i/o relation, so we can provide
+   fully explicit terms.  For better readibility we use greek letters
+   for propositional arguments and ad-hoc spacing, so that intended
+   programs appear on the left column and propositional arguments on
+   the right column.
 
-   An additional interest of the sibling file dfs_cycle.v is to formalize
-   and experiment a partial version of List.fold_left, of independent interest.
+   Here we stick to mutual recursion, as in [1]. An interesting option
+   explored in dfs_cycle.v consists in using a partial version of
+   List.fold_left, of independent interest. It is essentially a matter
+   of style, as the inhabitants of the corresponding i/o relations are
+   intuitively isomorphic. This is supported here by proving their
+   equivalence using identical and explicit proof scripts in the two
+   directions.
 
-   Here we stick to mutual recursion, as in [1].
-   The version using mutual recursion can be derived from the version using 
-   foldleft, just by unfolding foldleft. The inhabitants of the corresponding
-   i/o relations are intuitively isomorphic. This is suppported here by
-   proving their equivalence using identical proof scripts in both directions.
+   Easy corollary: all correctness and termination results proved in
+   dfs_cycle are automatically inherited on the mutual recursive version 
+   of dfs, and then on the programs derived from it in Chapter 2.
 
-   Easy corollary: all correctness and termination results proved in dfs_cycle
-   become available on the mutual recursive version of dfs, and then on the 
-   programs derived from it in Chapter 2.
-
-   Extraction seems to behave better with mutual recursion -- no silent
-   unused argument is introduced.
+   Extraction seems to behave better with mutual recursion -- no
+   silent unused argument is introduced.
  *)
 
 Require Import dfs_cycle.
