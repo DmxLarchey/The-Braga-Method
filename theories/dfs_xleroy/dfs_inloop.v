@@ -62,16 +62,17 @@ Definition Gfoldleft_inv {X Y : Type} {R : Y → X → X → Prop}
 Proof. destruct i; econstructor; eassumption. Defined.
 (* End of small inversion *)
 
+(* Using classes instead of o monilithic section *)
 Generalizable Variable X.
 
 (* Trade off between readibility of source Coq code and extracted OCaml code *)
-Class Cgr (X : Type) := { succs :  X → list X }.
+Class Cgr (X : Type) := { succs : X → list X }.
 
-Class Cdec (X : Type) := { in_dec : ∀ (x : X) (l : list X), {x ∈ l} + {x ∉ l} }.
+Class Cindec (X : Type) := { in_dec : ∀ (x : X) (l : list X), {x ∈ l} + {x ∉ l} }.
 
 Class Cgd (X : Type) := {
     _succs :: Cgr X ;
-    _in_dec :: Cdec X
+    _in_dec :: Cindec X
   }.
 
 Extraction Inline succs in_dec.
@@ -111,18 +112,30 @@ Extraction Inline succs in_dec.
    as well as structurally decreasing terms.
    For (proofs of) postconditions, a possible technique is to use the [refine]
    tactic, with jokers for postconditions.
-   See for example the sibling file dfs_xleroy.v by Dominique.
+   See for example the sibling file dfs_cycle.v by Dominique.
    However the management of postconditions turns out to be quite simple
    in the present framework -- basically, constructors of the i/o relation.
    Here we choose to provide fully explicit terms, using greek letters
    for propositional arguments and ad-hoc spacing for better readibility.
 
-   An additional interest of the sibling file dfs_xleroy.v is to formalize
+   An additional interest of the sibling file dfs_cycle.v is to formalize
    and experiment a partial version of List.fold_left, of independent interest.
-   (Here we stick to mutual recursion, as in [1].)
+
+   Here we stick to mutual recursion, as in [1].
+   The version using mutual recursion can be derived from the version using 
+   foldleft, just by unfolding foldleft. The inhabitants of the corresponding
+   i/o relations are intuitively isomorphic. This is suppported here by
+   proving their equivalence using identical proof scripts in both directions.
+
+   Easy corollary: all correctness and termination results proved in dfs_cycle
+   become available on the mutual recursive version of dfs, and then on the 
+   programs derived from it in Chapter 2.
+
    Extraction seems to behave better with mutual recursion -- no silent
    unused argument is introduced.
  *)
+
+Require Import dfs_cycle.
 
 Inductive Gdfs `{C : Cgr} : X → list X → list X → Prop :=
 | Gdfs_stop {x a} :     x ∈ a
@@ -138,6 +151,39 @@ with Gdfs_list `{C : Cgr} : list X → list X → list X → Prop :=
 
 Definition Gdfs_main `{C : Cgr} := λ x, Gdfs x [].
 
+(* The above mutual recursive definition is equivalent with the
+   one based on foldleft defined in dfs_cycle  *)
+
+Section sec_dfs_cycle_Gdfs.
+  Context {X : Type} {C: Cgr X}.
+  
+  Let Gdfs_FL := dfs_cycle.Gdfs X succs.
+
+  Lemma Gdfs_foldleft_elim {x a o} : Gdfs_FL x a o → Gdfs x a o.
+  Proof.
+    revert x a o; fix loop 4.
+    destruct 1 as [x a yes | x a o no γ].
+    - constructor 1. exact yes.
+    - constructor 2; [exact no | clear no].
+      generalize (succs x) (x :: a) o γ; clear x a o γ.
+      induction 1 as [a | x a l b o γab _ γbo].
+      + constructor 1.
+      + constructor 2 with b; [apply loop, γab | exact γbo].
+  Qed.
+
+  Lemma Gdfs_foldleft_intro {x a o} : Gdfs x a o → Gdfs_FL x a o.
+  Proof.
+    revert x a o; fix loop 4.
+    destruct 1 as [x a yes | x a o no γ].
+    - constructor 1; exact yes.
+    - constructor 2; [exact no | clear no].
+      generalize (succs x) (x :: a) o γ; clear x a o γ.
+      induction 1 as [a | x l a b o γab _ γbo].
+      + constructor 1.
+      + constructor 2 with b; [apply loop, γab | exact γbo].
+  Qed.
+
+End sec_dfs_cycle_Gdfs.
 
 (* Small inversion of Gdfs_list *)
 Section sec_small_inv.
@@ -370,15 +416,17 @@ Section sec_corr_compl.
     - exact (Gdl_cons (Gdfs_next no Hγab) Hγbo).
   Qed.
 
-  Fixpoint Gdfs_list_self_compl_cons {x a l b} (γ : Gdfs x a b) {struct γ} :
-    ∀ {o}, Gdfs_list_self l b o → Gdfs_list_self (x :: l) a o.
+  Lemma Gdfs_list_self_compl_cons {x a l c} :
+    Gdfs x a c → ∀ {o}, Gdfs_list_self l c o → Gdfs_list_self (x :: l) a o.
   Proof.
-    destruct γ as [x ac yes | x a b no γ]; intros o γbo.
-    - apply (Gdls_cons_yes yes), γbo.
-    - refine (Gdls_cons_no no _ γbo).
-      induction γ as [a0 | x0 l0 a0 c b γa0c γcb Hγcb].
-      + constructor.
-      + exact (Gdfs_list_self_compl_cons x0 a0 l0 c γa0c b (Hγcb γbo)).
+    revert x a l c; fix loop 5.
+    destruct 1 as [x a yes | x a c no γ]; intros o γco.
+    - apply (Gdls_cons_yes yes), γco.
+    - refine (Gdls_cons_no no _ γco); clear no.
+      generalize (succs x) (x :: a) γ; clear x a γ.
+      induction 1 as [a | x lsu a b c γab _ fγbc].
+      + constructor 1.
+      + exact (loop _ _ _ b γab c (fγbc γco)).
   Qed.
 
   Lemma Gdfs_list_self_compl {l a o} :
