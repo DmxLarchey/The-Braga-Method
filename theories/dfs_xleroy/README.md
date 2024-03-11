@@ -95,6 +95,8 @@ _Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un 
 
 _DLW->JFM: j'ai modéré les affirmations en tenant compte de ce que tu as écrit. Je suis d'accord avec tes arguments. Dis-moi si ça te convient. Ok pour traiter `xxx_fold` et `xxx_inld` de manière symmétrique._
 
+_JFM->DLW: désolé j'avais oubié de répondre danss ce README, étant immergé dans le code. Pour moi c'est tout bon._
+
 ### The nested algorithm `dfs_cycle` compared to `dfs_xl`
 
 In the code of `dfs_xl_fold`, we observe that in the internal `dfs` loop, the current node `x` is prepended using `x::_` to the result, but _too late_: precisely, this is done _after_ the successors of `x` are themselves visited, which prevents the algorithm to detect a possible repetition of `x` and thus avoid cycling forever. 
@@ -143,9 +145,13 @@ let dfs_book x =
 ```
 that uses list append (denoted infix as `@`) as an external tool (of linear complexity). Notice that the internal loop `dfs` in `dfs_book` is _not a nested algorithm_ and it is moreover a recursive terminal algorithm. Also, the accumulator `a` which collects already visited nodes in the internal `dfs` appears first in `dfs_book` whereas it appears last for `dfs_xl` and `dfs_cycle`.
 
-[comment]: <> (DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`. JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact et trivialement dérivable seult dans cette direction; mais la différence est la même.)
+[comment]: <> (DLW->JFM: c'est fait j'ai remonté `dfs_braga` et maintenant renommé `dfs_cycle_fold`. Je préfère que tu partes de celui-là pour tes transformations car il me semble plus facile d'expliquer la différence avec `dfs_xl_fold`. JFM->DLW: d'ac pour partir dans le README de `dfs_cycle_fold` car c'est plus compact et trivialement dérivable seult dans cette direction; mais la différence est la même.
+JFM->DLW: dfs_inloop est aligné, y compris ses commentaires introductifs.)
 
 It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
+
+TODO JF compléter parag précédent : on procède par transfo de pgm ce qui
+rend le lien plus précis.
 
 ## Further Variations
 To complete our exploration, we also study the following variants of `dfs_xl` and `dfs_cycle`, with _self-nesting_ of their internal loop `dfs_list`:
@@ -162,7 +168,7 @@ let dfs_xl_self x =
 [comment]: <> (_DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
 _JFM->DLW: en y repensant ce matin, je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"_)
 
-Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. It is clear that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft` 
+Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. Remind that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft`.
 ```ocaml
 (* Variant of dfs_cycle with inlined nesting *)
 let dfs_cycle_inld x =
@@ -174,65 +180,70 @@ let dfs_cycle_inld x =
       in dfl_list (succs x) (x::a)
   in dfs x []
 ```
-and then `dfs_cycle_self'` by replacing `dfs x []` by `dfs_list [x] []` and remove the internal `dfs` loop by simply expanding it once:
-```ocaml
-let dfs_cycle_self' x =
-  let rec dfs_list l a = match l with
-  | []   -> a
-  | x::l -> dfs_list l (if x ∈ a then a else dfs_list (succs x) (x::a)) l
-  in dfs_list [x] []
-```
-We then swap the arguments of `dfs_list` to accomadate for the order of arguments as used in `dfs_book`: 
+Then `dfs_cycle_self'` is obtained by replacing `dfs x` by `dfs_list [x]` and 
+expanding the body of `dfs` inside `dfs_list`:
 ```ocaml
 let dfs_cycle_self x =
-  let rec dfs_list a = function
+  let rec dfs_list l a = match l with
   | []   -> a
-  | x::l -> dfs_list (if x ∈ a then a else dfs_list (x::a) (succs x)) l
-  in dfs_list [] [x]
+  | x::l -> if x ∈ a then dfs_list l a 
+            else dfs_list l (dfs_list (succs x) (x::a))
+  in dfs_list [x] []
 ```
 
 _DLW->JFM: peut-être revoir la numérotation des étapes. Aussi est-ce qu'on a intérêt à swap l'ordre des arguments où alors on change `dfs_book` pour éviter le changement au milieu ?_
+JFM->DLW : en fait comme l'ordre des arg est une question secondaire, je m'étais
+déjà aligné sur ton code avec l'accu en dernier arg partout depuis un moment,
+ce qui simplifie le code+commentaire ci-dessus. Je mets le code qui suit à jour.
+Je préfère aussi que `dfs_book` garde l'accu en dernier.
 
 The third step is a little bit more technical: the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
 ```ocaml
 let dfs_cycle_stack x =
-  let rec dfs_list_stack a = function
-  | []   -> (function
+  let rec dfs_list_stack l s a = match l with
+  | []   -> (match s with
     | []   -> a
-    | l::s -> dfs_list_stack a l s)
+    | l::s -> dfs_list_stack l s a)
   | x::l -> fun s ->
-    if x ∈ a then dfs_list_stack a l s
-    else dfs_list_stack (x::a) (succs x) (l::s) 
-  in dfs_list_stack [] [x] []
+    if x ∈ a then dfs_list_stack l s a
+    else dfs_list_stack (succs x) (l::s) (x::a)
+  in dfs_list_stack [x] [] []
 ```
 Fourth step: `l` and `s` are grouped into a single list of lists `ls` which represents `l::s`:
 ```ocaml
 let dfs_book_eff x =
-  let rec dfs_stack a = function
+  let rec dfs_stack s a = match s with
   | []         -> a
-  | []::ls     -> dfs_stack a ls
-  | (x::l)::ls ->
-    if x ∈ a then dfs_stack a (l::ls)
-    else dfs_stack (x::a) (succs x :: l :: ls) 
-  in dfs_stack [] [[x]]
+  | []::[]     -> a
+  | []::s      -> dfs_stack s a
+  | (x::l):: s ->
+    if x ∈ a then dfs_stack (l::s) a
+    else dfs_stack (succs x :: l :: s) (x::a)
+  in dfs_stack [[x]] []
 ```
 The latter program can be actually seen as a variant of `dfs_book` which is somewhat more efficient since its avoids calculations of list concatenations, hence its name.
-Indeed, we finally obtain `dfs_book` by flattening `ls`, so that `(x :: l) :: ls`is represented by `x :: lls`, with `lls := l @ ls`, `succs x :: l :: ls` is represented by `succs x @ lls` and `lls`can be renamed as just `l`.
+Indeed, we finally obtain `dfs_book` by flattening `s`, so that `(x :: l) :: s`is represented by `x :: ls`, with `ls := l @ s` and `succs x :: l :: s` is represented by `succs x @ ls`.
 ```ocaml
 let dfs_book x =
-  let rec dfs_flatten a = function
+  let rec dfs_flatten lls a = match ls with
   | []     -> a
-  | x::lls ->
-    if x ∈ a then dfs_flatten a lls
-    else dfs_flatten (x::a) (succs x @ lls) 
-  in dfs_flatten [] [x]
+  | x::ls ->
+    if x ∈ a then dfs_flatten ls a
+    else dfs_flatten (succs x @ ls) (x::a)
+  in dfs_flatten [x] []
 ```
 
-_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transormation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais..._
+_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transformation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais..._
 
 _JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
 
 _DLW->JFM: oui ça me rappelle des notions de dérécursivation mais ça serait bien d'expliquer pourquoi ça marche avec un nested comme `dfs_cycle_self` et pas avec `dfs_xl_self` parce qu'il n'est pas terminal ?_
+
+_JFM->DLW: ca marcherait aussi pour `dfs_xl_self` sur le même principe : l'idée et que la pile
+contient les instructions sur la suite à donner à un résultat intermédiaire (plus exactement
+un codage concret qui les reflète) ; pour `dfs_cycle_self` c'est toujours un appel à `dfs_list` 
+tandis que pour `dfs_xl_self` ce peut être aussi une construction
+`x :: _`, donc là il faut une pile de sommes à 2 cas (à vue de nez)._
 
 ```ocaml
 let dfs_xl_inld x =

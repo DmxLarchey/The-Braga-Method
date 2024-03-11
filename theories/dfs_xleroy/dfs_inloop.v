@@ -19,7 +19,7 @@
 
 The algorithm provided in [1] is not quite the usual dfs algorithm
 Chapter 1 shows the use of the Braga method on the rectified version
-of this algorithm.
+of this algorithm, called here dfs_cycle.
 Then Chapter 2 provides a number of transformations from
 this algorithm to the one considered in [2].
 
@@ -53,7 +53,7 @@ Inductive Gfoldleft_cons {X Y : Type} (R : Y → X → X → Prop) y l (a : X) (
 | Gfl_cons_cons b : R y a b → Gfoldleft R l b c → Gfoldleft_cons R y l a c.
 Definition Gfoldleft_dispatch {X Y} (R : Y → X → X → Prop) l a : X → Prop :=
   match l with
-  | [] => Gfoldleft_nil R a
+  | []     => Gfoldleft_nil R a
   | y :: l => Gfoldleft_cons R y l a
   end.
 
@@ -71,7 +71,7 @@ Class Cgr (X : Type) := { succs : X → list X }.
 Class Cindec (X : Type) := { in_dec : ∀ (x : X) (l : list X), {x ∈ l} + {x ∉ l} }.
 
 Class Cgd (X : Type) := {
-    _succs :: Cgr X ;
+    _succs  :: Cgr X ;
     _in_dec :: Cindec X
   }.
 
@@ -84,13 +84,39 @@ Extraction Inline succs in_dec.
 (* Following naming conventions of [2] we name it Gdfs (graph of the
    relation), not to be confused with the graph to be traversed by
    dfs!  In the sequel "graph" stands for the latter graph; we use
-   "i/o relation" for Gdfs and similar relation such as Gdf_list.
+   "i/o relation" for Gdfs and similar inductive relations such as
+   Gdf_list.
 
-   The original intended OCaml recursive function is expressed using
-   an embedded fixpoint on lists, but could be as well be expressed
-   using mutual recursion: the underlying i/o relation is the same.
-   Using a basic embedded fixpoint on lists in Coq seems to be
-   feasible at first sight (see [1]) but only if the structural
+   The dfs_cycle algorithm can be expressed as in [1] with an embedded
+   internal recursion on lists, or using a partial version of
+   List.fold_left, of independent interest. It is essentially a matter
+   of style, as the former version is obtained from the latter by
+   inlining foldleft and the inhabitants of the corresponding i/o
+   relations are intuitively isomorphic.  The version using foldleft
+   is called dfs_cycle_fold and the version without foldleft is called
+   dfs_cycle_inld.
+   
+   File dfs_cycle.v contains the dfs_cycle_fold algorithm as well as
+   its i/o relation graph and high-level characterizations.  The
+   present Chapter defines dfs_cycle_inld and proves the equivalence
+   between the i/o relations for the two versions of dfs_cycle using
+   identical and explicit proof scripts in the two directions.
+
+   Easy corollary: all correctness and termination results proved in
+   dfs_cycle_fold are automatically inherited on dfs_cycle_inld, and
+   then on the programs derived from it in Chapter 2.
+
+   Extraction seems to behave better without foldleft -- no silent
+   unused argument is introduced.
+   
+   Algorithm dfs_cycle_inld could as well be expressed with mutual
+   recursion, up to scope considerations which are anyway irrelevant
+   at the level of i/o relations, since inductive definitions inside
+   inductive definitions are not available in Coq but are easily
+   implemented with mutual nductive definition.
+
+   Note that using a _basic_ embedded fixpoint on lists in Coq seems
+   to be feasible at first sight (see [1]) but only if the structural
    decreasing of the special argument does not depend on the list
    argument of the internal fixpoint.  It works in [1] because the
    decreasing argument considered there is quite simple, actually too
@@ -119,26 +145,11 @@ Extraction Inline succs in_dec.
    fully explicit terms.  For better readibility we use greek letters
    for propositional arguments and ad-hoc spacing, so that intended
    programs appear on the left column and propositional arguments on
-   the right column.
-
-   Here we stick to mutual recursion, as in [1]. An interesting option
-   explored in dfs_cycle.v consists in using a partial version of
-   List.fold_left, of independent interest. It is essentially a matter
-   of style, as the inhabitants of the corresponding i/o relations are
-   intuitively isomorphic. This is supported here by proving their
-   equivalence using identical and explicit proof scripts in the two
-   directions.
-
-   Easy corollary: all correctness and termination results proved in
-   dfs_cycle are automatically inherited on the mutual recursive version 
-   of dfs, and then on the programs derived from it in Chapter 2.
-
-   Extraction seems to behave better with mutual recursion -- no
-   silent unused argument is introduced.
- *)
+   the right column.  *)
 
 Require Import dfs_cycle.
 
+(* i/o relation for dfs_cycle_inld (its "syntactic specification") *)
 Inductive Gdfs `{C : Cgr} : X → list X → list X → Prop :=
 | Gdfs_stop {x a} :     x ∈ a
                       → Gdfs x a a
@@ -158,10 +169,11 @@ Definition Gdfs_main `{C : Cgr} := λ x, Gdfs x [].
 
 Section sec_dfs_cycle_Gdfs.
   Context {X : Type} {C: Cgr X}.
-  
-  Let Gdfs_FL := dfs_cycle.Gdfs X succs.
 
-  Lemma Gdfs_foldleft_elim {x a o} : Gdfs_FL x a o → Gdfs x a o.
+  (* i/o relation for dfs_cycle_fold *)
+  Let Gdfs_fold := dfs_cycle.Gdfs X succs.
+
+  Lemma Gdfs_fold_inld {x a o} : Gdfs_fold x a o → Gdfs x a o.
   Proof.
     revert x a o; fix loop 4.
     destruct 1 as [x a yes | x a o no γ].
@@ -173,7 +185,7 @@ Section sec_dfs_cycle_Gdfs.
       + constructor 2 with b; [apply loop, γab | exact γbo].
   Qed.
 
-  Lemma Gdfs_foldleft_intro {x a o} : Gdfs x a o → Gdfs_FL x a o.
+  Lemma Gdfs_inld_fold {x a o} : Gdfs x a o → Gdfs_fold x a o.
   Proof.
     revert x a o; fix loop 4.
     destruct 1 as [x a yes | x a o no γ].
@@ -223,17 +235,6 @@ Proof.
       rewrite (loop1 x' a b γab b' γab').
       exact γb'o'.
 Qed.
-
-(* Correctness and completeness of Gdfs_list / Gdfs *)
-Definition Gdfs_list_corr `{C : Cgr}  {x a o} : Gdfs_list [x] a o → Gdfs x a o.
-Proof.
-  intro γ.
-  destruct (Gdfs_list_inv γ) as [b γab γbo]; destruct (Gdfs_list_inv γbo).
-  exact γab.
-Defined.
-
-Definition Gdfs_list_compl `{C : Cgr}  {x a o} : Gdfs x a o → Gdfs_list [x] a o
-  := λ γ, Gdl_cons γ Gdl_nil.
 
 (* Corresponding inductive domain *)
 Inductive Ddfs `{C : Cgr} : X → list X → Prop :=
@@ -305,6 +306,7 @@ Fixpoint dfs `{C : Cgd} (x: X) (a: list X)              (* *) (δ: Ddfs x a) {st
 (* Main program: the inlined nested variant of dfs_cycle *)
 Definition dfs_cycle_inld `{C : Cgd} x : Ddfs x [] → {o | Gdfs_main x o} := dfs x [].
 
+Extraction Inline dfs.
 Recursive Extraction dfs_cycle_inld.
 
 (* ============================================================================ *)
@@ -312,8 +314,18 @@ Recursive Extraction dfs_cycle_inld.
 
 (* 2.1 Compacting the 2 recursive functions into a single embedded recursive one *)
 
-(* Rearrangement of dfs_list above, where the call to dfs is inlined *)
+(* Preliminary remark: dfs is a special case of dfs_list *)
+Definition Gdfs_list_corr `{C : Cgr}  {x a o} : Gdfs_list [x] a o → Gdfs x a o.
+Proof.
+  intro γ.
+  destruct (Gdfs_list_inv γ) as [b γab γbo]; destruct (Gdfs_list_inv γbo).
+  exact γab.
+Defined.
 
+Definition Gdfs_list_compl `{C : Cgr}  {x a o} : Gdfs x a o → Gdfs_list [x] a o
+  := λ γ, Gdl_cons γ Gdl_nil.
+
+(* Rearrangement of dfs_list, where the call to dfs is inlined *)
 Inductive Gdfs_list_self `{C : Cgr}  : list X → list X → list X → Prop :=
 | Gdls_nil {a} :               Gdfs_list_self [] a a
 | Gdls_cons_yes {x l a o} :    x ∈ a
@@ -333,6 +345,7 @@ Inductive Ddfs_list_self `{C : Cgr}  : list X → list X → Prop :=
                           → Ddfs_list_self (succs x) (x :: a)
                           → (∀ b, Gdfs_list_self (succs x) (x :: a) b → Ddfs_list_self l b)
                           → Ddfs_list_self (x :: l) a.
+
 (* Structurally smaller projections *)
 Section sec_proj.
   Context `{C : Cgr}.
@@ -403,6 +416,7 @@ Definition dfs_cycle_self `{C : Cgd} x          (* *) (δ : Ddfs_list_self [x] [
   : {o | Gdfs_list_self [x] [] o} :=
   dfs_list_self [x] []                          (* *) δ.
 
+Extraction Inline dfs_list_self.
 Recursive Extraction dfs_cycle_self.
 
 (* Correctness and completeness of Gdfs_list_self / Gdfs_list*)
@@ -572,6 +586,9 @@ Definition dfs_cycle_stack `{C : Cgd} x :                   (* *)  Ddfs_stack ([
                            {o | Gdfs_list_stack [x] [] [] o}
   := dfs_list_stack [x] [] [].
 
+Extraction Inline dfs_list_stack.
+Recursive Extraction dfs_cycle_stack.
+
 (* Specification, correctness and completeness of dfs_list_stack / Gdfs_list_self *)
 
 Definition Gdfs_list_self_star `{C : Cgr} := Gfoldleft Gdfs_list_self.
@@ -707,6 +724,7 @@ Fixpoint dfs_stack `{C : Cgd} s a (δ : Ddfs_stack s a) {struct δ} : {o | Gdfs_
 Definition dfs_book_eff `{C : Cgd} x :                                    (* *)  Ddfs_stack ([[x]]) [] →
                             {o | Gdfs_stack [[x]] [] o} := dfs_stack [[x]] [].
 
+Extraction Inline dfs_stack.
 Recursive Extraction dfs_book_eff.
 
 (* Correctness and completeness of Gdfs_stack / Gdfs_list_stack *)
@@ -803,27 +821,28 @@ Section sec_proj.
 
 End sec_proj.
 
-Fixpoint dfs_flatten `{C : Cgd} lls a                           (* *) (δ : Ddfs_flatten lls a) {struct δ}
-  : {o | Gdfs_flatten lls a o} :=
-  match lls                                                     (* *) return Ddfs_flatten lls a → _
+Fixpoint dfs_flatten `{C : Cgd} ls a                           (* *) (δ : Ddfs_flatten ls a) {struct δ}
+  : {o | Gdfs_flatten ls a o} :=
+  match ls                                                     (* *) return Ddfs_flatten ls a → _
   with
-  | []     =>                                                   (* *) λ _,
-              exist a                                           (* *) Gf_nil
-  | x :: lls =>                                                 (* *) λ δ,
+  | []     =>                                                  (* *) λ _,
+              exist a                                          (* *) Gf_nil
+  | x :: ls =>                                                 (* *) λ δ,
       match in_dec x a with
       | left yes =>
-          let (o, γ) := dfs_flatten lls a                       (* *) (Df_cons_stop_pi δ yes)
-          in exist o                                            (* *) (Gf_cons_stop yes γ)
+          let (o, γ) := dfs_flatten ls a                       (* *) (Df_cons_stop_pi δ yes)
+          in exist o                                           (* *) (Gf_cons_stop yes γ)
       | right no =>
-          let (o, γ) := dfs_flatten (succs x ++ lls) (x :: a)   (* *) (Df_cons_next_pi δ no)
-          in exist o                                            (* *) (Gf_cons_next no γ)
+          let (o, γ) := dfs_flatten (succs x ++ ls) (x :: a)   (* *) (Df_cons_next_pi δ no)
+          in exist o                                           (* *) (Gf_cons_next no γ)
       end
   end δ.
 
 (* Main *)
-Definition dfs_book `{C : Cgd} x :                              (* *)  Ddfs_flatten [x] [] →
+Definition dfs_book `{C : Cgd} x :                             (* *)  Ddfs_flatten [x] [] →
                         {o | Gdfs_flatten [x] [] o} := dfs_flatten [x] [].
 
+Extraction Inline dfs_flatten.
 Recursive Extraction dfs_book.
 
 (* Relating dfs_flatten with dfs_stack *)
