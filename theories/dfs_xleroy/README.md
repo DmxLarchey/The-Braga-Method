@@ -97,7 +97,7 @@ Tertio la récursivité et le filtrage séparément sont plus flexibles et se co
 [comment _Pour nous c'est un peu différent : 1/ pouvoir traiter fold(left) a un intérêt général indépendant, là on a un bon terrain d'expérience et on est très contents de voir Braga fonctionner dessus ; 2/ ce qui est naturel est de dériver le pgm en style fixpoint à partir du pgm avec foldleft, pas l'inverse. Mais on ne doit pas imposer nos biais._
 _Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un pied d'égalité, en indiquant qu'on traite indifféremment l'une et l'autre et que chacun(e) pourra adopter le style qu'il ou elle préfère, et que de plus nous savons gérer leur équivalence. cela attirera plus de public._
 _DLW->JFM: j'ai modéré les affirmations en tenant compte de ce que tu as écrit. Je suis d'accord avec tes arguments. Dis-moi si ça te convient. Ok pour traiter `xxx_fold` et `xxx_inld` de manière symmétrique._
-_JFM->DLW: désolé j'avais oubié de répondre dans ce README, étant immergé dans le code. Pour moi c'est tout bon._]: #
+_JFM->DLW: désolé j'avais oubié de répondre dans ce README, étant immergé dans le code. Pour moi c'est tout bon._ ]: #
 
 
 ### The nested algorithm `dfs_cycle` compared to `dfs_xl`
