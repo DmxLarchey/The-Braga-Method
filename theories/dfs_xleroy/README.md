@@ -167,8 +167,10 @@ let dfs_xl_self x =
 
 ## From `dfs_cycle_fold` to `dfs_book`
 
-[comment _DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives_
-_JFM->DLW: en y repensant ce matin, je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"_ ]: #
+[comment DLW->JFM: pourquoi ne pas introduire `dfs_cycle_inld` ici tout simplement? Ca éviterait de la repéter et ca le raproche de `dfs_cycle_self` que l'on peut aussi introduire ici, histoire de voir les transformations successives
+_JFM->DLW: en y repensant ce matin (fev 2024 ?), je ne préfère pas, d'où mon parag ci-dessus qui parle de "pied d'égalité"
+JFM->DLW (12 mars): on s'est accordés donc ce commentaire semble obsolète.
+]: #
 
 Interestingly, `dfs_book` can be derived from `dfs_cycle_fold` using few number of semantic preserving elementary transformations. Remind that, starting from `dfs_cycle_fold`, we get `dfs_cycle_inld` by specializing/inlining `foldleft`.
 ```ocaml
