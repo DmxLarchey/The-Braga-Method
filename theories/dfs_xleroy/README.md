@@ -249,7 +249,7 @@ On passe d'abord de self' à self en sortant le if.
 Par contre on s'arrête à eff, pas de flatten (sauf trafiquage de peu d'intérêt
 a priori).]: #
 
-Similarly, `dfs_xl` can be transformed into a tail-recursive program along similar lines.
+Similarly, `dfs_xl` can be transformed into a tail-recursive program.
 However, compacting the list `l` and the stack `s` does not seem to make sense, not to speak
 about flattening the result.
 
