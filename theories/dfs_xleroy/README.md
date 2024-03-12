@@ -85,7 +85,7 @@ As to why X. Leroy did not favor this external nesting over the inlined one, we 
 As a consequence, at the price of some slight redundancies, we deal with both external nesting and inlined nesting in a symmetric way
 in this presentation. 
 
-_JFM->DLW: je serais bcp + prudent là-dessus._ 
+[comment]: <> (_JFM->DLW: je serais bcp + prudent là-dessus._ 
 
 _Il y a toute une communauté de programmeurs, à laquelle X s'adresse aussi, qui préfèrent récursivité+filtrage explicite aux combinateurs dont surtout fold, qui est plus obscur que map par ex. : primo il y a foldleft et foldright, qui est Qui ? Deuzio il faut en plus se rappeler l'ordre de paramètres (aucun ordre n'est naturel, on le voit bien). Tertio la récursivité et le filtrage séparément sont plus flexibles et se comprennent bien séparément. Quatro l'abstraction c'est bien une fois qu'on est parfaitement habitué, mais on finit par perdre le fil, cf les constructions catégoriques. Et tout ça pour avoir au final qqchse qui n'est pas plus puissant est est plutôt moins expressif, par ex. qiand on veut récurrer sur une composante de profondeur plus que 1. C'est pour ça que Coq, parti des combinateurs à la système-T, a évolué vers Fixpoint+garde. En pratique la plupart reviewer industriels de base (que X semble avoir en tête dans son discours) préfèreront un code dans le style qu'il utilise pour CoqPL24 qu'avec foldleft._
 
@@ -95,7 +95,7 @@ _Je serais donc partisan de mettre les versions `XXX_fold` et `XXX_inld` sur un 
 
 _DLW->JFM: j'ai modéré les affirmations en tenant compte de ce que tu as écrit. Je suis d'accord avec tes arguments. Dis-moi si ça te convient. Ok pour traiter `xxx_fold` et `xxx_inld` de manière symmétrique._
 
-_JFM->DLW: désolé j'avais oubié de répondre danss ce README, étant immergé dans le code. Pour moi c'est tout bon._
+_JFM->DLW: désolé j'avais oubié de répondre danss ce README, étant immergé dans le code. Pour moi c'est tout bon._)
 
 ### The nested algorithm `dfs_cycle` compared to `dfs_xl`
 
@@ -149,9 +149,9 @@ that uses list append (denoted infix as `@`) as an external tool (of linear comp
 JFM->DLW: dfs_inloop est aligné, y compris ses commentaires introductifs.)
 
 It is not immediate that `dfs_book` and `dfs_cycle` compute the same thing which means that they both have the same domain of termination and output exactly the same list, but we mechanise this proof and show their equivalence.
-
-TODO JF compléter parag précédent : on procède par transfo de pgm ce qui
-rend le lien plus précis.
+This equivalence can be proved directly, but we get more information by showing how `dfs_book` can be
+derived from `dfs_cycle` by a chain of simple transformations; at each step we show that the next program is
+equivalent to to previous one.
 
 ## Further Variations
 To complete our exploration, we also study the following variants of `dfs_xl` and `dfs_cycle`, with _self-nesting_ of their internal loop `dfs_list`:
@@ -191,11 +191,11 @@ let dfs_cycle_self x =
   in dfs_list [x] []
 ```
 
-_DLW->JFM: peut-être revoir la numérotation des étapes. Aussi est-ce qu'on a intérêt à swap l'ordre des arguments où alors on change `dfs_book` pour éviter le changement au milieu ?_
+[comment]: <> (_DLW->JFM: peut-être revoir la numérotation des étapes. Aussi est-ce qu'on a intérêt à swap l'ordre des arguments où alors on change `dfs_book` pour éviter le changement au milieu ?_
 JFM->DLW : en fait comme l'ordre des arg est une question secondaire, je m'étais
 déjà aligné sur ton code avec l'accu en dernier arg partout depuis un moment,
 ce qui simplifie le code+commentaire ci-dessus. Je mets le code qui suit à jour.
-Je préfère aussi que `dfs_book` garde l'accu en dernier.
+Je préfère aussi que `dfs_book` garde l'accu en dernier.)
 
 The third step is a little bit more technical: the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
 ```ocaml
@@ -233,7 +233,7 @@ let dfs_book x =
   in dfs_flatten [x] []
 ```
 
-_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transformation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais..._
+[comment]: <> (_DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transformation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais..._
 
 _JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
 
@@ -247,7 +247,7 @@ tandis que pour `dfs_xl_self` ce peut être aussi une construction
 car ces cas apparaissent forcément en alternance.
 On passe d'abord de self' à self en sortant le if.
 Par contre on s'arrête à eff, pas de flatten (sauf trafiquage de peu d'intérêt
-a priori)._
+a priori)._)
 
 ```ocaml
 let dfs_xl_inld x =
