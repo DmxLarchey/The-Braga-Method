@@ -184,13 +184,39 @@ let dfs_cycle_inld x =
       in dfl_list (succs x) (x::a)
   in dfs x []
 ```
-Then `dfs_cycle_self'` is obtained by replacing `dfs x` by `dfs_list [x]` and 
+
+Up to scope considerations, the same algorithm can be expressed using
+mutual recursion.
+```ocaml
+(* Variant of dfs_cycle with inlined nesting *)
+let dfs_cycle_inld x =
+  let rec dfs x a =
+    if x ∈ a then a
+    else dfl_list (succs x) (x::a)
+  and dfs_list l a = match l with
+      | []   -> a
+      | y::l -> dfs_list l (dfs y a)
+  in dfs x []
+```
+
+Then `dfs_cycle_self'` is obtained by replacing `dfs x` by `dfs_list [x]` and
 expanding the body of `dfs` inside `dfs_list`:
 ```ocaml
 let dfs_cycle_self x =
   let rec dfs_list l a = match l with
   | []   -> a
-  | x::l -> if x ∈ a then dfs_list l a 
+  | x::l -> dfs_list l (if x ∈ a then a
+                        else dfs_list (succs x) (x::a))
+  in dfs_list [x] []
+```
+
+Up to a commutative cut, the same algorithm can be expressed as:
+
+```ocaml
+let dfs_cycle_self x =
+  let rec dfs_list l a = match l with
+  | []   -> a
+  | x::l -> if x ∈ a then dfs_list l a
             else dfs_list l (dfs_list (succs x) (x::a))
   in dfs_list [x] []
 ```
@@ -203,6 +229,8 @@ Je préfère aussi que `dfs_book` garde l'accu en dernier. ]: #
 
 The third step is a little bit more technical: the (implicit) stack of recursive calls is implemented using an explicit stack of lists `s`; in particular nested recursive calls are eliminated.
 ```ocaml
+type 'a stack = 'a list list
+
 let dfs_cycle_stack x =
   let rec dfs_list_stack l s a = match l with
   | []   -> (match s with
@@ -291,8 +319,7 @@ let dfs_xl_eff =
       (match s with
        | Emp -> a
        | Push (Econs x, s) -> dfs_list_stack [] s (x :: a)
-       | Push (Edl l, s) -> dfs_list_stack l s a
-      )
+       | Push (Edl l, s) -> dfs_list_stack l s )
   | x::l ->
     if x ∈ a then dfs_list_stack l s a
     else dfs_list_stack (succs x) (Push (Econs x, Push (Edl l, s))) a
@@ -306,8 +333,7 @@ let dfs_xl_eff2 =
   | []   ->
       (match s with
        | Emp2 -> a
-       | Push2 (x, l, s) -> dfs_list_stack2 l s (x :: a)
-      )
+       | Push2 (x, l, s) -> dfs_list_stack2 l s (x :: a) )
   | x::l ->
     if x ∈ a then dfs_list_stack2 l s a
     else dfs_list_stack2 (succs x) (Push2 (x, l, s)) a
