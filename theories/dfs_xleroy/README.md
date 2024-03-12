@@ -202,7 +202,7 @@ let dfs_cycle_inld x =
 Then `dfs_cycle_self'` is obtained by replacing `dfs x` by `dfs_list [x]` and
 expanding the body of `dfs` inside `dfs_list`:
 ```ocaml
-let dfs_cycle_self x =
+let dfs_cycle_self' x =
   let rec dfs_list l a = match l with
   | []   -> a
   | x::l -> dfs_list l (if x ∈ a then a
