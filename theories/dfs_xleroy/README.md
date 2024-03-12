@@ -229,11 +229,8 @@ let dfs_book x =
 ```
 
 [comment DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transformation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais...
-
 JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
-
 DLW->JFM: oui ça me rappelle des notions de dérécursivation mais ça serait bien d'expliquer pourquoi ça marche avec un nested comme `dfs_cycle_self` et pas avec `dfs_xl_self` parce qu'il n'est pas terminal ?_
-
 JFM->DLW: si si ça marche aussi pour `dfs_xl_self` sur le même principe : l'idée est que la pile
 contient les instructions sur la suite à donner à un résultat intermédiaire (plus exactement
 un codage concret qui les reflète) ; pour `dfs_cycle_self` c'est toujours un appel à `dfs_list`
