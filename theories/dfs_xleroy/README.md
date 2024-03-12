@@ -86,9 +86,7 @@ As a consequence, at the price of some slight redundancies, we deal with both ex
 in this presentation. 
 
 [comment JFM->DLW: je serais bcp + prudent là-dessus.
-nouvelle ligne]: #
-
-[comment Il y a toute une communauté de programmeurs, à laquelle X s'adresse aussi, qui préfèrent récursivité+filtrage explicite aux combinateurs dont surtout fold, qui est plus obscur que map par ex. : primo il y a foldleft et foldright, qui est Qui ?
+Il y a toute une communauté de programmeurs, à laquelle X s'adresse aussi, qui préfèrent récursivité+filtrage explicite aux combinateurs dont surtout fold, qui est plus obscur que map par ex. : primo il y a foldleft et foldright, qui est Qui ?
 Deuzio il faut en plus se rappeler l'ordre de paramètres (aucun ordre n'est naturel, on le voit bien). 
 Tertio la récursivité et le filtrage séparément sont plus flexibles et se comprennent bien séparément.  ]: #
 
@@ -239,10 +237,9 @@ let dfs_book x =
 
 [comment DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transformation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais...
 JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
-DLW->JFM: oui ça me rappelle des notions de dérécursivation mais ça serait bien d'expliquer pourquoi ça marche avec un nested comme `dfs_cycle_self` et pas avec `dfs_xl_self` parce qu'il n'est pas terminal ?_
-JFM->DLW: si si ça marche aussi pour `dfs_xl_self` sur le même principe : l'idée est que la pile
-contient les instructions sur la suite à donner à un résultat intermédiaire (plus exactement
-un codage concret qui les reflète) ; pour `dfs_cycle_self` c'est toujours un appel à `dfs_list`
+DLW->JFM: oui ça me rappelle des notions de dérécursivation mais ça serait bien d'expliquer pourquoi ça marche avec un nested comme `dfs_cycle_self` et pas avec `dfs_xl_self` parce qu'il n'est pas terminal ?_ ]: #
+
+[comment JFM->DLW: si si ça marche aussi pour `dfs_xl_self` sur le même principe : l'idée est que la pile contient les instructions sur la suite à donner à un résultat intermédiaire (plus exactement un codage concret qui les reflète) ; pour `dfs_cycle_self` c'est toujours un appel à `dfs_list`
 tandis que pour `dfs_xl_self` ce peut être aussi une construction
 `x :: _`, donc là il faut une pile d'éléments à 2 cas, que l'on peut optimiser
 car ces cas apparaissent forcément en alternance.
