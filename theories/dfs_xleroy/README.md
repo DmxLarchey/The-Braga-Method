@@ -235,6 +235,8 @@ let dfs_book x =
   in dfs_flatten [x] []
 ```
 
+## Derivation of a terminal recursive version of `dfs_xl`
+
 [comment DLW->JFM: une question naturelle c'est: est-ce qu'on peut mener la même transformation de code sur `dfs_xl`? On arrive déjà jusqu'à `dfs_xl_self` mais peut-on arriver à du récursif terminal ? Est-ce que ma chaine suivante marche pex? J'ai l'impression que non. Parce que le `a` dans `dfs_xl_flatten` ne change jamais...
 JFM->DLW: il faut une stack plus complexe, qui se rappelle de `x :: _`. Moi je le fais au nez, c'est plus amusant, mais je suis à peu près sûr qu'il existe une théorie académique pour ça; c'est de la compil._
 DLW->JFM: oui ça me rappelle des notions de dérécursivation mais ça serait bien d'expliquer pourquoi ça marche avec un nested comme `dfs_cycle_self` et pas avec `dfs_xl_self` parce qu'il n'est pas terminal ?_ ]: #
@@ -247,6 +249,10 @@ On passe d'abord de self' à self en sortant le if.
 Par contre on s'arrête à eff, pas de flatten (sauf trafiquage de peu d'intérêt
 a priori).]: #
 
+Similarly, `dfs_xl` can be transformed into a tail-recursive program along similar lines.
+However, compacting the list `l` and the stack `s` does not seem to make sense, not to speak
+about flattening the result.
+
 ```ocaml
 let dfs_xl_inld x =
   let rec dfs x a =
@@ -254,29 +260,30 @@ let dfs_xl_inld x =
       let rec dfs_list l a = match l with
       | []   -> a
       | y::l -> dfs_list l (dfs y a)
-      in x::dfl_list (succs x) a
+      in x :: dfl_list (succs x) a
   in dfs x []
 
+(* dfs inlined inside dfs_list *)
 let dfs_xl_self' x =
   let rec dfs_list l a = match l with
   | []   -> a
-  | x::l -> dfs_list l (if x ∈ a then a else x::dfs_list (succs x) a)
+  | x::l -> dfs_list l (if x ∈ a then a else x :: dfs_list (succs x) a)
   in dfs_list [x] []
 
-let dfs_xl_self succs =
+(* commmutative cut *)
+let dfs_xl_self =
   let rec dfs_list l a = match l with
   | []   -> a
   | x::l ->
-    if in_dec x a then dfs_list l a
+    if x ∈ a then dfs_list l a
     else dfs_list l (x :: dfs_list (succs x) a)
   in fun x -> dfs_list [x] []
-dfs_list [] [x]
 
 (* stack *)
 type 'a elt = Econs of 'a | Edl of 'a list
 type 'a stack = Emp | Push of 'a elt * 'a stack
 
-let dfs_xl_eff succs =
+let dfs_xl_eff =
   let rec dfs_list_stack l s a = match l with
   | []   ->
       (match s with
@@ -285,14 +292,14 @@ let dfs_xl_eff succs =
        | Push (Edl l, s) -> dfs_list_stack l s a
       )
   | x::l ->
-    if in_dec x a then dfs_list_stack l s a
+    if x ∈ a then dfs_list_stack l s a
     else dfs_list_stack (succs x) (Push (Econs x, Push (Edl l, s))) a
   in fun x -> dfs_list_stack [x] Emp []
 
-(* optim stack *)
+(* optimized stack *)
 type 'a stack2 = Emp2 | Push2 of 'a * 'a list * 'a stack2
 
-let dfs_xl_eff2 succs =
+let dfs_xl_eff2 =
   let rec dfs_list_stack2 l s a = match l with
   | []   ->
       (match s with
@@ -300,7 +307,7 @@ let dfs_xl_eff2 succs =
        | Push2 (x, l, s) -> dfs_list_stack2 l s (x :: a)
       )
   | x::l ->
-    if in_dec x a then dfs_list_stack2 l s a
+    if x ∈ a then dfs_list_stack2 l s a
     else dfs_list_stack2 (succs x) (Push2 (x, l, s)) a
   in fun x -> dfs_list_stack2 [x] Emp2 []
 ```
