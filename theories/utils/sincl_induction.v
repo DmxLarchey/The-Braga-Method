@@ -7,7 +7,7 @@
 (*         CeCILL v2 FREE SOFTWARE LICENSE AGREEMENT          *)
 (**************************************************************)
 
-Require Import Arith List Omega Wellfounded.
+Require Import Arith List Wellfounded.
 
 Require Import php chains_induction.
 

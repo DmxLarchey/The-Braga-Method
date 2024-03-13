@@ -178,13 +178,13 @@ Let π_𝔻lr' {u z} (D: 𝔻lr (Consr u z)) : 𝔻lz u :=
 
 (* Definitions of π_𝔻lz *)
 Definition π_𝔻lz {u z} (D : 𝔻lz (u +: z)) : 𝔻lz u :=
-  match D in 𝔻lz l return l = u+:z → _ with
+  match D in 𝔻lz l return l = u+:z → 𝔻lz u with
     𝔻lz_1 l Dr => λ G, π_𝔻lr (same_by_l2r_consr G Dr)
   end eq_refl.
 
 (* Compact Version in 1 step *)
 Definition π_𝔻lz_compact {u z} (D : 𝔻lz (u +: z)) : 𝔻lz u :=
- match D in 𝔻lz l return l = u+:z → _ with
+ match D in 𝔻lz l return l = u+:z → 𝔻lz u with
  | 𝔻lz_1 _ Dr => λ G, 
    match same_by_l2r_consr G Dr in 𝔻lr r return
          let u := match r with Consr u z => u | _ => u end in

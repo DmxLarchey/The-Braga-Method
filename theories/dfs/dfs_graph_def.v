@@ -75,7 +75,7 @@ Proof.
   now destruct (x ∈? l).
 Qed.
 
-Hint Resolve mem_true_iff mem_false_iff : core.
+#[export] Hint Resolve mem_true_iff mem_false_iff : core.
 
 Corollary mem_iff x l :   (x ∈? l = true  <-> x ∈ l)
                        /\ (x ∈? l = false <-> x ∉ l).

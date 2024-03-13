@@ -91,7 +91,7 @@ Section unif.
 
 End unif.
 
-Hint Resolve unif_spec : core.
+#[export] Hint Resolve unif_spec : core.
 
 Fact 𝔻unif_1 c m n : 𝔻unif (φ c) (m⋄n).     Proof. constructor; inversion 1. Qed.
 Fact 𝔻unif_2 c m n : 𝔻unif (m⋄n) (φ c).     Proof. constructor; inversion 1. Qed.

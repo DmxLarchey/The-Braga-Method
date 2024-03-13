@@ -1,0 +1,46 @@
+Note on the following comment at the beginning
+of dfs_xleroy.v
+
+(** Following the "Braga method", we proceed with
+    the extraction of dfs using dfs_acc (externally)
+    nested with foldleft (see below), ie the example
+    partialy discussed by X. Leroy in its CoqPL 2024
+    paper:
+
+       https://inria.hal.science/hal-04356563/document
+
+    The dfs algo. originaly presented in the "Braga" book
+    chapter, and in the files theories/dfs/*.v herein, is
+    different but computes a similar output (possibly exactly
+    the same?). It avoids nesting foldleft by working on two
+    lists directly.
+**)
+
+This is actually wrong.
+The original program in
+https://inria.hal.science/hal-04356563/document
+is:
+
+Program Fixpoint dfs (x: node) (accu: list node) (A: Acc succ x) {struct A}: list node :=
+  if In_dec eq_node x accu then accu else
+    let fix dfs_list (l: list node) (accu: list node) {struct l} :
+      incl l (successors x) -> list node :=
+      match l return _ with
+      | nil => fun INCL => accu
+      | y :: l => fun INCL => dfs_list l (dfs y accu (Acc_inv A _)) _
+      end in
+    x :: dfs_list (successors x) accu _ .
+
+The last line should be
+    dfs_list (successors x) (x :: accu) _ .
+instead.
+
+The original program has several defects:
+- it terminates only for acyclic finite graphs, whereas the
+  usual dfs algorithm (the one we consider) terminates for
+  all finite graphs;
+- even when it terminates the result is not the expected one,
+  that is, the list of descendants of the starting node in
+  reverse dfs order.
+
+

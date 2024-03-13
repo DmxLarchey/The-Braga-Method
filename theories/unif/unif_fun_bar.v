@@ -136,7 +136,7 @@ Section unif.
 
 End unif.
 
-Hint Resolve unif_spec : core.
+#[export] Hint Resolve unif_spec : core.
 
 (** The virtual constructions of the domain *)
 

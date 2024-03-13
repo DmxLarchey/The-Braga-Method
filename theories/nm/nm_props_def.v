@@ -19,7 +19,7 @@ Inductive normal : Ω → Prop :=
   | in_normal_0 : normal α
   | in_normal_1 y z : normal y → normal z → normal (ω α y z).
 
-Hint Constructors normal : core.
+#[export] Hint Constructors normal : core.
 
 (* Notation ℕ := normal. *)
 
@@ -34,14 +34,14 @@ Inductive equiv : Ω -> Ω -> Prop :=
   | in_eq_3 x y z : x ~Ω y -> y ~Ω z -> x ~Ω z
 where "x ~Ω y" := (equiv x y).
 
-Hint Constructors equiv : core.
+#[export] Hint Constructors equiv : core.
 
 Notation equiv_trans := in_eq_3.
 
 Fact equiv_refl e : e ~Ω e.
 Proof. induction e; auto. Qed.
 
-Hint Resolve equiv_refl : core.
+#[export] Hint Resolve equiv_refl : core.
 
 Notation "⟦ x , y , z ⟧" := (x*(1+y+z)) (at level 1, format "⟦ x , y , z ⟧").
 
@@ -112,7 +112,7 @@ Proof.
   + apply le_trans with (1 := Hx), c_inc_1.
 Qed.
 
-Hint Resolve ce_size_ge_1 : core.
+#[export] Hint Resolve ce_size_ge_1 : core.
 
 Fact ce_size_smono_2 x y y' z : ⟪y⟫ < ⟪y'⟫ → ⟪ω x y z⟫ < ⟪ω x y' z⟫.
 Proof. simpl; apply c_smono_2, ce_size_ge_1. Qed.
@@ -135,7 +135,7 @@ Fact ce_size_special a b c y z :
        ⟪ω a (ω b y z) (ω c y z)⟫ < ⟪ω (ω a b c) y z⟫.
 Proof. simpl; apply c_special; auto; generalize (ce_size_ge_1 y); lia. Qed.
 
-Hint Resolve ce_size_smono_1 ce_size_smono_2 ce_size_smono_3 : core.
+#[export] Hint Resolve ce_size_smono_1 ce_size_smono_2 ce_size_smono_3 : core.
 
 Fact equiv_ce_size x y : x ~Ω y → x = y ∨ ⟪y⟫ < ⟪x⟫.
 Proof.
