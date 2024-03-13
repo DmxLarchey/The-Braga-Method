@@ -236,7 +236,7 @@ let dfs_cycle_stack x =
   | []   -> (match s with
     | []   -> a
     | l::s -> dfs_list_stack l s a)
-  | x::l -> fun s ->
+  | x::l ->
     if x ∈ a then dfs_list_stack l s a
     else dfs_list_stack (succs x) (l::s) (x::a)
   in dfs_list_stack [x] [] []
@@ -280,8 +280,7 @@ Par contre on s'arrête à eff, pas de flatten (sauf trafiquage de peu d'intér�
 a priori).]: #
 
 Similarly, `dfs_xl` can be transformed into a tail-recursive program.
-However, compacting the list `l` and the stack `s` does not seem to make sense, not to speak
-about flattening the result.
+However, compacting the list `l` and the stack `s` together does not seem to make sense, not to speak about flattening the result.
 
 ```ocaml
 let dfs_xl_inld x =
